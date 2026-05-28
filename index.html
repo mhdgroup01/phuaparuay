@@ -1195,6 +1195,10 @@ h1, h2, h3, .display {
           </div>
           <button id="logout-btn" class="btn btn-secondary" style="padding: 8px 14px; font-size: 14px; flex-shrink: 0;"><i class="ti ti-logout"></i> <span data-i18n="logout">ออกจากระบบ</span></button>
         </div>
+
+        <button id="admin-users-btn" style="display: none; width: 100%; margin-top: 12px; padding: 14px 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 8px;">
+          <i class="ti ti-users-group" style="font-size: 18px;"></i> จัดการ Users
+        </button>
       </div>
     </div>
 
@@ -1285,6 +1289,70 @@ h1, h2, h3, .display {
   </div>
 </div>
 
+<!-- Admin: Manage Users Modal -->
+<div class="modal-overlay" id="admin-users-modal">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-users-group" style="color: #f59e0b;"></i> จัดการ Users</div>
+      <button class="icon-action" id="admin-users-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <button id="admin-create-user-btn" style="width: 100%; padding: 12px; border: none; border-radius: 12px; background: var(--grad-hero); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 14px;">
+        <i class="ti ti-user-plus" style="font-size: 18px;"></i> สร้าง User ใหม่
+      </button>
+      <div id="admin-users-list" style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="text-align: center; padding: 20px; color: var(--text-3);">
+          <div class="spinner" style="width: 28px; height: 28px; margin: 0 auto 8px; border: 3px solid var(--border-2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          กำลังโหลด...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin: Create User Modal -->
+<div class="modal-overlay" id="admin-create-modal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-user-plus" style="color: var(--primary);"></i> สร้าง User ใหม่</div>
+      <button class="icon-action" id="admin-create-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">ชื่อผู้ใช้ (username)</label>
+      <input type="text" id="admin-new-username" class="field" placeholder="username" autocapitalize="none" spellcheck="false" style="margin-bottom: 12px;">
+      <label class="field-label">รหัสผ่าน (อย่างน้อย 6 ตัว)</label>
+      <input type="text" id="admin-new-password" class="field" placeholder="••••••" style="margin-bottom: 12px;">
+      <div id="admin-create-error" style="font-size: 13px; color: var(--red); min-height: 18px; margin-bottom: 8px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" id="admin-create-cancel" style="flex: 1;">ยกเลิก</button>
+        <button class="btn" id="admin-create-submit" style="flex: 1; background: var(--grad-hero); color: white;">
+          <span id="admin-create-submit-label">สร้าง</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin: Reset Password Modal -->
+<div class="modal-overlay" id="admin-reset-modal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-key" style="color: var(--primary);"></i> ตั้งรหัสผ่านใหม่</div>
+      <button class="icon-action" id="admin-reset-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="admin-reset-target" style="font-size: 14px; color: var(--text-2); margin-bottom: 12px;"></div>
+      <label class="field-label">รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)</label>
+      <input type="text" id="admin-reset-password" class="field" placeholder="••••••" style="margin-bottom: 12px;">
+      <div id="admin-reset-error" style="font-size: 13px; color: var(--red); min-height: 18px; margin-bottom: 8px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" id="admin-reset-cancel" style="flex: 1;">ยกเลิก</button>
+        <button class="btn" id="admin-reset-submit" style="flex: 1; background: var(--grad-hero); color: white;">บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="edit-tx-modal">
   <div class="modal">
     <div class="modal-header">
@@ -1367,7 +1435,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.88.0';
+const APP_VERSION = '1.89.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -5809,9 +5877,23 @@ async function handleAuthSubmit() {
         token_type: 'bearer',
         user: result.data.user
       };
-      try { localStorage.setItem('sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token', JSON.stringify(session)); } catch (e) {}
       const u = result.data.user;
-      currentUser = { id: u.id, username: (u.user_metadata && u.user_metadata.username) || username, _token: session.access_token };
+      const tempUser = { id: u.id, username: (u.user_metadata && u.user_metadata.username) || username, _token: session.access_token };
+      // Check suspended status before completing login
+      try {
+        const checkResp = await fetch(`${SUPABASE_URL}/rest/v1/user_data?id=eq.${tempUser.id}&select=status`, {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${tempUser._token}`, Accept: 'application/json' }
+        });
+        if (checkResp.ok) {
+          const rows = await checkResp.json();
+          if (Array.isArray(rows) && rows[0] && rows[0].status === 'suspended') {
+            authError('บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ');
+            return;
+          }
+        }
+      } catch (e) { /* ignore — proceed */ }
+      try { localStorage.setItem('sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token', JSON.stringify(session)); } catch (e) {}
+      currentUser = tempUser;
       await afterLogin(false);
     }
   } catch (e) {
@@ -5840,6 +5922,7 @@ async function afterLogin(isNew) {
     const unameEl = document.getElementById('account-username');
     if (unameEl && currentUser) unameEl.textContent = currentUser.username || '—';
     updateRoleBadge();
+    updateAdminUiVisibility();
     applyTheme();
     applyFont();
     applyTranslations();
@@ -5861,6 +5944,7 @@ async function afterLogin(isNew) {
       const unameEl = document.getElementById('account-username');
       if (unameEl && currentUser) unameEl.textContent = currentUser.username || '—';
       updateRoleBadge();
+      updateAdminUiVisibility();
       applyTheme();
       applyTranslations();
       renderAll();
@@ -5905,6 +5989,177 @@ async function handleLogout() {
     showAuthScreen();
   }, false);
 }
+
+// ============ ADMIN OPERATIONS ============
+const ADMIN_FN_URL = `${SUPABASE_URL}/functions/v1/admin-users`;
+
+async function callAdminFn(action, args = {}) {
+  if (!currentUser || !currentUser._token) throw new Error('not logged in');
+  const fetchPromise = fetch(ADMIN_FN_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${currentUser._token}`,
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY
+    },
+    body: JSON.stringify({ action, ...args })
+  });
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 15000));
+  const resp = await Promise.race([fetchPromise, timeoutPromise]);
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || 'admin operation failed');
+  return data;
+}
+
+function showAdminModal(id, show = true) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('show', show);
+}
+
+async function renderAdminUsersList() {
+  const listEl = document.getElementById('admin-users-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-3);"><div class="spinner" style="width: 28px; height: 28px; margin: 0 auto 8px; border: 3px solid var(--border-2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>กำลังโหลด...</div>';
+  try {
+    const result = await callAdminFn('list');
+    const users = result.users || [];
+    if (users.length === 0) {
+      listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-3);">ยังไม่มี users</div>';
+      return;
+    }
+    listEl.innerHTML = users.map(u => {
+      const isSelf = u.id === currentUser.id;
+      const isAdmin = u.role === 'admin';
+      const isSuspended = u.status === 'suspended';
+      const badgeAdmin = isAdmin ? '<span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white;">ADMIN</span>' : '';
+      const badgeSuspend = isSuspended ? '<span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #6b7280; color: white;">ระงับ</span>' : '';
+      return `
+      <div style="padding: 12px; background: var(--surface-2); border-radius: 12px; border: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div style="width: 36px; height: 36px; border-radius: 10px; background: ${isAdmin ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'var(--grad-hero)'}; color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="ti ti-user"></i></div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <div style="font-size: 15px; font-weight: 600; color: var(--text);">${u.username || '—'}</div>
+              ${badgeAdmin}${badgeSuspend}
+            </div>
+            <div style="font-size: 12px; color: var(--text-3); margin-top: 2px;">บิล ${u.tx_count} • ตัวแทน ${u.agent_count}</div>
+          </div>
+        </div>
+        ${isSelf ? '<div style="font-size: 12px; color: var(--text-3); text-align: center; padding: 6px;">(บัญชีคุณเอง)</div>' : `
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button class="btn btn-secondary admin-reset-btn" data-uid="${u.id}" data-uname="${u.username || ''}" style="flex: 1; min-width: 90px; padding: 8px; font-size: 13px;"><i class="ti ti-key"></i> รหัสใหม่</button>
+          <button class="btn btn-secondary admin-suspend-btn" data-uid="${u.id}" data-action="${isSuspended ? 'unsuspend' : 'suspend'}" data-uname="${u.username || ''}" style="flex: 1; min-width: 90px; padding: 8px; font-size: 13px;"><i class="ti ti-${isSuspended ? 'circle-check' : 'ban'}"></i> ${isSuspended ? 'ยกเลิกระงับ' : 'ระงับ'}</button>
+          <button class="btn admin-delete-btn" data-uid="${u.id}" data-uname="${u.username || ''}" style="flex: 1; min-width: 90px; padding: 8px; font-size: 13px; background: var(--grad-red); color: white;"><i class="ti ti-trash"></i> ลบ</button>
+        </div>`}
+      </div>`;
+    }).join('');
+
+    // Wire up buttons
+    listEl.querySelectorAll('.admin-reset-btn').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('admin-reset-target').innerHTML = `เปลี่ยนรหัสผ่านของ <strong>${b.dataset.uname}</strong>`;
+      document.getElementById('admin-reset-password').value = '';
+      document.getElementById('admin-reset-error').textContent = '';
+      document.getElementById('admin-reset-submit').dataset.uid = b.dataset.uid;
+      showAdminModal('admin-reset-modal', true);
+    }));
+    listEl.querySelectorAll('.admin-suspend-btn').forEach(b => b.addEventListener('click', async () => {
+      const action = b.dataset.action;
+      const actionLabel = action === 'suspend' ? 'ระงับ' : 'ยกเลิกการระงับ';
+      showConfirm(`${actionLabel} user?`, `ต้องการ${actionLabel}บัญชี "${b.dataset.uname}" หรือไม่?`, async () => {
+        try {
+          await callAdminFn(action, { userId: b.dataset.uid });
+          await renderAdminUsersList();
+        } catch (e) { alert('เกิดข้อผิดพลาด: ' + e.message); }
+      }, false);
+    }));
+    listEl.querySelectorAll('.admin-delete-btn').forEach(b => b.addEventListener('click', () => {
+      showConfirm('ลบ user?', `ลบบัญชี "${b.dataset.uname}" พร้อมข้อมูลทั้งหมด? การกระทำนี้ไม่สามารถย้อนกลับได้!`, async () => {
+        try {
+          await callAdminFn('delete', { userId: b.dataset.uid });
+          await renderAdminUsersList();
+        } catch (e) { alert('เกิดข้อผิดพลาด: ' + e.message); }
+      }, true);
+    }));
+  } catch (e) {
+    listEl.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--red);">เกิดข้อผิดพลาด: ${e.message}</div>`;
+  }
+}
+
+// Show "Manage Users" button only for admin
+function updateAdminUiVisibility() {
+  const btn = document.getElementById('admin-users-btn');
+  if (!btn) return;
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  btn.style.display = isAdmin ? 'flex' : 'none';
+}
+
+// Wire up admin UI
+(function setupAdminUi() {
+  const openBtn = document.getElementById('admin-users-btn');
+  if (openBtn) openBtn.addEventListener('click', () => { showAdminModal('admin-users-modal', true); renderAdminUsersList(); });
+  const closeBtn = document.getElementById('admin-users-close');
+  if (closeBtn) closeBtn.addEventListener('click', () => showAdminModal('admin-users-modal', false));
+
+  // Create user modal
+  const createOpenBtn = document.getElementById('admin-create-user-btn');
+  if (createOpenBtn) createOpenBtn.addEventListener('click', () => {
+    document.getElementById('admin-new-username').value = '';
+    document.getElementById('admin-new-password').value = '';
+    document.getElementById('admin-create-error').textContent = '';
+    showAdminModal('admin-create-modal', true);
+  });
+  const createClose = document.getElementById('admin-create-close');
+  if (createClose) createClose.addEventListener('click', () => showAdminModal('admin-create-modal', false));
+  const createCancel = document.getElementById('admin-create-cancel');
+  if (createCancel) createCancel.addEventListener('click', () => showAdminModal('admin-create-modal', false));
+  const createSubmit = document.getElementById('admin-create-submit');
+  if (createSubmit) createSubmit.addEventListener('click', async () => {
+    const username = document.getElementById('admin-new-username').value.trim();
+    const password = document.getElementById('admin-new-password').value;
+    const errEl = document.getElementById('admin-create-error');
+    errEl.textContent = '';
+    if (!username || username.length < 3) { errEl.textContent = 'ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัว'; return; }
+    if (!/^[a-zA-Z0-9_.]+$/.test(username)) { errEl.textContent = 'ใช้ได้แค่ a-z, 0-9, _ และ .'; return; }
+    if (!password || password.length < 6) { errEl.textContent = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัว'; return; }
+    const lblEl = document.getElementById('admin-create-submit-label');
+    const orig = lblEl.textContent;
+    lblEl.textContent = 'กำลังสร้าง...';
+    createSubmit.disabled = true;
+    try {
+      await callAdminFn('create', { username, password });
+      showAdminModal('admin-create-modal', false);
+      await renderAdminUsersList();
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      lblEl.textContent = orig;
+      createSubmit.disabled = false;
+    }
+  });
+
+  // Reset password modal
+  const resetClose = document.getElementById('admin-reset-close');
+  if (resetClose) resetClose.addEventListener('click', () => showAdminModal('admin-reset-modal', false));
+  const resetCancel = document.getElementById('admin-reset-cancel');
+  if (resetCancel) resetCancel.addEventListener('click', () => showAdminModal('admin-reset-modal', false));
+  const resetSubmit = document.getElementById('admin-reset-submit');
+  if (resetSubmit) resetSubmit.addEventListener('click', async () => {
+    const password = document.getElementById('admin-reset-password').value;
+    const userId = resetSubmit.dataset.uid;
+    const errEl = document.getElementById('admin-reset-error');
+    errEl.textContent = '';
+    if (!password || password.length < 6) { errEl.textContent = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัว'; return; }
+    resetSubmit.disabled = true;
+    try {
+      await callAdminFn('reset_password', { userId, newPassword: password });
+      showAdminModal('admin-reset-modal', false);
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      resetSubmit.disabled = false;
+    }
+  });
+})();
 
 // Startup: check existing session
 async function startup() {
