@@ -1364,7 +1364,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.81.0';
+const APP_VERSION = '1.82.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://ogvccpmdyzetcwwybizp.supabase.co';
@@ -5771,12 +5771,8 @@ $auth('auth-password').addEventListener('keydown', (e) => { if (e.key === 'Enter
 $auth('auth-password2').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAuthSubmit(); });
 
 async function afterLogin(isNew) {
-  showLoading('กำลังโหลดข้อมูล...');
-  try {
-    await loadCloudData();
-  } catch (e) {
-    console.error('loadCloudData threw:', e);
-  }
+  // Show app IMMEDIATELY with local-cached data. Cloud load happens in background.
+  // This prevents the user from ever being stuck on "loading data..."
   try {
     const unameEl = document.getElementById('account-username');
     if (unameEl && currentUser) unameEl.textContent = currentUser.username || '—';
@@ -5792,6 +5788,21 @@ async function afterLogin(isNew) {
     console.error('Render after login failed:', e);
   }
   showApp();
+
+  // Now sync with cloud in background — if it succeeds, re-render with cloud data
+  (async () => {
+    try {
+      await loadCloudData();
+      // Re-render with cloud data
+      const unameEl = document.getElementById('account-username');
+      if (unameEl && currentUser) unameEl.textContent = currentUser.username || '—';
+      applyTheme();
+      applyTranslations();
+      renderAll();
+    } catch (e) {
+      console.error('Background cloud load failed:', e);
+    }
+  })();
 }
 
 const logoutBtnEl = document.getElementById('logout-btn');
