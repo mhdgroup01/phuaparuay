@@ -858,8 +858,8 @@ h1, h2, h3, .display {
     </div>
 
     <div class="section-card" style="padding: 22px;">
-      <!-- Tab switcher -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--surface-2); padding: 5px; border-radius: 14px; margin-bottom: 20px;">
+      <!-- Tab switcher — register hidden (admin creates users) -->
+      <div style="display: none; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--surface-2); padding: 5px; border-radius: 14px; margin-bottom: 20px;">
         <button id="auth-tab-login" class="auth-tab auth-tab-active" data-auth-tab="login" style="padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 600;">เข้าสู่ระบบ</button>
         <button id="auth-tab-register" class="auth-tab" data-auth-tab="register" style="padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 600; background: transparent; color: var(--text-2);">สมัครสมาชิก</button>
       </div>
@@ -882,7 +882,7 @@ h1, h2, h3, .display {
       </button>
 
       <div id="auth-hint" style="font-size: 12px; color: var(--text-3); text-align: center; margin-top: 14px; line-height: 1.5;">
-        ใช้ชื่อผู้ใช้และรหัสผ่านเพื่อเข้าใช้งาน<br>ข้อมูลของคุณจะถูกบันทึกบน cloud อย่างปลอดภัย
+        ติดต่อผู้ดูแลระบบเพื่อขอบัญชีใช้งาน<br>หากลืมรหัสผ่าน กรุณาแจ้งผู้ดูแลระบบ
       </div>
     </div>
   </div>
@@ -1188,7 +1188,10 @@ h1, h2, h3, .display {
           <div style="width: 38px; height: 38px; border-radius: 10px; background: var(--grad-hero); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;"><i class="ti ti-user"></i></div>
           <div style="flex: 1; min-width: 0;">
             <div style="font-size: 12px; color: var(--text-3);" data-i18n="logged_in_as">เข้าใช้งานในชื่อ</div>
-            <div id="account-username" style="font-size: 15px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">—</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div id="account-username" style="font-size: 15px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">—</div>
+              <span id="account-role-badge" style="display: none; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; letter-spacing: 0.5px; flex-shrink: 0;">ADMIN</span>
+            </div>
           </div>
           <button id="logout-btn" class="btn btn-secondary" style="padding: 8px 14px; font-size: 14px; flex-shrink: 0;"><i class="ti ti-logout"></i> <span data-i18n="logout">ออกจากระบบ</span></button>
         </div>
@@ -1364,7 +1367,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.87.0';
+const APP_VERSION = '1.88.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -2142,8 +2145,6 @@ function scheduleCloudSave() {
 async function pushCloudData() {
   if (!currentUser) return;
   const payload = {
-    id: currentUser.id,
-    username: currentUser.username || '',
     data: {
       transactions,
       agents,
@@ -2153,21 +2154,39 @@ async function pushCloudData() {
   };
   try {
     const token = currentUser._token || SUPABASE_ANON_KEY;
-    const fetchPromise = fetch(`${SUPABASE_URL}/rest/v1/user_data?on_conflict=id`, {
-      method: 'POST',
+    // Try PATCH first (updates existing row, leaves role alone)
+    const patchPromise = fetch(`${SUPABASE_URL}/rest/v1/user_data?id=eq.${currentUser.id}`, {
+      method: 'PATCH',
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates'
+        Prefer: 'return=minimal'
       },
       body: JSON.stringify(payload)
     });
     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 10000));
-    const resp = await Promise.race([fetchPromise, timeoutPromise]);
+    const resp = await Promise.race([patchPromise, timeoutPromise]);
     if (!resp.ok) {
-      const txt = await resp.text().catch(() => '');
-      console.error('Cloud save HTTP', resp.status, txt);
+      // PATCH failed (row may not exist yet) — fallback to upsert
+      const upsertResp = await fetch(`${SUPABASE_URL}/rest/v1/user_data?on_conflict=id`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          id: currentUser.id,
+          username: currentUser.username || '',
+          ...payload
+        })
+      });
+      if (!upsertResp.ok) {
+        const txt = await upsertResp.text().catch(() => '');
+        console.error('Cloud save HTTP', upsertResp.status, txt);
+      }
     }
   } catch (e) { console.error('Cloud save failed:', e.message); }
 }
@@ -2176,7 +2195,7 @@ async function loadCloudData() {
   if (!currentUser) return;
   try {
     const token = currentUser._token || SUPABASE_ANON_KEY;
-    const url = `${SUPABASE_URL}/rest/v1/user_data?id=eq.${currentUser.id}&select=data`;
+    const url = `${SUPABASE_URL}/rest/v1/user_data?id=eq.${currentUser.id}&select=data,role,username`;
     let rows = null;
     try {
       const fetchPromise = fetch(url, {
@@ -2195,15 +2214,20 @@ async function loadCloudData() {
       return;
     }
     const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-    if (row && row.data) {
-      transactions = Array.isArray(row.data.transactions) ? row.data.transactions : [];
-      agents = Array.isArray(row.data.agents) ? row.data.agents : [];
-      localStorage.setItem(STORE_KEYS.tx, JSON.stringify(transactions));
-      localStorage.setItem(STORE_KEYS.agents, JSON.stringify(agents));
-      const s = row.data.settings || {};
-      if (s.lang && T[s.lang]) currentLang = s.lang;
-      if (s.theme) currentTheme = s.theme;
-      if (s.font) currentFont = s.font;
+    if (row) {
+      // Cache role on currentUser for UI checks
+      if (row.role) currentUser.role = row.role;
+      if (row.username) currentUser.username = row.username;
+      if (row.data) {
+        transactions = Array.isArray(row.data.transactions) ? row.data.transactions : [];
+        agents = Array.isArray(row.data.agents) ? row.data.agents : [];
+        localStorage.setItem(STORE_KEYS.tx, JSON.stringify(transactions));
+        localStorage.setItem(STORE_KEYS.agents, JSON.stringify(agents));
+        const s = row.data.settings || {};
+        if (s.lang && T[s.lang]) currentLang = s.lang;
+        if (s.theme) currentTheme = s.theme;
+        if (s.font) currentFont = s.font;
+      }
     } else {
       // New user — no cloud row yet. Start empty and create row.
       transactions = [];
@@ -5802,12 +5826,20 @@ $auth('auth-submit-btn').addEventListener('click', handleAuthSubmit);
 $auth('auth-password').addEventListener('keydown', (e) => { if (e.key === 'Enter' && authMode === 'login') handleAuthSubmit(); });
 $auth('auth-password2').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAuthSubmit(); });
 
+function updateRoleBadge() {
+  const badge = document.getElementById('account-role-badge');
+  if (!badge) return;
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  badge.style.display = isAdmin ? 'inline-block' : 'none';
+}
+
 async function afterLogin(isNew) {
   // Show app IMMEDIATELY with local-cached data. Cloud load happens in background.
   // This prevents the user from ever being stuck on "loading data..."
   try {
     const unameEl = document.getElementById('account-username');
     if (unameEl && currentUser) unameEl.textContent = currentUser.username || '—';
+    updateRoleBadge();
     applyTheme();
     applyFont();
     applyTranslations();
@@ -5828,6 +5860,7 @@ async function afterLogin(isNew) {
       // Re-render with cloud data
       const unameEl = document.getElementById('account-username');
       if (unameEl && currentUser) unameEl.textContent = currentUser.username || '—';
+      updateRoleBadge();
       applyTheme();
       applyTranslations();
       renderAll();
