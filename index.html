@@ -1364,7 +1364,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.80.0';
+const APP_VERSION = '1.81.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://ogvccpmdyzetcwwybizp.supabase.co';
@@ -2152,27 +2152,70 @@ async function pushCloudData() {
     updated_at: new Date().toISOString()
   };
   try {
-    const { error } = await supabaseClient.from('user_data').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Cloud save error:', error.message);
+    let token = SUPABASE_ANON_KEY;
+    try {
+      const { data: sess } = await supabaseClient.auth.getSession();
+      if (sess && sess.session && sess.session.access_token) token = sess.session.access_token;
+    } catch (e) {}
+    // Direct REST upsert (Prefer: resolution=merge-duplicates) to avoid SDK query builder hang
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/user_data?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => '');
+      console.error('Cloud save HTTP', resp.status, txt);
+    }
   } catch (e) { console.error('Cloud save failed:', e); }
 }
 
 async function loadCloudData() {
   if (!currentUser || !supabaseClient) return;
   try {
-    const { data, error } = await supabaseClient
-      .from('user_data')
-      .select('data')
-      .eq('id', currentUser.id)
-      .maybeSingle();
-    if (error) { console.error('Cloud load error:', error.message); return; }
-    if (data && data.data) {
-      transactions = Array.isArray(data.data.transactions) ? data.data.transactions : [];
-      agents = Array.isArray(data.data.agents) ? data.data.agents : [];
-      // Mirror to localStorage cache
+    // Use direct REST fetch instead of SDK query builder (which can hang).
+    let token = SUPABASE_ANON_KEY;
+    try {
+      const { data: sess } = await supabaseClient.auth.getSession();
+      if (sess && sess.session && sess.session.access_token) token = sess.session.access_token;
+    } catch (e) {}
+    const url = `${SUPABASE_URL}/rest/v1/user_data?id=eq.${currentUser.id}&select=data`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    let rows = null;
+    try {
+      const resp = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json'
+        },
+        signal: ctrl.signal
+      });
+      clearTimeout(timer);
+      if (resp.ok) rows = await resp.json();
+      else console.error('Cloud load HTTP', resp.status);
+    } catch (e) {
+      clearTimeout(timer);
+      console.warn('Cloud load fetch failed/timed out — using local cache:', e.message);
+      return;
+    }
+    const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    if (row && row.data) {
+      transactions = Array.isArray(row.data.transactions) ? row.data.transactions : [];
+      agents = Array.isArray(row.data.agents) ? row.data.agents : [];
       localStorage.setItem(STORE_KEYS.tx, JSON.stringify(transactions));
       localStorage.setItem(STORE_KEYS.agents, JSON.stringify(agents));
-      const s = data.data.settings || {};
+      const s = row.data.settings || {};
       if (s.lang && T[s.lang]) currentLang = s.lang;
       if (s.theme) currentTheme = s.theme;
       if (s.font) currentFont = s.font;
@@ -5729,17 +5772,25 @@ $auth('auth-password2').addEventListener('keydown', (e) => { if (e.key === 'Ente
 
 async function afterLogin(isNew) {
   showLoading('กำลังโหลดข้อมูล...');
-  await loadCloudData();
-  const unameEl = document.getElementById('account-username');
-  if (unameEl && currentUser) unameEl.textContent = currentUser.username || '—';
-  applyTheme();
-  applyFont();
-  applyTranslations();
-  renderLangPicker();
-  renderFontPicker();
-  renderThemePicker();
-  updateHeaderDate();
-  renderAll();
+  try {
+    await loadCloudData();
+  } catch (e) {
+    console.error('loadCloudData threw:', e);
+  }
+  try {
+    const unameEl = document.getElementById('account-username');
+    if (unameEl && currentUser) unameEl.textContent = currentUser.username || '—';
+    applyTheme();
+    applyFont();
+    applyTranslations();
+    renderLangPicker();
+    renderFontPicker();
+    renderThemePicker();
+    updateHeaderDate();
+    renderAll();
+  } catch (e) {
+    console.error('Render after login failed:', e);
+  }
   showApp();
 }
 
