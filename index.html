@@ -1293,6 +1293,31 @@ h1, h2, h3, .display {
   </div>
 </div>
 
+<!-- User: Sync Tx Updates Modal (select bills to submit) -->
+<div class="modal-overlay" id="sync-tx-modal">
+  <div class="modal" style="max-width: 500px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-cloud-upload" style="color: var(--primary);"></i> ส่งอพเดตให้ Admin</div>
+      <button class="icon-action" id="sync-tx-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="sync-tx-agent-name" style="font-size: 14px; color: var(--text-2); margin-bottom: 10px;"></div>
+      <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+        <button class="btn btn-secondary" id="sync-select-all" style="flex: 1; padding: 6px 10px; font-size: 13px;"><i class="ti ti-square-check"></i> เลือกทั้งหมด</button>
+        <button class="btn btn-secondary" id="sync-clear-all" style="flex: 1; padding: 6px 10px; font-size: 13px;"><i class="ti ti-square-off"></i> ล้าง</button>
+      </div>
+      <div id="sync-tx-list" style="max-height: 320px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 8px;"></div>
+      <div id="sync-tx-error" style="font-size: 13px; color: var(--red); min-height: 18px; margin-bottom: 8px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" id="sync-tx-cancel" style="flex: 1;">ยกเลิก</button>
+        <button class="btn" id="sync-tx-submit" style="flex: 2; background: var(--grad-hero); color: white;">
+          <i class="ti ti-send"></i> ส่ง <span id="sync-tx-count">0</span> รายการ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Admin: Pending Agents Approval Modal -->
 <div class="modal-overlay" id="admin-pending-modal">
   <div class="modal" style="max-width: 600px;">
@@ -1477,7 +1502,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.92.0';
+const APP_VERSION = '1.93.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -2248,6 +2273,145 @@ function saveAgents() {
   scheduleCloudSave();
 }
 
+// ============ SYNC HELPERS ============
+// Check if current user is a non-admin (subject to sync workflow)
+function isNonAdminUser() {
+  return currentUser && currentUser.role !== 'admin' && !viewingAsUser;
+}
+
+// Tag a newly-created transaction with appropriate sync status
+function tagNewTx(tx) {
+  if (!isNonAdminUser() || !tx.agentId) return tx;
+  const ag = agents.find(a => a.id === tx.agentId);
+  if (ag && ag.status === 'approved') {
+    tx.syncStatus = 'draft';
+  }
+  return tx;
+}
+
+// Tag an edited transaction
+function tagEditedTx(tx) {
+  if (!isNonAdminUser() || !tx.agentId) return tx;
+  const ag = agents.find(a => a.id === tx.agentId);
+  if (!ag || ag.status !== 'approved') return tx;
+  // If was synced/rejected → modified, if was already pending → keep pending, if draft → keep draft
+  if (tx.syncStatus === 'synced' || tx.syncStatus === 'rejected' || !tx.syncStatus) {
+    tx.syncStatus = tx.syncStatus === 'synced' ? 'modified' : 'draft';
+    delete tx.syncRejectReason;
+  }
+  return tx;
+}
+
+// "Delete" a transaction — if synced, mark as deletePending; otherwise actually remove
+function trySoftDeleteTx(txId) {
+  if (!isNonAdminUser()) {
+    transactions = transactions.filter(t => t.id !== txId);
+    return;
+  }
+  const idx = transactions.findIndex(t => t.id === txId);
+  if (idx < 0) return;
+  const tx = transactions[idx];
+  if (tx.syncStatus === 'synced' || tx.syncStatus === 'modified' || tx.syncStatus === 'rejected') {
+    // Was synced before → mark deletePending so admin can confirm
+    transactions[idx] = { ...tx, syncStatus: 'deletePending' };
+  } else {
+    // draft/pending/never-synced → remove outright
+    transactions.splice(idx, 1);
+  }
+}
+
+// Get list of pending changes (txs that need submit) for current agent context
+function getPendingTxChanges(agentId) {
+  return transactions.filter(t => t.agentId === agentId && (t.syncStatus === 'draft' || t.syncStatus === 'modified' || t.syncStatus === 'rejected' || (t.syncStatus === 'deletePending' && !t.syncSubmittedAt)));
+}
+
+// Open the sync modal — let user pick which bill changes to submit
+let _syncAgentId = null;
+function openSyncTxModal(agentId) {
+  _syncAgentId = agentId;
+  const ag = getAgent(agentId);
+  if (!ag) return;
+  document.getElementById('sync-tx-agent-name').innerHTML = `ตัวแทน: <strong>${escapeHtml(ag.name)}</strong> (${ag.percent}%)`;
+  const list = document.getElementById('sync-tx-list');
+  const items = getPendingTxChanges(agentId).sort((a, b) => b.date.localeCompare(a.date));
+  if (items.length === 0) {
+    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-3);">ไม่มีรายการรอส่ง</div>';
+    document.getElementById('sync-tx-count').textContent = '0';
+    document.getElementById('sync-tx-modal').classList.add('show');
+    return;
+  }
+  const statusInfo = {
+    draft: { label: 'ใหม่', color: '#10b981', icon: 'plus' },
+    modified: { label: 'แก้ไข', color: '#f59e0b', icon: 'edit' },
+    rejected: { label: 'ถูกปฏิเสธ', color: '#ef4444', icon: 'alert-triangle' },
+    deletePending: { label: 'ขอลบ', color: '#6b7280', icon: 'trash' }
+  };
+  list.innerHTML = items.map(t => {
+    const s = statusInfo[t.syncStatus] || statusInfo.draft;
+    const dParts = t.date.split('-');
+    const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : t.date;
+    const typeIcon = t.type === 'income' ? '🟢' : '🔴';
+    return `<label style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface-2); border-radius: 8px; cursor: pointer; border: 1px solid var(--border);">
+      <input type="checkbox" class="sync-tx-check" data-tid="${t.id}" checked style="width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;">
+      <div style="flex: 1; min-width: 0;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px;">
+          <span style="font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: ${s.color}; color: white;"><i class="ti ti-${s.icon}"></i> ${s.label}</span>
+          <span style="font-size: 12px; color: var(--text-3);">${dStr}</span>
+        </div>
+        <div style="font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${typeIcon} ${escapeHtml(t.desc || '—')} · <strong>${fmt(t.amount)} ₭</strong></div>
+        ${t.syncRejectReason ? `<div style="font-size: 11px; color: var(--red); margin-top: 2px;"><i class="ti ti-info-circle"></i> ${escapeHtml(t.syncRejectReason)}</div>` : ''}
+      </div>
+    </label>`;
+  }).join('');
+  list.querySelectorAll('.sync-tx-check').forEach(c => c.addEventListener('change', updateSyncCount));
+  updateSyncCount();
+  document.getElementById('sync-tx-modal').classList.add('show');
+}
+
+function updateSyncCount() {
+  const checked = document.querySelectorAll('.sync-tx-check:checked').length;
+  document.getElementById('sync-tx-count').textContent = checked;
+  document.getElementById('sync-tx-submit').disabled = checked === 0;
+}
+
+// Wire up sync tx modal
+(function setupSyncModal() {
+  document.getElementById('sync-tx-close').addEventListener('click', () => document.getElementById('sync-tx-modal').classList.remove('show'));
+  document.getElementById('sync-tx-cancel').addEventListener('click', () => document.getElementById('sync-tx-modal').classList.remove('show'));
+  document.getElementById('sync-select-all').addEventListener('click', () => {
+    document.querySelectorAll('.sync-tx-check').forEach(c => c.checked = true);
+    updateSyncCount();
+  });
+  document.getElementById('sync-clear-all').addEventListener('click', () => {
+    document.querySelectorAll('.sync-tx-check').forEach(c => c.checked = false);
+    updateSyncCount();
+  });
+  document.getElementById('sync-tx-submit').addEventListener('click', () => {
+    const ids = Array.from(document.querySelectorAll('.sync-tx-check:checked')).map(c => c.dataset.tid);
+    if (ids.length === 0) return;
+    const nowIso = new Date().toISOString();
+    let changed = 0;
+    for (const id of ids) {
+      const idx = transactions.findIndex(t => t.id === id);
+      if (idx < 0) continue;
+      const tx = transactions[idx];
+      if (tx.syncStatus === 'deletePending') {
+        // Mark as actively sent for deletion
+        transactions[idx].syncSubmittedAt = nowIso;
+      } else {
+        transactions[idx].syncStatus = 'pending';
+        transactions[idx].syncSubmittedAt = nowIso;
+        delete transactions[idx].syncRejectReason;
+      }
+      changed++;
+    }
+    saveTx();
+    document.getElementById('sync-tx-modal').classList.remove('show');
+    renderAll();
+    showToast(`ส่งให้ Admin ${changed} รายการ — รออนุมัติ`, 'success');
+  });
+})();
+
 // Debounced cloud save — batches rapid changes into one network call
 function scheduleCloudSave() {
   if (!currentUser) return;
@@ -2583,6 +2747,7 @@ function showSaveConfirmation(newTxs, agent, skipped, expAdded) {
   </div>`;
 
   showSaveConfirm(agentBlock + billRowsHtml + totalsHtml, () => {
+    newTxs.forEach(tagNewTx);
     transactions.push(...newTxs);
     saveTx();
     renderAll();
@@ -2802,11 +2967,15 @@ function renderTransactions() {
   el.querySelectorAll('[data-del-tx]').forEach(b => {
     b.addEventListener('click', () => {
       const id = b.dataset.delTx;
-      showConfirm(tt('delete_record'), tt('will_be_deleted'), () => {
-        transactions = transactions.filter(t => t.id !== id);
+      const tx = transactions.find(t => t.id === id);
+      const ag = tx ? agents.find(a => a.id === tx.agentId) : null;
+      const isSyncedBill = tx && isNonAdminUser() && ag && ag.status === 'approved' && (tx.syncStatus === 'synced' || tx.syncStatus === 'modified');
+      const extraNote = isSyncedBill ? '\n\n⚠️ บิลนี้อยู่ที่ Admin แล้ว — จะเป็น "ขอลบ" รอ Admin อนุมัติ' : '';
+      showConfirm(tt('delete_record'), tt('will_be_deleted') + extraNote, () => {
+        trySoftDeleteTx(id);
         saveTx();
         renderAll();
-        showToast(tt('deleted'), 'success');
+        showToast(isSyncedBill ? 'ขอลบบิล — รอ Admin อนุมัติ' : tt('deleted'), 'success');
       });
     });
   });
@@ -2854,6 +3023,22 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
       return `<span class="${klass}"><i class="ti ti-clock-dollar"></i> ${fmtShort(billRemaining(t))} ₭</span>`;
     })();
 
+    // Sync status badge (only show for non-admin users on non-synced bills)
+    const syncBadgeHtml = (() => {
+      if (!isNonAdminUser() || agent.status !== 'approved') return '';
+      if (!t.syncStatus || t.syncStatus === 'synced') return '';
+      const m = {
+        draft: { l: '+ใหม่', c: '#10b981' },
+        modified: { l: '✏️แก้', c: '#f59e0b' },
+        pending: { l: '⏱รอ', c: '#6366f1' },
+        rejected: { l: '❌ปฏิเสธ', c: '#ef4444' },
+        deletePending: { l: '🗑ขอลบ', c: '#6b7280' }
+      };
+      const s = m[t.syncStatus];
+      if (!s) return '';
+      return `<span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: ${s.c}; color: white; flex-shrink: 0;">${s.l}</span>`;
+    })();
+
     if (t.type === 'income') {
       return `
         <div class="bill-row income-row">
@@ -2863,6 +3048,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
               ${t.desc ? escapeHtml(t.desc) : tt('new_bill_seq') + seqMap[t.id]}
               <span class="bill-pct-badge ${typeof t.percent === 'number' && t.percent !== agent.percent ? 'custom' : ''}">${getAgentPercentForTx(t)}%</span>
               ${badgeHtml}
+              ${syncBadgeHtml}
             </div>
           </div>
           <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #d0ffe0;">+${fmtShort(t.amount)} ₭</div>
@@ -2880,6 +3066,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
               ${t.desc ? escapeHtml(t.desc) : tt('expense_purchase') + ' #' + (expSeqMap ? expSeqMap[t.id] : '')}
               ${t.kickback ? `<span class="bill-pct-badge kickback-pct">${t.kickback}% ${tt('sum_kb_label')}</span>` : ''}
               ${badgeHtml}
+              ${syncBadgeHtml}
             </div>
             ${t.kickback ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 2px;"><i class="ti ti-receipt-refund"></i> ${tt('kb_from_him')}: +${fmtShort(kbAmount)} ₭</div>` : ''}
           </div>
@@ -3061,6 +3248,31 @@ function renderAgents() {
       <div style="margin-bottom: 10px; padding: 8px 12px; background: rgba(255,255,255,0.2); border-radius: 10px; color: white; font-size: 13px; text-align: center;">
         <i class="ti ti-hourglass"></i> ส่งให้ Admin แล้ว — รออนุมัติ
       </div>` : ''}
+      ${(() => {
+        if (status !== 'approved' || isAdmin) return '';
+        const pending = getPendingTxChanges(a.id);
+        const sentPending = transactions.filter(t => t.agentId === a.id && (t.syncStatus === 'pending' || (t.syncStatus === 'deletePending' && t.syncSubmittedAt)));
+        if (pending.length === 0 && sentPending.length === 0) return '';
+        const newCount = pending.filter(t => t.syncStatus === 'draft').length;
+        const modCount = pending.filter(t => t.syncStatus === 'modified').length;
+        const rejCount = pending.filter(t => t.syncStatus === 'rejected').length;
+        const delCount = pending.filter(t => t.syncStatus === 'deletePending').length;
+        const summary = [
+          newCount > 0 ? `+${newCount} ใหม่` : '',
+          modCount > 0 ? `✏️${modCount} แก้` : '',
+          delCount > 0 ? `🗑️${delCount} ลบ` : '',
+          rejCount > 0 ? `❌${rejCount} ปฏิเสธ` : ''
+        ].filter(Boolean).join(' · ');
+        return `
+        ${pending.length > 0 ? `<button data-sync-ag="${a.id}" style="width: 100%; margin-bottom: 8px; padding: 10px; border: none; border-radius: 10px; background: rgba(255,255,255,0.3); color: white; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; backdrop-filter: blur(8px);">
+          <i class="ti ti-cloud-upload"></i> ส่งอพเดตให้ Admin (${pending.length})
+          <div style="font-size: 11px; opacity: 0.9; margin-top: 2px; font-weight: 500;">${summary}</div>
+        </button>` : ''}
+        ${sentPending.length > 0 ? `<div style="margin-bottom: 8px; padding: 8px 12px; background: rgba(255,255,255,0.18); border-radius: 10px; color: white; font-size: 12px; text-align: center;">
+          <i class="ti ti-hourglass"></i> รอ Admin อนุมัติ ${sentPending.length} รายการ
+        </div>` : ''}
+        `;
+      })()}
       ${(unpaidOwed > 0 || weOweAmount > 0) ? (() => {
         const netBalance = unpaidOwed - weOweAmount;  // positive = agent owes us, negative = we owe agent
         const absBalance = Math.abs(netBalance);
@@ -3575,11 +3787,14 @@ function renderAgents() {
       const id = b.dataset.delBill;
       const tx = transactions.find(t => t.id === id);
       if (!tx) return;
-      showConfirm(tt('delete_bill'), `${tx.desc || tt('not_specified')} · ${fmt(tx.amount)} ₭`, () => {
-        transactions = transactions.filter(t => t.id !== id);
+      const ag = agents.find(a => a.id === tx.agentId);
+      const isSyncedBill = isNonAdminUser() && ag && ag.status === 'approved' && (tx.syncStatus === 'synced' || tx.syncStatus === 'modified');
+      const extraNote = isSyncedBill ? '\n\n⚠️ บิลนี้อยู่ที่ Admin แล้ว — จะเป็น "ขอลบ" รอ Admin อนุมัติ' : '';
+      showConfirm(tt('delete_bill'), `${tx.desc || tt('not_specified')} · ${fmt(tx.amount)} ₭${extraNote}`, () => {
+        trySoftDeleteTx(id);
         saveTx();
         renderAll();
-        showToast(tt('deleted'), 'success');
+        showToast(isSyncedBill ? 'ขอลบบิล — รอ Admin อนุมัติ' : tt('deleted'), 'success');
       });
     });
   });
@@ -3652,6 +3867,11 @@ function renderAgents() {
         showToast('ส่งให้ Admin แล้ว — รออนุมัติ', 'success');
       }, false);
     });
+  });
+
+  // Sync update button (for approved agents with pending bill changes)
+  el.querySelectorAll('[data-sync-ag]').forEach(b => {
+    b.addEventListener('click', () => openSyncTxModal(b.dataset.syncAg));
   });
 
   el.querySelectorAll('[data-del-ag]').forEach(b => {
@@ -5500,6 +5720,7 @@ document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
       if (newValues.percent !== undefined) tx.percent = newValues.percent;
       else delete tx.percent;
     }
+    tagEditedTx(tx);
     saveTx();
     renderAll();
     closeEditTxModal();
@@ -5550,6 +5771,7 @@ document.getElementById('add-tx-btn').addEventListener('click', () => {
   const ag = agentId ? getAgent(agentId) : null;
   const summary = buildTxConfirmSummary(tx, ag);
   showSaveConfirm(summary, () => {
+    tagNewTx(tx);
     transactions.push(tx);
     saveTx();
     document.getElementById('tx-desc').value = '';
@@ -6232,7 +6454,7 @@ function updateAdminUiVisibility() {
 async function refreshPendingCount() {
   try {
     const r = await callAdminFn('list_pending_agents');
-    const count = (r.pending || []).length;
+    const count = (r.pending || []).length + (r.pendingTxUpdates || []).length;
     const badge = document.getElementById('admin-pending-count');
     if (badge) {
       badge.textContent = count;
@@ -6248,11 +6470,50 @@ async function renderPendingAgentsList() {
   try {
     const result = await callAdminFn('list_pending_agents');
     const pending = result.pending || [];
-    if (pending.length === 0) {
+    const txUpdates = result.pendingTxUpdates || [];
+    if (pending.length === 0 && txUpdates.length === 0) {
       listEl.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: var(--text-3);"><i class="ti ti-circle-check" style="font-size: 40px; color: #10b981; margin-bottom: 8px; display: block;"></i>ไม่มีรายการรออนุมัติ</div>';
       return;
     }
-    listEl.innerHTML = pending.map((p, idx) => {
+
+    // Render tx updates section (top)
+    let txUpdatesHtml = '';
+    if (txUpdates.length > 0) {
+      txUpdatesHtml = `<div style="margin-bottom: 16px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; padding: 0 4px;"><i class="ti ti-cloud-upload"></i> อัพเดตบิล (${txUpdates.length})</div>
+        ${txUpdates.map(u => {
+          const t = u.tx;
+          const dParts = (t.date || '').split('-');
+          const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : (t.date || '—');
+          const typeIcon = t.type === 'income' ? '🟢' : '🔴';
+          const isDelete = u.kind === 'deletePending';
+          const isNew = t.syncedAt == null;
+          const kindLabel = isDelete ? '🗑️ ขอลบ' : (isNew ? '➕ ใหม่' : '✏️ แก้ไข');
+          const kindColor = isDelete ? '#ef4444' : (isNew ? '#10b981' : '#f59e0b');
+          const pct = (typeof t.percent === 'number') ? t.percent : u.agentPercent;
+          const comm = t.type === 'income' ? t.amount * (pct / 100) : 0;
+          return `<div style="padding: 12px; background: var(--surface-2); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+              <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: ${kindColor}; color: white;">${kindLabel}</span>
+              <span style="font-size: 12px; color: var(--text-2);">ตัวแทน <strong>${escapeHtml(u.agentName)}</strong></span>
+              <span style="font-size: 11px; color: var(--text-3); margin-left: auto;"><i class="ti ti-user"></i> ${escapeHtml(u.submittedByName)}</span>
+            </div>
+            <div style="font-size: 13px; color: var(--text); margin-bottom: 6px;">
+              <span style="color: var(--text-3); font-size: 12px;">${dStr}</span> · ${typeIcon} ${escapeHtml(t.desc || '—')} · <strong>${fmt(t.amount)} ₭</strong>
+              ${t.type === 'income' ? `<div style="font-size: 11px; color: var(--text-3); margin-top: 2px;">คอม ${pct}% = ${fmt(comm)} ₭${t.kickback ? ` · คืน ${fmt(t.kickback)}` : ''}</div>` : ''}
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn admin-approve-tx-btn" data-tid="${t.id}" data-owner="${u.submittedBy}" style="flex: 1; padding: 8px; font-size: 13px; background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="ti ti-check"></i> อนุมัติ</button>
+              <button class="btn admin-reject-tx-btn" data-tid="${t.id}" data-owner="${u.submittedBy}" data-desc="${escapeHtml(t.desc || '—')}" data-uname="${escapeHtml(u.submittedByName)}" style="flex: 1; padding: 8px; font-size: 13px; background: var(--grad-red); color: white;"><i class="ti ti-x"></i> ปฏิเสธ</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    let agentsHtml = '';
+    if (pending.length > 0) {
+      agentsHtml = `${txUpdatesHtml ? '<div style="font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; padding: 0 4px;"><i class="ti ti-user-plus"></i> ตัวแทนใหม่ (' + pending.length + ')</div>' : ''}` + pending.map((p, idx) => {
       const d = p.submittedAt ? new Date(p.submittedAt) : null;
       const dateStr = d ? `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '—';
       const txs = Array.isArray(p.transactions) ? p.transactions : [];
@@ -6318,6 +6579,34 @@ async function renderPendingAgentsList() {
         </div>
       </div>`;
     }).join('');
+    }
+    listEl.innerHTML = txUpdatesHtml + agentsHtml;
+
+    // Approve single tx update
+    listEl.querySelectorAll('.admin-approve-tx-btn').forEach(b => b.addEventListener('click', async () => {
+      const tid = b.dataset.tid, owner = b.dataset.owner;
+      b.disabled = true;
+      try {
+        await callAdminFn('approve_tx_update', { ownerUserId: owner, txId: tid });
+        await loadCloudData();
+        renderAll();
+        await renderPendingAgentsList();
+        refreshPendingCount();
+        showToast('อนุมัติแล้ว', 'success');
+      } catch (e) { alert('เกิดข้อผิดพลาด: ' + e.message); b.disabled = false; }
+    }));
+    // Reject single tx update
+    listEl.querySelectorAll('.admin-reject-tx-btn').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('admin-reject-target').innerHTML = `ปฏิเสธบิล <strong>${b.dataset.desc}</strong> ของ <strong>${b.dataset.uname}</strong>?`;
+      document.getElementById('admin-reject-reason').value = '';
+      document.getElementById('admin-reject-error').textContent = '';
+      const submitBtn = document.getElementById('admin-reject-submit');
+      submitBtn.dataset.kind = 'tx';
+      submitBtn.dataset.tid = b.dataset.tid;
+      submitBtn.dataset.owner = b.dataset.owner;
+      submitBtn.disabled = false;
+      showAdminModal('admin-reject-modal', true);
+    }));
 
     // Toggle "view bills" sections
     listEl.querySelectorAll('.admin-view-txs-btn').forEach(b => b.addEventListener('click', () => {
@@ -6352,6 +6641,7 @@ async function renderPendingAgentsList() {
       document.getElementById('admin-reject-reason').value = '';
       document.getElementById('admin-reject-error').textContent = '';
       const submitBtn = document.getElementById('admin-reject-submit');
+      delete submitBtn.dataset.kind;
       submitBtn.dataset.aid = b.dataset.aid;
       submitBtn.dataset.owner = b.dataset.owner;
       submitBtn.disabled = false;
@@ -6454,8 +6744,13 @@ function exitViewAsUser() {
     if (!reason) { errEl.textContent = 'กรุณากรอกเหตุผล'; return; }
     rejSubmit.disabled = true;
     try {
-      await callAdminFn('reject_agent', { ownerUserId: rejSubmit.dataset.owner, agentId: rejSubmit.dataset.aid, reason });
+      if (rejSubmit.dataset.kind === 'tx') {
+        await callAdminFn('reject_tx_update', { ownerUserId: rejSubmit.dataset.owner, txId: rejSubmit.dataset.tid, reason });
+      } else {
+        await callAdminFn('reject_agent', { ownerUserId: rejSubmit.dataset.owner, agentId: rejSubmit.dataset.aid, reason });
+      }
       showAdminModal('admin-reject-modal', false);
+      delete rejSubmit.dataset.kind;
       await renderPendingAgentsList();
       refreshPendingCount();
       showToast('ปฏิเสธแล้ว', 'success');
