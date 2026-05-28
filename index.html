@@ -1199,6 +1199,10 @@ h1, h2, h3, .display {
         <button id="admin-users-btn" style="display: none; width: 100%; margin-top: 12px; padding: 14px 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 8px;">
           <i class="ti ti-users-group" style="font-size: 18px;"></i> จัดการ Users
         </button>
+        <button id="admin-pending-btn" style="display: none; width: 100%; margin-top: 8px; padding: 14px 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 8px; position: relative;">
+          <i class="ti ti-clipboard-check" style="font-size: 18px;"></i> รายการรออนุมัติ
+          <span id="admin-pending-count" style="display: none; position: absolute; top: 8px; right: 12px; background: white; color: #6366f1; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; min-width: 22px;">0</span>
+        </button>
       </div>
     </div>
 
@@ -1285,6 +1289,44 @@ h1, h2, h3, .display {
     <div class="confirm-actions">
       <button class="btn btn-secondary" id="confirm-cancel" data-i18n="cancel">ยกเลิก</button>
       <button class="btn" id="confirm-ok" style="background: var(--grad-red);" data-i18n="delete_btn">ลบ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin: Pending Agents Approval Modal -->
+<div class="modal-overlay" id="admin-pending-modal">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-clipboard-check" style="color: #6366f1;"></i> รายการรออนุมัติ</div>
+      <button class="icon-action" id="admin-pending-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="admin-pending-list" style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="text-align: center; padding: 20px; color: var(--text-3);">
+          <div class="spinner" style="width: 28px; height: 28px; margin: 0 auto 8px; border: 3px solid var(--border-2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          กำลังโหลด...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin: Reject Reason Modal -->
+<div class="modal-overlay" id="admin-reject-modal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-x" style="color: var(--red);"></i> ปฏิเสธตัวแทน</div>
+      <button class="icon-action" id="admin-reject-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="admin-reject-target" style="font-size: 14px; color: var(--text-2); margin-bottom: 12px;"></div>
+      <label class="field-label">เหตุผลที่ปฏิเสธ</label>
+      <textarea id="admin-reject-reason" class="field" rows="3" placeholder="เช่น เปอร์เซ็นต์สูงเกินไป หรือ ชื่อไม่ครบ" style="margin-bottom: 12px; resize: vertical;"></textarea>
+      <div id="admin-reject-error" style="font-size: 13px; color: var(--red); min-height: 18px; margin-bottom: 8px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" id="admin-reject-cancel" style="flex: 1;">ยกเลิก</button>
+        <button class="btn" id="admin-reject-submit" style="flex: 1; background: var(--grad-red); color: white;">ปฏิเสธ</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1435,7 +1477,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.90.0';
+const APP_VERSION = '1.91.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -2707,7 +2749,9 @@ function renderDashboard() {
 function renderTransactions() {
   const sel = document.getElementById('tx-agent');
   const current = sel.value;
-  sel.innerHTML = `<option value="">${tt('agentNone')}</option>` + agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${a.percent}%)</option>`).join('');
+  const isAdmin = currentUser && currentUser.role === 'admin' && !viewingAsUser;
+  const usableAgents = isAdmin ? agents : agents.filter(a => !a.status || a.status === 'approved');
+  sel.innerHTML = `<option value="">${tt('agentNone')}</option>` + usableAgents.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${a.percent}%)</option>`).join('');
   if (current) sel.value = current;
 
   const filter = document.getElementById('filter-type').value;
@@ -2980,18 +3024,43 @@ function renderAgents() {
     // We owe agent: unpaid expense bills
     const weOweTxs = expenseTxsAsc.filter(t => billIsUnpaid(t));
     const weOweAmount = weOweTxs.reduce((s, t) => s + billRemaining(t), 0);
+    const isAdmin = currentUser && currentUser.role === 'admin' && !viewingAsUser;
+    const status = a.status || (isAdmin ? 'approved' : 'draft');
+    const statusBadges = {
+      draft: { label: 'ฉบับร่าง', color: '#6b7280', icon: 'edit' },
+      pending: { label: 'รออนุมัติ', color: '#f59e0b', icon: 'clock' },
+      approved: { label: 'อนุมัติแล้ว', color: '#10b981', icon: 'circle-check' },
+      rejected: { label: 'ถูกปฏิเสธ', color: '#ef4444', icon: 'x' }
+    };
+    const sb = statusBadges[status];
     return `<div class="agent-card" style="background: ${grad};">
       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1;">
         <div class="agent-avatar" style="--name-grad: ${grad};">${escapeHtml(a.name.slice(0, 2).toUpperCase())}</div>
         <div style="flex: 1; min-width: 0;">
-          <div class="agent-name-gradient" style="--name-grad: ${grad}; font-weight: 700; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display);">${escapeHtml(a.name)}</div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <div class="agent-name-gradient" style="--name-grad: ${grad}; font-weight: 700; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display);">${escapeHtml(a.name)}</div>
+            ${(!isAdmin || a.submittedBy) ? `<span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: ${sb.color}; color: white; flex-shrink: 0;"><i class="ti ti-${sb.icon}"></i> ${sb.label}</span>` : ''}
+          </div>
           <div style="font-size: 13px; opacity: 0.9;"><i class="ti ti-receipt"></i> ${agentTxs.length + expenseTxsAsc.length} ${tt('bill_count_label')} · ${tt('agent_total')} ${fmtShort(agentTotal)} ₭</div>
         </div>
         <div style="display: flex; gap: 4px;">
-          <button data-edit-ag="${a.id}" class="icon-btn" aria-label="edit"><i class="ti ti-edit"></i></button>
-          <button data-del-ag="${a.id}" class="icon-btn" aria-label="delete"><i class="ti ti-trash"></i></button>
+          ${(status === 'draft' || status === 'rejected' || isAdmin) ? `<button data-edit-ag="${a.id}" class="icon-btn" aria-label="edit"><i class="ti ti-edit"></i></button>` : ''}
+          ${(status !== 'pending' && status !== 'approved') || isAdmin ? `<button data-del-ag="${a.id}" class="icon-btn" aria-label="delete"><i class="ti ti-trash"></i></button>` : ''}
         </div>
       </div>
+      ${status === 'rejected' && a.rejectReason ? `
+      <div style="margin-bottom: 10px; padding: 10px 12px; background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 10px; color: white; font-size: 13px;">
+        <div style="font-weight: 600; margin-bottom: 2px;"><i class="ti ti-alert-triangle"></i> เหตุผลที่ปฏิเสธ:</div>
+        <div style="opacity: 0.95;">${escapeHtml(a.rejectReason)}</div>
+      </div>` : ''}
+      ${status === 'draft' ? `
+      <button data-submit-ag="${a.id}" style="width: 100%; margin-bottom: 10px; padding: 10px; border: none; border-radius: 10px; background: rgba(255,255,255,0.25); color: white; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; backdrop-filter: blur(8px);">
+        <i class="ti ti-send"></i> ส่งให้ Admin ตรวจสอบ
+      </button>` : ''}
+      ${status === 'pending' ? `
+      <div style="margin-bottom: 10px; padding: 8px 12px; background: rgba(255,255,255,0.2); border-radius: 10px; color: white; font-size: 13px; text-align: center;">
+        <i class="ti ti-hourglass"></i> ส่งให้ Admin แล้ว — รออนุมัติ
+      </div>` : ''}
       ${(unpaidOwed > 0 || weOweAmount > 0) ? (() => {
         const netBalance = unpaidOwed - weOweAmount;  // positive = agent owes us, negative = we owe agent
         const absBalance = Math.abs(netBalance);
@@ -3558,6 +3627,26 @@ function renderAgents() {
 
   el.querySelectorAll('[data-edit-ag]').forEach(b => {
     b.addEventListener('click', () => openEditAgentModal(b.dataset.editAg));
+  });
+
+  el.querySelectorAll('[data-submit-ag]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.submitAg;
+      const ag = getAgent(id);
+      if (!ag) return;
+      showConfirm('ส่งตัวแทนให้ Admin?', `ส่งตัวแทน "${ag.name}" (${ag.percent}%) ให้ Admin ตรวจสอบ?\n\nเมื่อส่งแล้ว จะแก้ไขไม่ได้จนกว่า Admin จะอนุมัติหรือปฏิเสธ`, () => {
+        const idx = agents.findIndex(x => x.id === id);
+        if (idx < 0) return;
+        agents[idx].status = 'pending';
+        agents[idx].submittedAt = new Date().toISOString();
+        agents[idx].submittedBy = currentUser ? currentUser.id : agents[idx].submittedBy;
+        agents[idx].submittedByName = currentUser ? currentUser.username : agents[idx].submittedByName;
+        delete agents[idx].rejectReason;
+        saveAgents();
+        renderAll();
+        showToast('ส่งให้ Admin แล้ว — รออนุมัติ', 'success');
+      }, false);
+    });
   });
 
   el.querySelectorAll('[data-del-ag]').forEach(b => {
@@ -5276,7 +5365,9 @@ function openEditTxModal(txId) {
   const pctInp = document.getElementById('edit-tx-percent');
   pctInp.value = typeof tx.percent === 'number' ? tx.percent : '';
   const sel = document.getElementById('edit-tx-agent');
-  sel.innerHTML = `<option value="">${tt('agentNone')}</option>` + agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${a.percent}%)</option>`).join('');
+  const isAdminEdit = currentUser && currentUser.role === 'admin' && !viewingAsUser;
+  const usableEdit = isAdminEdit ? agents : agents.filter(a => !a.status || a.status === 'approved' || a.id === tx.agentId);
+  sel.innerHTML = `<option value="">${tt('agentNone')}</option>` + usableEdit.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${a.percent}%)</option>`).join('');
   sel.value = tx.agentId || '';
   setEditTxType(tx.type);
   updateEditTxPctHint();
@@ -5466,13 +5557,31 @@ document.getElementById('add-tx-btn').addEventListener('click', () => {
 });
 
 document.getElementById('add-agent-btn').addEventListener('click', () => {
+  // For non-admin users: limit 1 active agent (draft/pending/approved)
+  const isAdmin = currentUser && currentUser.role === 'admin' && !viewingAsUser;
+  if (!isAdmin) {
+    const activeAgents = agents.filter(a => !a.status || a.status === 'draft' || a.status === 'pending' || a.status === 'approved');
+    if (activeAgents.length >= 1) {
+      showToast('สร้างได้ 1 ตัวแทนเท่านั้น — กรุณารอให้แอดมินอนุมัติหรือลบตัวแทนที่ถูกปฏิเสธก่อน', 'error');
+      return;
+    }
+  }
   const name = document.getElementById('agent-name').value.trim();
   const percent = parseFloat(document.getElementById('agent-percent').value);
   if (!name) { showToast(tt('fill_agent_name'), 'error'); return; }
   if (isNaN(percent) || percent < 0 || percent > 100) { showToast(tt('percent_range'), 'error'); return; }
   const summary = buildAgentConfirmSummary({ name, percent }, 'add');
   showSaveConfirm(summary, () => {
-    agents.push({id: uid(), name, percent});
+    const newAgent = { id: uid(), name, percent };
+    // Non-admin users: agents start as 'draft' (need approval before use)
+    if (!isAdmin) {
+      newAgent.status = 'draft';
+      newAgent.submittedBy = currentUser ? currentUser.id : null;
+      newAgent.submittedByName = currentUser ? currentUser.username : null;
+    } else {
+      newAgent.status = 'approved'; // Admin-created agents are auto-approved
+    }
+    agents.push(newAgent);
     saveAgents();
     document.getElementById('agent-name').value = '';
     document.getElementById('agent-percent').value = '';
@@ -6105,9 +6214,86 @@ async function renderAdminUsersList() {
 // Show "Manage Users" button only for admin
 function updateAdminUiVisibility() {
   const btn = document.getElementById('admin-users-btn');
-  if (!btn) return;
-  const isAdmin = currentUser && currentUser.role === 'admin';
-  btn.style.display = isAdmin ? 'flex' : 'none';
+  const pBtn = document.getElementById('admin-pending-btn');
+  const isAdmin = currentUser && currentUser.role === 'admin' && !viewingAsUser;
+  if (btn) btn.style.display = isAdmin ? 'flex' : 'none';
+  if (pBtn) {
+    pBtn.style.display = isAdmin ? 'flex' : 'none';
+    if (isAdmin) refreshPendingCount();
+  }
+}
+
+// Periodically refresh pending count badge
+async function refreshPendingCount() {
+  try {
+    const r = await callAdminFn('list_pending_agents');
+    const count = (r.pending || []).length;
+    const badge = document.getElementById('admin-pending-count');
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function renderPendingAgentsList() {
+  const listEl = document.getElementById('admin-pending-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-3);"><div class="spinner" style="width: 28px; height: 28px; margin: 0 auto 8px; border: 3px solid var(--border-2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>กำลังโหลด...</div>';
+  try {
+    const result = await callAdminFn('list_pending_agents');
+    const pending = result.pending || [];
+    if (pending.length === 0) {
+      listEl.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: var(--text-3);"><i class="ti ti-circle-check" style="font-size: 40px; color: #10b981; margin-bottom: 8px; display: block;"></i>ไม่มีรายการรออนุมัติ</div>';
+      return;
+    }
+    listEl.innerHTML = pending.map(p => {
+      const d = p.submittedAt ? new Date(p.submittedAt) : null;
+      const dateStr = d ? `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '—';
+      return `
+      <div style="padding: 14px; background: var(--surface-2); border-radius: 12px; border: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="ti ti-user-check"></i></div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 16px; font-weight: 700; color: var(--text);">${escapeHtml(p.name)}</div>
+            <div style="font-size: 13px; color: var(--text-2); margin-top: 2px;"><i class="ti ti-percentage"></i> ${p.percent}% · <i class="ti ti-user"></i> ${escapeHtml(p.submittedByName || '—')}</div>
+            <div style="font-size: 11px; color: var(--text-3); margin-top: 2px;"><i class="ti ti-clock"></i> ${dateStr}</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn admin-approve-btn" data-aid="${p.agentId}" data-owner="${p.submittedBy}" data-name="${escapeHtml(p.name)}" style="flex: 1; padding: 10px; font-size: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="ti ti-check"></i> อนุมัติ</button>
+          <button class="btn admin-reject-show-btn" data-aid="${p.agentId}" data-owner="${p.submittedBy}" data-name="${escapeHtml(p.name)}" data-uname="${escapeHtml(p.submittedByName || '')}" style="flex: 1; padding: 10px; font-size: 14px; background: var(--grad-red); color: white;"><i class="ti ti-x"></i> ปฏิเสธ</button>
+        </div>
+      </div>`;
+    }).join('');
+    listEl.querySelectorAll('.admin-approve-btn').forEach(b => b.addEventListener('click', async () => {
+      const aid = b.dataset.aid, owner = b.dataset.owner, name = b.dataset.name;
+      showConfirm('อนุมัติตัวแทน?', `อนุมัติตัวแทน "${name}"?\n\nตัวแทนจะเข้าฐานข้อมูลของคุณและ user เจ้าของจะใช้งานได้`, async () => {
+        b.disabled = true;
+        try {
+          await callAdminFn('approve_agent', { ownerUserId: owner, agentId: aid });
+          // Reload admin's own data to show the new agent
+          await loadCloudData();
+          renderAll();
+          await renderPendingAgentsList();
+          refreshPendingCount();
+          showToast('อนุมัติแล้ว', 'success');
+        } catch (e) { alert('เกิดข้อผิดพลาด: ' + e.message); b.disabled = false; }
+      }, false);
+    }));
+    listEl.querySelectorAll('.admin-reject-show-btn').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('admin-reject-target').innerHTML = `ปฏิเสธตัวแทน <strong>${b.dataset.name}</strong> ของ <strong>${b.dataset.uname}</strong>?`;
+      document.getElementById('admin-reject-reason').value = '';
+      document.getElementById('admin-reject-error').textContent = '';
+      const submitBtn = document.getElementById('admin-reject-submit');
+      submitBtn.dataset.aid = b.dataset.aid;
+      submitBtn.dataset.owner = b.dataset.owner;
+      submitBtn.disabled = false;
+      showAdminModal('admin-reject-modal', true);
+    }));
+  } catch (e) {
+    listEl.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--red);">เกิดข้อผิดพลาด: ${e.message}</div>`;
+  }
 }
 
 // ====== View-as-User (Phase 3) ======
@@ -6182,6 +6368,37 @@ function exitViewAsUser() {
   if (openBtn) openBtn.addEventListener('click', () => { showAdminModal('admin-users-modal', true); renderAdminUsersList(); });
   const closeBtn = document.getElementById('admin-users-close');
   if (closeBtn) closeBtn.addEventListener('click', () => showAdminModal('admin-users-modal', false));
+
+  // Pending agents modal
+  const pOpenBtn = document.getElementById('admin-pending-btn');
+  if (pOpenBtn) pOpenBtn.addEventListener('click', () => { showAdminModal('admin-pending-modal', true); renderPendingAgentsList(); });
+  const pCloseBtn = document.getElementById('admin-pending-close');
+  if (pCloseBtn) pCloseBtn.addEventListener('click', () => showAdminModal('admin-pending-modal', false));
+
+  // Reject reason modal
+  const rejClose = document.getElementById('admin-reject-close');
+  if (rejClose) rejClose.addEventListener('click', () => showAdminModal('admin-reject-modal', false));
+  const rejCancel = document.getElementById('admin-reject-cancel');
+  if (rejCancel) rejCancel.addEventListener('click', () => showAdminModal('admin-reject-modal', false));
+  const rejSubmit = document.getElementById('admin-reject-submit');
+  if (rejSubmit) rejSubmit.addEventListener('click', async () => {
+    const reason = document.getElementById('admin-reject-reason').value.trim();
+    const errEl = document.getElementById('admin-reject-error');
+    errEl.textContent = '';
+    if (!reason) { errEl.textContent = 'กรุณากรอกเหตุผล'; return; }
+    rejSubmit.disabled = true;
+    try {
+      await callAdminFn('reject_agent', { ownerUserId: rejSubmit.dataset.owner, agentId: rejSubmit.dataset.aid, reason });
+      showAdminModal('admin-reject-modal', false);
+      await renderPendingAgentsList();
+      refreshPendingCount();
+      showToast('ปฏิเสธแล้ว', 'success');
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      rejSubmit.disabled = false;
+    }
+  });
 
   // Create user modal
   const createOpenBtn = document.getElementById('admin-create-user-btn');
