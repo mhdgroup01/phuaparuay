@@ -1364,7 +1364,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.84.0';
+const APP_VERSION = '1.86.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -2153,9 +2153,7 @@ async function pushCloudData() {
   };
   try {
     const token = currentUser._token || SUPABASE_ANON_KEY;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/user_data?on_conflict=id`, {
+    const fetchPromise = fetch(`${SUPABASE_URL}/rest/v1/user_data?on_conflict=id`, {
       method: 'POST',
       headers: {
         apikey: SUPABASE_ANON_KEY,
@@ -2163,15 +2161,15 @@ async function pushCloudData() {
         'Content-Type': 'application/json',
         Prefer: 'resolution=merge-duplicates'
       },
-      body: JSON.stringify(payload),
-      signal: ctrl.signal
+      body: JSON.stringify(payload)
     });
-    clearTimeout(timer);
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 10000));
+    const resp = await Promise.race([fetchPromise, timeoutPromise]);
     if (!resp.ok) {
       const txt = await resp.text().catch(() => '');
       console.error('Cloud save HTTP', resp.status, txt);
     }
-  } catch (e) { console.error('Cloud save failed:', e); }
+  } catch (e) { console.error('Cloud save failed:', e.message); }
 }
 
 async function loadCloudData() {
@@ -2179,23 +2177,20 @@ async function loadCloudData() {
   try {
     const token = currentUser._token || SUPABASE_ANON_KEY;
     const url = `${SUPABASE_URL}/rest/v1/user_data?id=eq.${currentUser.id}&select=data`;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
     let rows = null;
     try {
-      const resp = await fetch(url, {
+      const fetchPromise = fetch(url, {
         headers: {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${token}`,
           Accept: 'application/json'
-        },
-        signal: ctrl.signal
+        }
       });
-      clearTimeout(timer);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 10000));
+      const resp = await Promise.race([fetchPromise, timeoutPromise]);
       if (resp.ok) rows = await resp.json();
       else console.error('Cloud load HTTP', resp.status);
     } catch (e) {
-      clearTimeout(timer);
       console.warn('Cloud load fetch failed/timed out — using local cache:', e.message);
       return;
     }
@@ -5717,26 +5712,23 @@ async function handleAuthSubmit() {
   const origLabel = $auth('auth-submit-label').textContent;
   $auth('auth-submit-label').textContent = 'กรุณารอ...';
 
-  // Use direct fetch to Supabase Auth API (bypasses SDK hang issues)
+  // Use direct fetch to Supabase Auth API with Promise.race timeout (avoids AbortController hang)
   const authFetch = async (endpoint, body) => {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 12000);
+    const fetchPromise = fetch(`${SUPABASE_URL}/auth/v1/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 15000));
     try {
-      const resp = await fetch(`${SUPABASE_URL}/auth/v1/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body),
-        signal: ctrl.signal
-      });
-      clearTimeout(timer);
+      const resp = await Promise.race([fetchPromise, timeoutPromise]);
       const result = await resp.json();
       return { ok: resp.ok, status: resp.status, data: result };
     } catch (e) {
-      clearTimeout(timer);
-      if (e.name === 'AbortError') {
+      if (e.message === '__timeout__') {
         return { ok: false, timedOut: true, error: 'การเชื่อมต่อช้าเกินไป' };
       }
       return { ok: false, error: e.message };
