@@ -1435,7 +1435,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.89.0';
+const APP_VERSION = '1.90.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1444,7 +1444,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const AUTH_EMAIL_DOMAIN = 'phuaparuay.local';
 let supabaseClient = null;
 let currentUser = null;
+let viewingAsUser = null; // when admin is viewing another user's data
 let cloudSaveTimer = null;
+// Helper: return the user whose data we're operating on (viewingAsUser if set, else currentUser)
+function activeUser() { return viewingAsUser || currentUser; }
 function initSupabase() {
   if (supabaseClient) return supabaseClient;
   if (typeof window.supabase === 'undefined' || !window.supabase.createClient) return null;
@@ -2211,7 +2214,8 @@ function scheduleCloudSave() {
 }
 
 async function pushCloudData() {
-  if (!currentUser) return;
+  const target = activeUser();
+  if (!target) return;
   const payload = {
     data: {
       transactions,
@@ -2220,6 +2224,15 @@ async function pushCloudData() {
     },
     updated_at: new Date().toISOString()
   };
+
+  // If admin is viewing another user — use Edge Function (service role)
+  if (viewingAsUser && currentUser && currentUser.role === 'admin') {
+    try {
+      await callAdminFn('update_user_data', { userId: viewingAsUser.id, data: payload.data });
+    } catch (e) { console.error('Admin save failed:', e.message); }
+    return;
+  }
+
   try {
     const token = currentUser._token || SUPABASE_ANON_KEY;
     // Try PATCH first (updates existing row, leaves role alone)
@@ -6047,6 +6060,7 @@ async function renderAdminUsersList() {
         </div>
         ${isSelf ? '<div style="font-size: 12px; color: var(--text-3); text-align: center; padding: 6px;">(บัญชีคุณเอง)</div>' : `
         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button class="btn admin-view-btn" data-uid="${u.id}" data-uname="${u.username || ''}" style="flex: 1; min-width: 90px; padding: 8px; font-size: 13px; background: var(--grad-hero); color: white;"><i class="ti ti-eye"></i> เข้าดูข้อมูล</button>
           <button class="btn btn-secondary admin-reset-btn" data-uid="${u.id}" data-uname="${u.username || ''}" style="flex: 1; min-width: 90px; padding: 8px; font-size: 13px;"><i class="ti ti-key"></i> รหัสใหม่</button>
           <button class="btn btn-secondary admin-suspend-btn" data-uid="${u.id}" data-action="${isSuspended ? 'unsuspend' : 'suspend'}" data-uname="${u.username || ''}" style="flex: 1; min-width: 90px; padding: 8px; font-size: 13px;"><i class="ti ti-${isSuspended ? 'circle-check' : 'ban'}"></i> ${isSuspended ? 'ยกเลิกระงับ' : 'ระงับ'}</button>
           <button class="btn admin-delete-btn" data-uid="${u.id}" data-uname="${u.username || ''}" style="flex: 1; min-width: 90px; padding: 8px; font-size: 13px; background: var(--grad-red); color: white;"><i class="ti ti-trash"></i> ลบ</button>
@@ -6055,6 +6069,9 @@ async function renderAdminUsersList() {
     }).join('');
 
     // Wire up buttons
+    listEl.querySelectorAll('.admin-view-btn').forEach(b => b.addEventListener('click', () => {
+      enterViewAsUser(b.dataset.uid, b.dataset.uname);
+    }));
     listEl.querySelectorAll('.admin-reset-btn').forEach(b => b.addEventListener('click', () => {
       document.getElementById('admin-reset-target').innerHTML = `เปลี่ยนรหัสผ่านของ <strong>${b.dataset.uname}</strong>`;
       document.getElementById('admin-reset-password').value = '';
@@ -6091,6 +6108,72 @@ function updateAdminUiVisibility() {
   if (!btn) return;
   const isAdmin = currentUser && currentUser.role === 'admin';
   btn.style.display = isAdmin ? 'flex' : 'none';
+}
+
+// ====== View-as-User (Phase 3) ======
+function updateViewAsBanner() {
+  let banner = document.getElementById('view-as-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'view-as-banner';
+    banner.style.cssText = 'display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 150; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 10px 16px; text-align: center; font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);';
+    banner.innerHTML = `
+      <span id="view-as-text"></span>
+      <button id="view-as-exit" style="margin-left: 12px; background: rgba(255,255,255,0.25); border: none; color: white; padding: 4px 12px; border-radius: 999px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">
+        <i class="ti ti-arrow-back-up"></i> กลับ
+      </button>
+    `;
+    document.body.appendChild(banner);
+    document.getElementById('view-as-exit').addEventListener('click', exitViewAsUser);
+  }
+  if (viewingAsUser) {
+    document.getElementById('view-as-text').textContent = `กำลังดูข้อมูลของ: ${viewingAsUser.username}`;
+    banner.style.display = 'block';
+    document.body.style.paddingTop = '44px';
+  } else {
+    banner.style.display = 'none';
+    document.body.style.paddingTop = '';
+  }
+}
+
+async function enterViewAsUser(userId, username) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  try {
+    // Save current admin's local data first (so it's not lost)
+    // Note: cloud already has admin's data
+    showAdminModal('admin-users-modal', false);
+    // Fetch user's data via Edge Function (service role bypasses RLS)
+    const result = await callAdminFn('get_user_data', { userId });
+    const userRow = result.user;
+    if (!userRow) { alert('ไม่พบข้อมูล user นี้'); return; }
+    viewingAsUser = { id: userId, username };
+    const userData = userRow.data || {};
+    transactions = Array.isArray(userData.transactions) ? userData.transactions : [];
+    agents = Array.isArray(userData.agents) ? userData.agents : [];
+    // Don't persist to localStorage — keep admin's own cache intact
+    updateViewAsBanner();
+    renderAll();
+  } catch (e) {
+    alert('เกิดข้อผิดพลาด: ' + e.message);
+  }
+}
+
+function exitViewAsUser() {
+  if (!viewingAsUser) return;
+  // Cancel pending saves to the viewed user
+  if (cloudSaveTimer) { clearTimeout(cloudSaveTimer); cloudSaveTimer = null; }
+  viewingAsUser = null;
+  // Restore admin's own data from localStorage cache
+  try {
+    transactions = JSON.parse(localStorage.getItem(STORE_KEYS.tx) || '[]');
+  } catch (e) { transactions = []; }
+  try {
+    agents = JSON.parse(localStorage.getItem(STORE_KEYS.agents) || '[]');
+  } catch (e) { agents = []; }
+  updateViewAsBanner();
+  renderAll();
+  // Re-sync from cloud in background
+  (async () => { try { await loadCloudData(); renderAll(); } catch (e) {} })();
 }
 
 // Wire up admin UI
