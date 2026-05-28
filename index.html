@@ -1364,7 +1364,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.83.0';
+const APP_VERSION = '1.84.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -2134,13 +2134,13 @@ function saveAgents() {
 
 // Debounced cloud save — batches rapid changes into one network call
 function scheduleCloudSave() {
-  if (!currentUser || !supabaseClient) return;
+  if (!currentUser) return;
   if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(() => { pushCloudData(); }, 800);
 }
 
 async function pushCloudData() {
-  if (!currentUser || !supabaseClient) return;
+  if (!currentUser) return;
   const payload = {
     id: currentUser.id,
     username: currentUser.username || '',
@@ -2152,12 +2152,7 @@ async function pushCloudData() {
     updated_at: new Date().toISOString()
   };
   try {
-    let token = SUPABASE_ANON_KEY;
-    try {
-      const { data: sess } = await supabaseClient.auth.getSession();
-      if (sess && sess.session && sess.session.access_token) token = sess.session.access_token;
-    } catch (e) {}
-    // Direct REST upsert (Prefer: resolution=merge-duplicates) to avoid SDK query builder hang
+    const token = currentUser._token || SUPABASE_ANON_KEY;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/user_data?on_conflict=id`, {
@@ -2180,14 +2175,9 @@ async function pushCloudData() {
 }
 
 async function loadCloudData() {
-  if (!currentUser || !supabaseClient) return;
+  if (!currentUser) return;
   try {
-    // Use direct REST fetch instead of SDK query builder (which can hang).
-    let token = SUPABASE_ANON_KEY;
-    try {
-      const { data: sess } = await supabaseClient.auth.getSession();
-      if (sess && sess.session && sess.session.access_token) token = sess.session.access_token;
-    } catch (e) {}
+    const token = currentUser._token || SUPABASE_ANON_KEY;
     const url = `${SUPABASE_URL}/rest/v1/user_data?id=eq.${currentUser.id}&select=data`;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
@@ -5721,41 +5711,88 @@ async function handleAuthSubmit() {
     if (password !== password2) { authError('รหัสผ่านไม่ตรงกัน'); return; }
   }
 
-  const sb = initSupabase();
-  if (!sb) { authError('เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่'); return; }
-
   const email = usernameToEmail(username);
   const btn = $auth('auth-submit-btn');
   btn.disabled = true;
   const origLabel = $auth('auth-submit-label').textContent;
   $auth('auth-submit-label').textContent = 'กรุณารอ...';
 
+  // Use direct fetch to Supabase Auth API (bypasses SDK hang issues)
+  const authFetch = async (endpoint, body) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/auth/v1/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body),
+        signal: ctrl.signal
+      });
+      clearTimeout(timer);
+      const result = await resp.json();
+      return { ok: resp.ok, status: resp.status, data: result };
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') {
+        return { ok: false, timedOut: true, error: 'การเชื่อมต่อช้าเกินไป' };
+      }
+      return { ok: false, error: e.message };
+    }
+  };
+
   try {
     if (authMode === 'register') {
-      const { data, error } = await sb.auth.signUp({
+      const result = await authFetch('signup', {
         email, password,
-        options: { data: { username } }
+        data: { username }
       });
-      if (error) {
-        if (error.message.toLowerCase().includes('already')) authError('ชื่อผู้ใช้นี้มีคนใช้แล้ว');
-        else authError(error.message);
+      if (result.timedOut) { authError('เชื่อมต่อ Supabase ช้าเกินไป กรุณาลองใหม่'); return; }
+      if (!result.ok) {
+        const msg = (result.data && (result.data.msg || result.data.error_description || result.data.error)) || result.error || 'สมัครไม่สำเร็จ';
+        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('registered')) authError('ชื่อผู้ใช้นี้มีคนใช้แล้ว');
+        else authError(msg);
         return;
       }
-      if (!data.session) {
-        // Email confirmation still on — tell user
+      if (!result.data.access_token) {
+        // Email confirmation still on
         authError('สมัครสำเร็จ แต่ระบบยังต้องยืนยันอีเมล — กรุณาปิด Confirm email ใน Supabase');
         return;
       }
-      currentUser = { id: data.user.id, username };
+      // Save session manually so SDK picks it up
+      const session = {
+        access_token: result.data.access_token,
+        refresh_token: result.data.refresh_token,
+        expires_in: result.data.expires_in,
+        expires_at: Math.floor(Date.now() / 1000) + (result.data.expires_in || 3600),
+        token_type: 'bearer',
+        user: result.data.user
+      };
+      try { localStorage.setItem('sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token', JSON.stringify(session)); } catch (e) {}
+      currentUser = { id: result.data.user.id, username };
       await afterLogin(true);
     } else {
-      const { data, error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) {
-        if (error.message.toLowerCase().includes('invalid')) authError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-        else authError(error.message);
+      const result = await authFetch('token?grant_type=password', { email, password });
+      if (result.timedOut) { authError('เชื่อมต่อ Supabase ช้าเกินไป กรุณาลองใหม่'); return; }
+      if (!result.ok) {
+        const msg = (result.data && (result.data.msg || result.data.error_description || result.data.error)) || result.error || 'เข้าสู่ระบบไม่สำเร็จ';
+        if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials')) authError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+        else authError(msg);
         return;
       }
-      currentUser = { id: data.user.id, username: (data.user.user_metadata && data.user.user_metadata.username) || username };
+      const session = {
+        access_token: result.data.access_token,
+        refresh_token: result.data.refresh_token,
+        expires_in: result.data.expires_in,
+        expires_at: Math.floor(Date.now() / 1000) + (result.data.expires_in || 3600),
+        token_type: 'bearer',
+        user: result.data.user
+      };
+      try { localStorage.setItem('sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token', JSON.stringify(session)); } catch (e) {}
+      const u = result.data.user;
+      currentUser = { id: u.id, username: (u.user_metadata && u.user_metadata.username) || username, _token: session.access_token };
       await afterLogin(false);
     }
   } catch (e) {
@@ -5810,14 +5847,29 @@ if (logoutBtnEl) logoutBtnEl.addEventListener('click', handleLogout);
 
 async function handleLogout() {
   showConfirm(tt('logout') || 'ออกจากระบบ', tt('logout_confirm') || 'ต้องการออกจากระบบหรือไม่?', async () => {
-    if (cloudSaveTimer) { clearTimeout(cloudSaveTimer); await pushCloudData(); }
-    const sb = initSupabase();
-    if (sb) await sb.auth.signOut();
+    if (cloudSaveTimer) { clearTimeout(cloudSaveTimer); try { await pushCloudData(); } catch (e) {} }
+    // Direct fetch logout (best-effort, don't block on it)
+    try {
+      const token = currentUser && currentUser._token;
+      if (token) {
+        fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${token}`
+          }
+        }).catch(() => {});
+      }
+    } catch (e) {}
     currentUser = null;
     transactions = [];
     agents = [];
     localStorage.removeItem(STORE_KEYS.tx);
     localStorage.removeItem(STORE_KEYS.agents);
+    try {
+      const tokenKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
+      localStorage.removeItem(tokenKey);
+    } catch (e) {}
     $auth('auth-username').value = '';
     $auth('auth-password').value = '';
     if ($auth('auth-password2')) $auth('auth-password2').value = '';
@@ -5829,51 +5881,39 @@ async function handleLogout() {
 // Startup: check existing session
 async function startup() {
   loadState(); // local cache for instant paint if session valid
-  showLoading('กำลังตรวจสอบ...');
 
-  // Wait for Supabase SDK to finish loading from CDN (up to ~5s)
-  let sb = initSupabase();
-  if (!sb) {
-    for (let i = 0; i < 50 && !sb; i++) {
-      await new Promise(r => setTimeout(r, 100));
-      sb = initSupabase();
-    }
-  }
-
-  if (!sb) {
-    // SDK genuinely failed to load — fall back to offline local mode
-    console.warn('Supabase SDK not available — offline mode');
-    applyTheme(); applyFont(); applyTranslations();
-    renderLangPicker(); renderFontPicker(); renderThemePicker();
-    renderAll();
-    showApp();
-    return;
-  }
-
-  // getSession with a hard timeout so we never hang on the loading screen
+  // Read saved session from localStorage (saved by handleAuthSubmit)
   let session = null;
   try {
-    const sessionPromise = sb.auth.getSession();
-    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: { session: null }, _timedOut: true }), 8000));
-    const result = await Promise.race([sessionPromise, timeoutPromise]);
-    session = result && result.data ? result.data.session : null;
-  } catch (e) {
-    console.warn('getSession failed:', e);
-    session = null;
-  }
+    const tokenKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
+    const raw = localStorage.getItem(tokenKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Check not expired
+      const now = Math.floor(Date.now() / 1000);
+      if (parsed.expires_at && parsed.expires_at > now + 60 && parsed.access_token && parsed.user) {
+        session = parsed;
+      } else {
+        localStorage.removeItem(tokenKey);
+      }
+    }
+  } catch (e) { console.warn('Session restore failed:', e); }
 
   try {
     if (session) {
       const u = session.user;
-      currentUser = { id: u.id, username: (u.user_metadata && u.user_metadata.username) || '' };
+      currentUser = {
+        id: u.id,
+        username: (u.user_metadata && u.user_metadata.username) || '',
+        _token: session.access_token
+      };
       await afterLogin(false);
     } else {
       setAuthMode('login');
       showAuthScreen();
     }
   } catch (e) {
-    // Any error during post-login render → show auth screen rather than hang
-    console.error('Startup render error:', e);
+    console.error('Startup error:', e);
     setAuthMode('login');
     showAuthScreen();
   }
