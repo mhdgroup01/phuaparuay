@@ -1505,7 +1505,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.1';
+const APP_VERSION = '1.99.2';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3618,23 +3618,25 @@ function renderAgents() {
         <div class="bill-row-title">${tt('new_bill_seq')} ${idx + 1}</div>
         <button class="row-del-btn" data-row-del aria-label="delete row"><i class="ti ti-x"></i></button>
       </div>
-      <div class="bill-row-field">
-        <label class="bill-row-label"><i class="ti ti-calendar"></i> ${tt('fromDate') || 'วันที่'}</label>
-        <input type="date" class="quick-field" data-row-date value="${todayStr()}">
-      </div>
-      <div class="bill-row-field">
-        <label class="bill-row-label"><i class="ti ti-cash"></i> ${tt('amount')}</label>
-        <input type="text" inputmode="decimal" class="quick-field bill-amount" data-row-amount data-agent-id="${agentId}" placeholder="${tt('amount')}" autocomplete="off">
-      </div>
-      <div class="bill-row-field">
-        <label class="bill-row-label"><i class="ti ti-percentage"></i> ${tt('bill_pct')}</label>
-        <div class="pct-input-wrap">
-          <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-row-pct data-default-pct="${defaultPct}" value="${defaultPct}">
-          <span class="pct-suffix">%</span>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div class="bill-row-field" style="border: none; padding: 0;">
+          <label class="bill-row-label"><i class="ti ti-calendar"></i> ${tt('fromDate') || 'วันที่'}</label>
+          <input type="date" class="quick-field" data-row-date value="${todayStr()}">
+        </div>
+        <div class="bill-row-field" style="border: none; padding: 0;">
+          <label class="bill-row-label"><i class="ti ti-percentage"></i> ${tt('bill_pct')}</label>
+          <div class="pct-input-wrap">
+            <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-row-pct data-default-pct="${defaultPct}" value="${defaultPct}">
+            <span class="pct-suffix">%</span>
+          </div>
         </div>
       </div>
-      <div class="bill-row-field" style="border: none; padding-top: 4px;">
-        <label class="unpaid-toggle" data-row-unpaid-label style="margin: 0;">
+      <div style="display: flex; gap: 8px; align-items: flex-end; margin-top: 8px;">
+        <div class="bill-row-field" style="border: none; padding: 0; flex: 1; min-width: 0;">
+          <label class="bill-row-label"><i class="ti ti-cash"></i> ${tt('amount')}</label>
+          <input type="text" inputmode="decimal" class="quick-field bill-amount" data-row-amount data-agent-id="${agentId}" placeholder="${tt('amount')}" autocomplete="off">
+        </div>
+        <label class="unpaid-toggle" data-row-unpaid-label style="margin: 0; flex-shrink: 0;">
           <input type="checkbox" data-row-unpaid checked>
           <span class="unpaid-check"></span>
           <span class="unpaid-label-text">
