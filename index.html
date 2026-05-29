@@ -1087,6 +1087,10 @@ h1, h2, h3, .display {
   </div>
 
   <div id="tab-agents" class="tab-content" style="display: none;">
+    <button id="admin-pending-btn" style="display: none; width: 100%; margin-bottom: 16px; padding: 14px 16px; border: none; border-radius: 16px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 8px; position: relative; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.22);">
+      <i class="ti ti-clipboard-check" style="font-size: 18px;"></i> <span data-i18n="pending_approval_btn">รายการรออนุมัติ</span>
+      <span id="admin-pending-count" style="display: none; position: absolute; top: 8px; right: 12px; background: white; color: #6366f1; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; min-width: 22px;">0</span>
+    </button>
     <div class="desktop-grid">
       <div class="section-card agent-theme">
         <div class="section-title">
@@ -1200,10 +1204,6 @@ h1, h2, h3, .display {
 
         <button id="admin-users-btn" style="display: none; width: 100%; margin-top: 12px; padding: 14px 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 8px;">
           <i class="ti ti-users-group" style="font-size: 18px;"></i> จัดการ Users
-        </button>
-        <button id="admin-pending-btn" style="display: none; width: 100%; margin-top: 8px; padding: 14px 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 8px; position: relative;">
-          <i class="ti ti-clipboard-check" style="font-size: 18px;"></i> รายการรออนุมัติ
-          <span id="admin-pending-count" style="display: none; position: absolute; top: 8px; right: 12px; background: white; color: #6366f1; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; min-width: 22px;">0</span>
         </button>
       </div>
     </div>
@@ -1505,7 +1505,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.97.1';
+const APP_VERSION = '1.99.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3276,7 +3276,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
           <div style="flex: 1; min-width: 0;">
             <div style="font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
               ${t.desc ? escapeHtml(t.desc) : tt('new_bill_seq') + seqMap[t.id]}
-              <span class="bill-pct-badge ${typeof t.percent === 'number' && t.percent !== agent.percent ? 'custom' : ''}">${getAgentPercentForTx(t)}%</span>
+              <span class="bill-pct-badge ${typeof t.percent === 'number' && t.percent !== agent.percent ? 'custom' : ''}" data-edit-pct="${t.id}" style="cursor: pointer;" title="แตะเพื่อแก้ %">${getAgentPercentForTx(t)}%</span>
               ${badgeHtml}
               ${syncBadgeHtml}
             </div>
@@ -3533,7 +3533,7 @@ function renderAgents() {
       <div class="percent-control" style="margin-bottom: 10px;">
         <i class="ti ti-percentage" style="font-size: 22px;"></i>
         <span style="font-size: 14px; flex: 1; opacity: 0.95;">${tt('commission')} ${fmtShort(agentComm)} ₭</span>
-        <input type="number" inputmode="decimal" min="0" max="100" step="0.1" value="${a.percent}" data-percent-id="${a.id}" class="percent-input">
+        <input type="number" inputmode="decimal" min="0" max="100" step="0.1" value="${a.percent}" data-percent-id="${a.id}" class="percent-input" ${(!isAdmin && status === 'approved') ? 'readonly title="ค่าคอมรวมของตัวแทนถูกล็อค — แตะ % ของแต่ละบิลเพื่อแก้ทีละใบ"' : ''}>
         <span style="font-size: 17px; font-weight: 500;">%</span>
       </div>
 
@@ -4031,6 +4031,42 @@ function renderAgents() {
 
   el.querySelectorAll('[data-edit-bill]').forEach(b => {
     b.addEventListener('click', () => openEditTxModal(b.dataset.editBill));
+  });
+
+  // Tap a bill's % badge to quick-edit per-bill commission percent (works for both admin and user)
+  el.querySelectorAll('[data-edit-pct]').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = b.dataset.editPct;
+      const tx = transactions.find(t => t.id === id);
+      if (!tx) return;
+      const ag = agents.find(a => a.id === tx.agentId);
+      if (!ag) return;
+      const currentPct = typeof tx.percent === 'number' ? tx.percent : ag.percent;
+      const input = prompt(`ค่าคอมบิลนี้ (%)\n\nบิล: ${tx.desc || '—'}\nค่าเริ่มต้นจากตัวแทน: ${ag.percent}%\n\nใส่ค่าใหม่ (0-100) หรือเว้นว่างเพื่อใช้ค่าตัวแทน:`, currentPct);
+      if (input === null) return; // cancelled
+      const trimmed = input.trim();
+      if (trimmed === '') {
+        // Remove per-bill % override → fallback to agent default
+        delete tx.percent;
+      } else {
+        const v = parseFloat(trimmed);
+        if (isNaN(v) || v < 0 || v > 100) {
+          showToast('ค่าต้องอยู่ระหว่าง 0-100', 'error');
+          return;
+        }
+        if (v === ag.percent) {
+          // Same as agent default — clear override
+          delete tx.percent;
+        } else {
+          tx.percent = v;
+        }
+      }
+      tagEditedTx(tx);
+      saveTx();
+      renderAll();
+      showToast(tt('percent_updated'), 'success');
+    });
   });
 
   el.querySelectorAll('[data-payments-bill]').forEach(b => {
