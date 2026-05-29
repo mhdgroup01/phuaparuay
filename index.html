@@ -1576,7 +1576,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.17';
+const APP_VERSION = '1.99.18';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3563,49 +3563,64 @@ async function doExportXlsx() {
   const datesSet = new Set(agentTxs.map(t => t.date));
   const sortedDays = Array.from(datesSet).sort();
 
-  showToast('กำลังโหลดไลบรารี Excel...', 'info');
+  showToast('ກຳລັງໂຫຼດໄລບຣາລີ Excel...', 'info');
   let XLSX;
   try { XLSX = await loadXlsx(); }
   catch (e) { showToast(e.message, 'error'); return; }
 
-  const S_TITLE = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '6366F1' } }, alignment: { horizontal: 'center', vertical: 'center' } };
-  const S_SUBTITLE = { font: { italic: true, sz: 11, color: { rgb: '6B7280' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } } };
-  const S_HEADER = { font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '4F46E5' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: XL_BORDER_LIGHT };
-  const S_HEADER_GREEN = { font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '059669' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: XL_BORDER_LIGHT };
-  const S_DATA_TEXT = { font: { sz: 11 }, alignment: { horizontal: 'left', vertical: 'center' }, border: XL_BORDER_LIGHT };
-  const S_DATA_CENTER = { font: { sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
-  const S_NUM_INCOME = { font: { sz: 11, color: { rgb: '059669' }, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
-  const S_NUM_EXPENSE = { font: { sz: 11, color: { rgb: 'DC2626' }, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
-  const S_NUM_COMM = { font: { sz: 11, color: { rgb: '7C3AED' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
-  const S_NUM_KB = { font: { sz: 11, color: { rgb: '8B5CF6' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
-  const S_PCT = { font: { sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, numFmt: '0.0"%"', border: XL_BORDER_LIGHT };
-  const S_STATUS_PAID = { font: { sz: 10, color: { rgb: '059669' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'D1FAE5' } }, border: XL_BORDER_LIGHT };
-  const S_STATUS_UNPAID = { font: { sz: 10, color: { rgb: 'D97706' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, border: XL_BORDER_LIGHT };
-  const S_TYPE_INCOME = { font: { sz: 10, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, border: XL_BORDER_LIGHT };
-  const S_TYPE_EXPENSE = { font: { sz: 10, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, border: XL_BORDER_LIGHT };
-  const S_TOTAL_LABEL = { font: { bold: true, sz: 12, color: { rgb: '92400E' } }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
-  const S_TOTAL_NUM = { font: { bold: true, sz: 12, color: { rgb: '92400E' } }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
-  const S_NET_LABEL_POS = { font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
-  const S_NET_VAL_POS = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
-  const S_NET_LABEL_NEG = { font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
-  const S_NET_VAL_NEG = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
-  const S_CALC_LABEL = { font: { sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT };
-  const S_CALC_VAL = { font: { sz: 11, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
-  const S_SECTION = { font: { bold: true, sz: 13, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '4F46E5' } }, alignment: { horizontal: 'center', vertical: 'center' } };
-  const S_INFO_LABEL = { font: { sz: 11, bold: true, color: { rgb: '4B5563' } }, fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } }, alignment: { horizontal: 'left', vertical: 'center' }, border: XL_BORDER_LIGHT };
-  const S_INFO_VAL = { font: { sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  // Font name applied to every font definition
+  const FN = 'Noto Sans Lao';
+  // Style presets (Lao font)
+  const S_TITLE = { font: { name: FN, bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '6366F1' } }, alignment: { horizontal: 'center', vertical: 'center' } };
+  const S_SUBTITLE = { font: { name: FN, italic: true, sz: 11, color: { rgb: '6B7280' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } } };
+  const S_HEADER_BLUE = { font: { name: FN, bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '4F46E5' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: XL_BORDER_LIGHT };
+  // Per-column header colors for swapped income/expense columns
+  const S_HEADER_RED = { font: { name: FN, bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: 'DC2626' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: XL_BORDER_LIGHT };
+  const S_HEADER_GREEN = { font: { name: FN, bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '059669' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: XL_BORDER_LIGHT };
+  const S_DATA_TEXT = { font: { name: FN, sz: 11 }, alignment: { horizontal: 'left', vertical: 'center', wrapText: true }, border: XL_BORDER_LIGHT };
+  const S_DATA_CENTER = { font: { name: FN, sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  // Column under "ລາຍຈ່າຍ" (originally income data) — RED numbers
+  const S_NUM_RED = { font: { name: FN, sz: 11, color: { rgb: 'DC2626' }, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  // Column under "ລາຍຮັບ" (originally expense data) — GREEN numbers
+  const S_NUM_GREEN = { font: { name: FN, sz: 11, color: { rgb: '059669' }, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  const S_NUM_COMM = { font: { name: FN, sz: 11, color: { rgb: '7C3AED' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  const S_NUM_KB = { font: { name: FN, sz: 11, color: { rgb: '8B5CF6' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  const S_PCT = { font: { name: FN, sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, numFmt: '0.0"%"', border: XL_BORDER_LIGHT };
+  // Status colors (also swapped to match perspective flip)
+  const S_STATUS_GREEN = { font: { name: FN, sz: 10, color: { rgb: '059669' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'D1FAE5' } }, border: XL_BORDER_LIGHT };
+  const S_STATUS_ORANGE = { font: { name: FN, sz: 10, color: { rgb: 'D97706' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, border: XL_BORDER_LIGHT };
+  // Type chips — SWAPPED: income tx labeled as "ລາຍຈ່າຍ" red, expense tx labeled as "ລາຍຮັບ" green
+  const S_CHIP_RED = { font: { name: FN, sz: 10, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, border: XL_BORDER_LIGHT };
+  const S_CHIP_GREEN = { font: { name: FN, sz: 10, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, border: XL_BORDER_LIGHT };
+  // Totals (amber)
+  const S_TOTAL_LABEL = { font: { name: FN, bold: true, sz: 12, color: { rgb: '92400E' } }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_TOTAL_NUM = { font: { name: FN, bold: true, sz: 12, color: { rgb: '92400E' } }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  // Net result — INVERTED: positive net = RED ("ລວມຕ້ອງຈ່າຍ"), negative = GREEN ("ລວມຕ້ອງໄດ້")
+  const S_NET_LABEL_RED = { font: { name: FN, bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_NET_VAL_RED = { font: { name: FN, bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
+  const S_NET_LABEL_GREEN = { font: { name: FN, bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_NET_VAL_GREEN = { font: { name: FN, bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
+  const S_CALC_LABEL = { font: { name: FN, sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_CALC_VAL = { font: { name: FN, sz: 11, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
+  const S_SECTION = { font: { name: FN, bold: true, sz: 13, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '4F46E5' } }, alignment: { horizontal: 'center', vertical: 'center' } };
+  const S_INFO_LABEL = { font: { name: FN, sz: 11, bold: true, color: { rgb: '4B5563' } }, fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } }, alignment: { horizontal: 'left', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_INFO_VAL = { font: { name: FN, sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT };
 
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: รายการบิล
+  // Sheet 1: ລາຍການບິນ
   let totalIncome = 0, totalExpense = 0, totalComm = 0, totalKb = 0;
   const ws1 = {};
-  xlSetCell(ws1, 'A1', 'บิลของตัวแทน — ' + agent.name + ' (' + agent.percent + '%)', S_TITLE);
-  const reportInfo = 'ออกรายงาน: ' + new Date().toLocaleString('th-TH') + ' · ช่วง: ' + (sortedDays.length > 0 ? formatThaiDate(sortedDays[0]) + (sortedDays.length > 1 ? ' - ' + formatThaiDate(sortedDays[sortedDays.length - 1]) : '') : '-') + ' · ' + agentTxs.length + ' บิล';
+  xlSetCell(ws1, 'A1', 'ບິນຂອງຕົວແທນ — ' + agent.name + ' (' + agent.percent + '%)', S_TITLE);
+  const reportInfo = 'ອອກລາຍງານ: ' + new Date().toLocaleString('lo-LA') + ' · ໄລຍະ: ' + (sortedDays.length > 0 ? formatThaiDate(sortedDays[0]) + (sortedDays.length > 1 ? ' - ' + formatThaiDate(sortedDays[sortedDays.length - 1]) : '') : '-') + ' · ' + agentTxs.length + ' ບິນ';
   xlSetCell(ws1, 'A2', reportInfo, S_SUBTITLE);
 
-  const headers1 = ['วันที่', 'ประเภท', 'คำอธิบาย', 'รายรับ (₭)', 'รายจ่าย (₭)', '% คอม', 'ค่าคอม (₭)', '% คืน', 'จำนวนคืน (₭)', 'สถานะ'];
-  headers1.forEach((h, i) => xlSetCell(ws1, XLSX.utils.encode_cell({ r: 3, c: i }), h, S_HEADER));
+  // SWAPPED column headers + per-column colors:
+  //  col 3 = ລາຍຈ່າຍ (red header, red numbers) — actually holds income data
+  //  col 4 = ລາຍຮັບ  (green header, green numbers) — actually holds expense data
+  const headers1 = ['ວັນທີ', 'ປະເພດ', 'ຄຳອະທິບາຍ', 'ລາຍຈ່າຍ (₭)', 'ລາຍຮັບ (₭)', '% ຄ່າຄອມ', 'ຄ່າຄອມ (₭)', '% ຄືນ', 'ຈຳນວນຄືນ (₭)', 'ສະຖານະ'];
+  const headerStyles = [S_HEADER_BLUE, S_HEADER_BLUE, S_HEADER_BLUE, S_HEADER_RED, S_HEADER_GREEN, S_HEADER_BLUE, S_HEADER_BLUE, S_HEADER_BLUE, S_HEADER_BLUE, S_HEADER_BLUE];
+  headers1.forEach((h, i) => xlSetCell(ws1, XLSX.utils.encode_cell({ r: 3, c: i }), h, headerStyles[i]));
 
   let curRow = 5;
   for (const t of agentTxs) {
@@ -3623,24 +3638,40 @@ async function doExportXlsx() {
         kbPctV = t.kickback; kbAmtV = k; totalKb += k;
       }
     }
-    const status = t.unpaid ? (isIncome ? 'ยังไม่ได้รับ' : 'ยังไม่จ่าย') : (isIncome ? 'รับแล้ว' : 'จ่ายแล้ว');
+    // SWAPPED type label + chip color (income tx → "ລາຍຈ່າຍ" red; expense tx → "ລາຍຮັບ" green)
+    const typeLabel = isIncome ? 'ລາຍຈ່າຍ' : 'ລາຍຮັບ';
+    const typeStyle = isIncome ? S_CHIP_RED : S_CHIP_GREEN;
+    // Status: also swap perspective
+    let status, statusStyle;
+    if (isIncome) {
+      // income tx, but labeled as expense — so status reads "paid / not paid"
+      status = t.unpaid ? 'ຍັງບໍ່ຈ່າຍ' : 'ຈ່າຍແລ້ວ';
+    } else {
+      // expense tx, but labeled as income — status reads "received / not received"
+      status = t.unpaid ? 'ຍັງບໍ່ໄດ້ຮັບ' : 'ໄດ້ຮັບແລ້ວ';
+    }
+    statusStyle = t.unpaid ? S_STATUS_ORANGE : S_STATUS_GREEN;
+
     const r = curRow - 1;
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 0 }), formatThaiDate(t.date), S_DATA_CENTER);
-    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 1 }), isIncome ? 'รายรับ' : 'รายจ่าย', isIncome ? S_TYPE_INCOME : S_TYPE_EXPENSE);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 1 }), typeLabel, typeStyle);
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 2 }), t.desc || '—', S_DATA_TEXT);
-    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 3 }), incomeV, incomeV !== '' ? S_NUM_INCOME : S_DATA_CENTER);
-    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 4 }), expenseV, expenseV !== '' ? S_NUM_EXPENSE : S_DATA_CENTER);
+    // col 3 (income data) — RED numbers (because column labeled ລາຍຈ່າຍ)
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 3 }), incomeV, incomeV !== '' ? S_NUM_RED : S_DATA_CENTER);
+    // col 4 (expense data) — GREEN numbers (because column labeled ລາຍຮັບ)
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 4 }), expenseV, expenseV !== '' ? S_NUM_GREEN : S_DATA_CENTER);
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 5 }), pctV, pctV !== '' ? S_PCT : S_DATA_CENTER);
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 6 }), commV, commV !== '' ? S_NUM_COMM : S_DATA_CENTER);
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 7 }), kbPctV, kbPctV !== '' ? S_PCT : S_DATA_CENTER);
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 8 }), kbAmtV, kbAmtV !== '' ? S_NUM_KB : S_DATA_CENTER);
-    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 9 }), status, t.unpaid ? S_STATUS_UNPAID : S_STATUS_PAID);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 9 }), status, statusStyle);
     curRow++;
   }
 
+  // Total row
   const totalRowR = curRow - 1;
   xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 0 }), '', S_TOTAL_LABEL);
-  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 1 }), 'รวม', S_TOTAL_LABEL);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 1 }), 'ລວມ', S_TOTAL_LABEL);
   xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 2 }), '', S_TOTAL_LABEL);
   xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 3 }), totalIncome, S_TOTAL_NUM);
   xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 4 }), totalExpense, S_TOTAL_NUM);
@@ -3652,20 +3683,30 @@ async function doExportXlsx() {
   curRow++;
   curRow++;
 
+  // Section header
   const sectionRowR = curRow - 1;
-  xlSetCell(ws1, XLSX.utils.encode_cell({ r: sectionRowR, c: 1 }), 'สรุปบวกลบสุทธิ', S_SECTION);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: sectionRowR, c: 1 }), 'ສະຫຼຸບບວກລົບ', S_SECTION);
   curRow++;
 
   const grandNet = totalIncome - totalComm - totalExpense + totalKb;
-  const calcLines = [['(+) รายรับ', totalIncome], ['(-) ค่าคอม', -totalComm], ['(-) รายจ่าย', -totalExpense], ['(+) คืนจากเขา', totalKb]];
+  // Renamed calc labels (Lao)
+  const calcLines = [
+    ['ຕ້ອງຈ່າຍ', totalIncome],         // (+) ລາຍຮັບ → ຕ້ອງຈ່າຍ
+    ['(-) ຄ່າຄອມ', -totalComm],         // unchanged
+    ['ຕ້ອງໄດ້', -totalExpense],         // (-) ລາຍຈ່າຍ → ຕ້ອງໄດ້
+    ['ຄືນຄ່າຄອມ', totalKb]              // (+) ຄືນຈາກເຂົາ → ຄືນຄ່າຄອມ
+  ];
   for (const [label, val] of calcLines) {
     xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 1 }), label, S_CALC_LABEL);
     xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 3 }), val, S_CALC_VAL);
     curRow++;
   }
-  const netLabelStyle = grandNet >= 0 ? S_NET_LABEL_POS : S_NET_LABEL_NEG;
-  const netValStyle = grandNet >= 0 ? S_NET_VAL_POS : S_NET_VAL_NEG;
-  xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 1 }), 'สุทธิ (₭)', netLabelStyle);
+  // Net row — INVERTED colors: positive=RED ("ລວມຕ້ອງຈ່າຍ"), negative=GREEN ("ລວມຕ້ອງໄດ້")
+  const isPos = grandNet >= 0;
+  const netLabel = isPos ? 'ລວມຕ້ອງຈ່າຍ' : 'ລວມຕ້ອງໄດ້';
+  const netLabelStyle = isPos ? S_NET_LABEL_RED : S_NET_LABEL_GREEN;
+  const netValStyle = isPos ? S_NET_VAL_RED : S_NET_VAL_GREEN;
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 1 }), netLabel, netLabelStyle);
   xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 2 }), '', netLabelStyle);
   xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 3 }), grandNet, netValStyle);
 
@@ -3675,16 +3716,18 @@ async function doExportXlsx() {
     { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
     { s: { r: sectionRowR, c: 1 }, e: { r: sectionRowR, c: 9 } }
   ];
-  ws1['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 30 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 14 }];
+  ws1['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 16 }];
   ws1['!rows'] = [{ hpt: 32 }, { hpt: 20 }, { hpt: 8 }, { hpt: 32 }];
-  XLSX.utils.book_append_sheet(wb, ws1, 'รายการบิล');
+  XLSX.utils.book_append_sheet(wb, ws1, 'ລາຍການບິນ');
 
-  // Sheet 2: สรุปรายวัน
+  // Sheet 2: ສະຫຼຸບລາຍວັນ — SWAPPED column labels & colors
   const ws2 = {};
-  xlSetCell(ws2, 'A1', 'สรุปรายวัน — ' + agent.name, S_TITLE);
-  xlSetCell(ws2, 'A2', sortedDays.length + ' วัน · ' + agentTxs.length + ' บิล', S_SUBTITLE);
-  const dayHeaders = ['วันที่', 'รายรับ (₭)', 'ค่าคอม (₭)', 'รายจ่าย (₭)', 'คืน (₭)', 'สุทธิ (₭)'];
-  dayHeaders.forEach((h, i) => xlSetCell(ws2, XLSX.utils.encode_cell({ r: 3, c: i }), h, S_HEADER_GREEN));
+  xlSetCell(ws2, 'A1', 'ສະຫຼຸບລາຍວັນ — ' + agent.name, S_TITLE);
+  xlSetCell(ws2, 'A2', sortedDays.length + ' ວັນ · ' + agentTxs.length + ' ບິນ', S_SUBTITLE);
+  // SWAPPED: col1=ລາຍຈ່າຍ(red), col3=ລາຍຮັບ(green)
+  const dayHeaders = ['ວັນທີ', 'ລາຍຈ່າຍ (₭)', 'ຄ່າຄອມ (₭)', 'ລາຍຮັບ (₭)', 'ຄືນ (₭)', 'ສຸດທິ (₭)'];
+  const dayHdrStyles = [S_HEADER_BLUE, S_HEADER_RED, S_HEADER_BLUE, S_HEADER_GREEN, S_HEADER_BLUE, S_HEADER_BLUE];
+  dayHeaders.forEach((h, i) => xlSetCell(ws2, XLSX.utils.encode_cell({ r: 3, c: i }), h, dayHdrStyles[i]));
   const selectedByDate = {};
   for (const t of agentTxs) {
     if (!selectedByDate[t.date]) selectedByDate[t.date] = [];
@@ -3704,41 +3747,49 @@ async function doExportXlsx() {
     dInc += di; dComm += dc; dExp += de; dKb += dk;
     const r = dailyRowIdx;
     xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 0 }), formatThaiDate(day), S_DATA_CENTER);
-    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 1 }), di, S_NUM_INCOME);
+    // col 1 = ລາຍຈ່າຍ (red) — income data
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 1 }), di, S_NUM_RED);
     xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 2 }), -dc, S_NUM_COMM);
-    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 3 }), -de, S_NUM_EXPENSE);
+    // col 3 = ລາຍຮັບ (green) — expense data
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 3 }), -de, S_NUM_GREEN);
     xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 4 }), dk, S_NUM_KB);
-    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 5 }), dayNet, dayNet >= 0 ? S_NET_VAL_POS : S_NET_VAL_NEG);
+    // Daily net — also INVERTED color
+    const dayIsPos = dayNet >= 0;
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 5 }), dayNet, dayIsPos ? S_NET_VAL_RED : S_NET_VAL_GREEN);
     dailyRowIdx++;
   }
   const dailyNet = dInc - dComm - dExp + dKb;
   const totalsR = dailyRowIdx;
-  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 0 }), 'รวม', S_TOTAL_LABEL);
+  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 0 }), 'ລວມ', S_TOTAL_LABEL);
   xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 1 }), dInc, S_TOTAL_NUM);
   xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 2 }), -dComm, S_TOTAL_NUM);
   xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 3 }), -dExp, S_TOTAL_NUM);
   xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 4 }), dKb, S_TOTAL_NUM);
-  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 5 }), dailyNet, dailyNet >= 0 ? S_NET_VAL_POS : S_NET_VAL_NEG);
+  const totalIsPos = dailyNet >= 0;
+  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 5 }), dailyNet, totalIsPos ? S_NET_VAL_RED : S_NET_VAL_GREEN);
   ws2['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: totalsR, c: 5 } });
   ws2['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }
   ];
-  ws2['!cols'] = [{ wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }];
+  ws2['!cols'] = [{ wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 18 }];
   ws2['!rows'] = [{ hpt: 32 }, { hpt: 20 }, { hpt: 8 }, { hpt: 32 }];
-  XLSX.utils.book_append_sheet(wb, ws2, 'สรุปรายวัน');
+  XLSX.utils.book_append_sheet(wb, ws2, 'ສະຫຼຸບລາຍວັນ');
 
-  // Sheet 3: สรุปรวม
+  // Sheet 3: ສະຫຼຸບລວມ
   const ws3 = {};
-  xlSetCell(ws3, 'A1', 'สรุปรวม — ' + agent.name, S_TITLE);
+  xlSetCell(ws3, 'A1', 'ສະຫຼຸບລວມ — ' + agent.name, S_TITLE);
+  // Swap perspective for "bill count" labels too — income bills shown as expense bills
+  const incomeBillCount = agentTxs.filter(t => t.type === 'income').length;
+  const expenseBillCount = agentTxs.filter(t => t.type === 'expense').length;
   const sumLines = [
-    ['ตัวแทน', agent.name],
-    ['% ค่าคอม (default)', agent.percent + '%'],
-    ['ออกรายงาน', new Date().toLocaleString('th-TH')],
-    ['ช่วงวันที่', sortedDays.length > 0 ? formatThaiDate(sortedDays[0]) + ' - ' + formatThaiDate(sortedDays[sortedDays.length - 1]) : '-'],
-    ['จำนวนวันที่เลือก', sortedDays.length],
-    ['จำนวนบิลรายรับ', agentTxs.filter(t => t.type === 'income').length],
-    ['จำนวนบิลรายจ่าย', agentTxs.filter(t => t.type === 'expense').length]
+    ['ຕົວແທນ', agent.name],
+    ['% ຄ່າຄອມ (ຄ່າເລີ່ມຕົ້ນ)', agent.percent + '%'],
+    ['ອອກລາຍງານ', new Date().toLocaleString('lo-LA')],
+    ['ໄລຍະວັນທີ', sortedDays.length > 0 ? formatThaiDate(sortedDays[0]) + ' - ' + formatThaiDate(sortedDays[sortedDays.length - 1]) : '-'],
+    ['ຈຳນວນວັນທີ່ເລືອກ', sortedDays.length],
+    ['ຈຳນວນບິນລາຍຈ່າຍ', incomeBillCount],   // SWAPPED label
+    ['ຈຳນວນບິນລາຍຮັບ', expenseBillCount]    // SWAPPED label
   ];
   let r3 = 2;
   for (const [label, val] of sumLines) {
@@ -3747,35 +3798,37 @@ async function doExportXlsx() {
     r3++;
   }
   r3++;
+  // Renamed calc labels with Lao
   const calcRows = [
-    ['(+) รายรับรวม', totalIncome, S_NUM_INCOME],
-    ['(-) ค่าคอมรวม', -totalComm, S_NUM_COMM],
-    ['(-) รายจ่ายรวม', -totalExpense, S_NUM_EXPENSE],
-    ['(+) คืนจากเขารวม', totalKb, S_NUM_KB]
+    ['ຕ້ອງຈ່າຍລວມ', totalIncome, S_NUM_RED],     // was "(+) ລາຍຮັບລວມ"
+    ['(-) ຄ່າຄອມລວມ', -totalComm, S_NUM_COMM],   // unchanged
+    ['ຕ້ອງໄດ້ລວມ', -totalExpense, S_NUM_GREEN],   // was "(-) ລາຍຈ່າຍລວມ"
+    ['ຄືນຄ່າຄອມລວມ', totalKb, S_NUM_KB]           // was "(+) ຄືນຈາກເຂົາລວມ"
   ];
   for (const [label, val, valStyle] of calcRows) {
-    xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 0 }), label, { font: { sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT });
+    xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 0 }), label, { font: { name: FN, sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT });
     xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 1 }), val, valStyle);
     r3++;
   }
-  xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 0 }), 'สุทธิ (₭)', grandNet >= 0 ? S_NET_LABEL_POS : S_NET_LABEL_NEG);
-  xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 1 }), grandNet, grandNet >= 0 ? S_NET_VAL_POS : S_NET_VAL_NEG);
+  xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 0 }), isPos ? 'ລວມຕ້ອງຈ່າຍ' : 'ລວມຕ້ອງໄດ້', isPos ? S_NET_LABEL_RED : S_NET_LABEL_GREEN);
+  xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 1 }), grandNet, isPos ? S_NET_VAL_RED : S_NET_VAL_GREEN);
 
   ws3['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r3, c: 1 } });
   ws3['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
-  ws3['!cols'] = [{ wch: 26 }, { wch: 24 }];
+  ws3['!cols'] = [{ wch: 28 }, { wch: 24 }];
   ws3['!rows'] = [{ hpt: 32 }];
-  XLSX.utils.book_append_sheet(wb, ws3, 'สรุปรวม');
+  XLSX.utils.book_append_sheet(wb, ws3, 'ສະຫຼຸບລວມ');
 
+  // Save
   const today = new Date().toISOString().slice(0, 10);
-  const safeName = (agent.name || 'ตัวแทน').replace(/[\\/:*?"<>|]/g, '');
-  const fname = 'บิล_' + safeName + '_' + today + '.xlsx';
+  const safeName = (agent.name || 'ຕົວແທນ').replace(/[\\/:*?"<>|]/g, '');
+  const fname = 'ບິນ_' + safeName + '_' + today + '.xlsx';
   try {
     XLSX.writeFile(wb, fname);
     document.getElementById('export-modal').classList.remove('show');
-    showToast('ดาวน์โหลด Excel แล้ว', 'success');
+    showToast('ດາວໂຫຼດ Excel ແລ້ວ', 'success');
   } catch (e) {
-    showToast('ดาวน์โหลดไม่สำเร็จ: ' + e.message, 'error');
+    showToast('ດາວໂຫຼດບໍ່ສຳເລັດ: ' + e.message, 'error');
   }
 }
 
