@@ -1576,7 +1576,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.16';
+const APP_VERSION = '1.99.17';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3310,10 +3310,10 @@ function formatThaiDate(isoDate) {
 let _xlsxLib = null;
 async function loadXlsx() {
   if (_xlsxLib) return _xlsxLib;
-  if (typeof XLSX !== 'undefined') { _xlsxLib = XLSX; return XLSX; }
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    // xlsx-js-style: drop-in SheetJS replacement with cell styling support
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
     s.onload = () => {
       if (typeof window.XLSX !== 'undefined') { _xlsxLib = window.XLSX; resolve(window.XLSX); }
       else reject(new Error('โหลด XLSX ไม่สำเร็จ'));
@@ -3321,6 +3321,33 @@ async function loadXlsx() {
     s.onerror = () => reject(new Error('โหลดไลบรารี Excel ไม่ได้ — ตรวจการเชื่อมเน็ต'));
     document.head.appendChild(s);
   });
+}
+
+// Style helpers
+const XL_BORDER_LIGHT = {
+  top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+  bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+  left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+  right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+};
+function xlMakeStyle(opts) { return opts; }
+function xlSetCell(ws, addr, value, style) {
+  if (!ws[addr]) ws[addr] = { v: value, t: typeof value === 'number' ? 'n' : 's' };
+  else { ws[addr].v = value; ws[addr].t = typeof value === 'number' ? 'n' : 's'; }
+  if (style) ws[addr].s = style;
+}
+function xlStyleCell(ws, addr, style) {
+  if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+  ws[addr].s = { ...(ws[addr].s || {}), ...style };
+}
+function xlStyleRange(XLSX, ws, rangeStr, style) {
+  const r = XLSX.utils.decode_range(rangeStr);
+  for (let row = r.s.r; row <= r.e.r; row++) {
+    for (let col = r.s.c; col <= r.e.c; col++) {
+      const addr = XLSX.utils.encode_cell({ r: row, c: col });
+      xlStyleCell(ws, addr, style);
+    }
+  }
 }
 
 let _exportAgentId = null;
@@ -3533,7 +3560,6 @@ async function doExportXlsx() {
   if (selectedTxs.length === 0) return;
 
   const agentTxs = selectedTxs.slice().sort((a, b) => a.date.localeCompare(b.date));
-  // Build a set of selected dates for daily summary
   const datesSet = new Set(agentTxs.map(t => t.date));
   const sortedDays = Array.from(datesSet).sort();
 
@@ -3542,89 +3568,129 @@ async function doExportXlsx() {
   try { XLSX = await loadXlsx(); }
   catch (e) { showToast(e.message, 'error'); return; }
 
+  const S_TITLE = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '6366F1' } }, alignment: { horizontal: 'center', vertical: 'center' } };
+  const S_SUBTITLE = { font: { italic: true, sz: 11, color: { rgb: '6B7280' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } } };
+  const S_HEADER = { font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '4F46E5' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: XL_BORDER_LIGHT };
+  const S_HEADER_GREEN = { font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '059669' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: XL_BORDER_LIGHT };
+  const S_DATA_TEXT = { font: { sz: 11 }, alignment: { horizontal: 'left', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_DATA_CENTER = { font: { sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_NUM_INCOME = { font: { sz: 11, color: { rgb: '059669' }, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  const S_NUM_EXPENSE = { font: { sz: 11, color: { rgb: 'DC2626' }, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  const S_NUM_COMM = { font: { sz: 11, color: { rgb: '7C3AED' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  const S_NUM_KB = { font: { sz: 11, color: { rgb: '8B5CF6' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  const S_PCT = { font: { sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, numFmt: '0.0"%"', border: XL_BORDER_LIGHT };
+  const S_STATUS_PAID = { font: { sz: 10, color: { rgb: '059669' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'D1FAE5' } }, border: XL_BORDER_LIGHT };
+  const S_STATUS_UNPAID = { font: { sz: 10, color: { rgb: 'D97706' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, border: XL_BORDER_LIGHT };
+  const S_TYPE_INCOME = { font: { sz: 10, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, border: XL_BORDER_LIGHT };
+  const S_TYPE_EXPENSE = { font: { sz: 10, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center' }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, border: XL_BORDER_LIGHT };
+  const S_TOTAL_LABEL = { font: { bold: true, sz: 12, color: { rgb: '92400E' } }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_TOTAL_NUM = { font: { bold: true, sz: 12, color: { rgb: '92400E' } }, fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0', border: XL_BORDER_LIGHT };
+  const S_NET_LABEL_POS = { font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_NET_VAL_POS = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '10B981' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
+  const S_NET_LABEL_NEG = { font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_NET_VAL_NEG = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: 'EF4444' } }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
+  const S_CALC_LABEL = { font: { sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_CALC_VAL = { font: { sz: 11, bold: true }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '+#,##0;-#,##0', border: XL_BORDER_LIGHT };
+  const S_SECTION = { font: { bold: true, sz: 13, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '4F46E5' } }, alignment: { horizontal: 'center', vertical: 'center' } };
+  const S_INFO_LABEL = { font: { sz: 11, bold: true, color: { rgb: '4B5563' } }, fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } }, alignment: { horizontal: 'left', vertical: 'center' }, border: XL_BORDER_LIGHT };
+  const S_INFO_VAL = { font: { sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT };
+
   const wb = XLSX.utils.book_new();
 
-  // ====== Sheet 1: รายการบิล — unified table with all bills ======
-  const mainHeader = ['วันที่', 'ประเภท', 'คำอธิบาย', 'รายรับ (₭)', 'รายจ่าย (₭)', '% คอม', 'ค่าคอม (₭)', '% คืน', 'จำนวนคืน (₭)', 'สถานะ'];
-  const mainRows = [mainHeader];
+  // Sheet 1: รายการบิล
   let totalIncome = 0, totalExpense = 0, totalComm = 0, totalKb = 0;
+  const ws1 = {};
+  xlSetCell(ws1, 'A1', 'บิลของตัวแทน — ' + agent.name + ' (' + agent.percent + '%)', S_TITLE);
+  const reportInfo = 'ออกรายงาน: ' + new Date().toLocaleString('th-TH') + ' · ช่วง: ' + (sortedDays.length > 0 ? formatThaiDate(sortedDays[0]) + (sortedDays.length > 1 ? ' - ' + formatThaiDate(sortedDays[sortedDays.length - 1]) : '') : '-') + ' · ' + agentTxs.length + ' บิล';
+  xlSetCell(ws1, 'A2', reportInfo, S_SUBTITLE);
 
+  const headers1 = ['วันที่', 'ประเภท', 'คำอธิบาย', 'รายรับ (₭)', 'รายจ่าย (₭)', '% คอม', 'ค่าคอม (₭)', '% คืน', 'จำนวนคืน (₭)', 'สถานะ'];
+  headers1.forEach((h, i) => xlSetCell(ws1, XLSX.utils.encode_cell({ r: 3, c: i }), h, S_HEADER));
+
+  let curRow = 5;
   for (const t of agentTxs) {
     const isIncome = t.type === 'income';
-    let income = '', expense = '', pctVal = '', commVal = '', kbPctVal = '', kbAmtVal = '';
+    let incomeV = '', expenseV = '', pctV = '', commV = '', kbPctV = '', kbAmtV = '';
     if (isIncome) {
       const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
       const c = t.amount * (pct / 100);
-      income = t.amount;
-      pctVal = pct;
-      commVal = c;
-      totalIncome += t.amount;
-      totalComm += c;
+      incomeV = t.amount; pctV = pct; commV = c;
+      totalIncome += t.amount; totalComm += c;
     } else {
-      expense = t.amount;
-      totalExpense += t.amount;
+      expenseV = t.amount; totalExpense += t.amount;
       if (t.kickback) {
         const k = t.amount * (t.kickback / 100);
-        kbPctVal = t.kickback;
-        kbAmtVal = k;
-        totalKb += k;
+        kbPctV = t.kickback; kbAmtV = k; totalKb += k;
       }
     }
-    const status = t.unpaid
-      ? (isIncome ? 'ยังไม่ได้รับ' : 'ยังไม่จ่าย')
-      : (isIncome ? 'รับแล้ว' : 'จ่ายแล้ว');
-    mainRows.push([
-      formatThaiDate(t.date),
-      isIncome ? 'รายรับ' : 'รายจ่าย',
-      t.desc || '',
-      income,
-      expense,
-      pctVal,
-      commVal,
-      kbPctVal,
-      kbAmtVal,
-      status
-    ]);
+    const status = t.unpaid ? (isIncome ? 'ยังไม่ได้รับ' : 'ยังไม่จ่าย') : (isIncome ? 'รับแล้ว' : 'จ่ายแล้ว');
+    const r = curRow - 1;
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 0 }), formatThaiDate(t.date), S_DATA_CENTER);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 1 }), isIncome ? 'รายรับ' : 'รายจ่าย', isIncome ? S_TYPE_INCOME : S_TYPE_EXPENSE);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 2 }), t.desc || '—', S_DATA_TEXT);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 3 }), incomeV, incomeV !== '' ? S_NUM_INCOME : S_DATA_CENTER);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 4 }), expenseV, expenseV !== '' ? S_NUM_EXPENSE : S_DATA_CENTER);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 5 }), pctV, pctV !== '' ? S_PCT : S_DATA_CENTER);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 6 }), commV, commV !== '' ? S_NUM_COMM : S_DATA_CENTER);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 7 }), kbPctV, kbPctV !== '' ? S_PCT : S_DATA_CENTER);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 8 }), kbAmtV, kbAmtV !== '' ? S_NUM_KB : S_DATA_CENTER);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 9 }), status, t.unpaid ? S_STATUS_UNPAID : S_STATUS_PAID);
+    curRow++;
   }
 
-  // Totals row
-  mainRows.push([]);
-  mainRows.push(['', 'รวม', '', totalIncome, totalExpense, '', totalComm, '', totalKb, '']);
-  mainRows.push([]);
+  const totalRowR = curRow - 1;
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 0 }), '', S_TOTAL_LABEL);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 1 }), 'รวม', S_TOTAL_LABEL);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 2 }), '', S_TOTAL_LABEL);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 3 }), totalIncome, S_TOTAL_NUM);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 4 }), totalExpense, S_TOTAL_NUM);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 5 }), '', S_TOTAL_LABEL);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 6 }), totalComm, S_TOTAL_NUM);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 7 }), '', S_TOTAL_LABEL);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 8 }), totalKb, S_TOTAL_NUM);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: totalRowR, c: 9 }), '', S_TOTAL_LABEL);
+  curRow++;
+  curRow++;
 
-  // Net calculation block
-  mainRows.push(['', 'สรุปบวกลบสุทธิ', '', '', '', '', '', '', '', '']);
-  mainRows.push(['', '(+) รายรับ', '', totalIncome, '', '', '', '', '', '']);
-  mainRows.push(['', '(-) ค่าคอม', '', -totalComm, '', '', '', '', '', '']);
-  mainRows.push(['', '(-) รายจ่าย', '', -totalExpense, '', '', '', '', '', '']);
-  mainRows.push(['', '(+) คืนจากเขา', '', totalKb, '', '', '', '', '', '']);
+  const sectionRowR = curRow - 1;
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: sectionRowR, c: 1 }), 'สรุปบวกลบสุทธิ', S_SECTION);
+  curRow++;
+
   const grandNet = totalIncome - totalComm - totalExpense + totalKb;
-  mainRows.push(['', 'สุทธิ (₭)', '', grandNet, '', '', '', '', '', '']);
+  const calcLines = [['(+) รายรับ', totalIncome], ['(-) ค่าคอม', -totalComm], ['(-) รายจ่าย', -totalExpense], ['(+) คืนจากเขา', totalKb]];
+  for (const [label, val] of calcLines) {
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 1 }), label, S_CALC_LABEL);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 3 }), val, S_CALC_VAL);
+    curRow++;
+  }
+  const netLabelStyle = grandNet >= 0 ? S_NET_LABEL_POS : S_NET_LABEL_NEG;
+  const netValStyle = grandNet >= 0 ? S_NET_VAL_POS : S_NET_VAL_NEG;
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 1 }), 'สุทธิ (₭)', netLabelStyle);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 2 }), '', netLabelStyle);
+  xlSetCell(ws1, XLSX.utils.encode_cell({ r: curRow - 1, c: 3 }), grandNet, netValStyle);
 
-  const mainWs = XLSX.utils.aoa_to_sheet(mainRows);
-  mainWs['!cols'] = [
-    { wch: 14 }, // วันที่
-    { wch: 10 }, // ประเภท
-    { wch: 28 }, // คำอธิบาย
-    { wch: 14 }, // รายรับ
-    { wch: 14 }, // รายจ่าย
-    { wch: 8 },  // % คอม
-    { wch: 14 }, // ค่าคอม
-    { wch: 8 },  // % คืน
-    { wch: 14 }, // จำนวนคืน
-    { wch: 14 }  // สถานะ
+  ws1['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: curRow - 1, c: 9 } });
+  ws1['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
+    { s: { r: sectionRowR, c: 1 }, e: { r: sectionRowR, c: 9 } }
   ];
-  XLSX.utils.book_append_sheet(wb, mainWs, 'รายการบิล');
+  ws1['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 30 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 14 }];
+  ws1['!rows'] = [{ hpt: 32 }, { hpt: 20 }, { hpt: 8 }, { hpt: 32 }];
+  XLSX.utils.book_append_sheet(wb, ws1, 'รายการบิล');
 
-  // ====== Sheet 2: สรุปรายวัน — by-day breakdown of SELECTED txs ======
-  const dailyHeader = ['วันที่', 'รายรับ (₭)', 'ค่าคอม (₭)', 'รายจ่าย (₭)', 'คืน (₭)', 'สุทธิ (₭)'];
-  const dailyRows = [dailyHeader];
-  // Re-group selected txs by date
+  // Sheet 2: สรุปรายวัน
+  const ws2 = {};
+  xlSetCell(ws2, 'A1', 'สรุปรายวัน — ' + agent.name, S_TITLE);
+  xlSetCell(ws2, 'A2', sortedDays.length + ' วัน · ' + agentTxs.length + ' บิล', S_SUBTITLE);
+  const dayHeaders = ['วันที่', 'รายรับ (₭)', 'ค่าคอม (₭)', 'รายจ่าย (₭)', 'คืน (₭)', 'สุทธิ (₭)'];
+  dayHeaders.forEach((h, i) => xlSetCell(ws2, XLSX.utils.encode_cell({ r: 3, c: i }), h, S_HEADER_GREEN));
   const selectedByDate = {};
   for (const t of agentTxs) {
     if (!selectedByDate[t.date]) selectedByDate[t.date] = [];
     selectedByDate[t.date].push(t);
   }
+  let dailyRowIdx = 4;
   let dInc = 0, dComm = 0, dExp = 0, dKb = 0;
   for (const day of sortedDays) {
     const dayTxs = selectedByDate[day] || [];
@@ -3636,40 +3702,74 @@ async function doExportXlsx() {
     }
     const dayNet = di - dc - de + dk;
     dInc += di; dComm += dc; dExp += de; dKb += dk;
-    dailyRows.push([formatThaiDate(day), di, -dc, -de, dk, dayNet]);
+    const r = dailyRowIdx;
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 0 }), formatThaiDate(day), S_DATA_CENTER);
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 1 }), di, S_NUM_INCOME);
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 2 }), -dc, S_NUM_COMM);
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 3 }), -de, S_NUM_EXPENSE);
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 4 }), dk, S_NUM_KB);
+    xlSetCell(ws2, XLSX.utils.encode_cell({ r, c: 5 }), dayNet, dayNet >= 0 ? S_NET_VAL_POS : S_NET_VAL_NEG);
+    dailyRowIdx++;
   }
   const dailyNet = dInc - dComm - dExp + dKb;
-  dailyRows.push([]);
-  dailyRows.push(['รวม', dInc, -dComm, -dExp, dKb, dailyNet]);
-  const dailyWs = XLSX.utils.aoa_to_sheet(dailyRows);
-  dailyWs['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }];
-  XLSX.utils.book_append_sheet(wb, dailyWs, 'สรุปรายวัน');
+  const totalsR = dailyRowIdx;
+  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 0 }), 'รวม', S_TOTAL_LABEL);
+  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 1 }), dInc, S_TOTAL_NUM);
+  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 2 }), -dComm, S_TOTAL_NUM);
+  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 3 }), -dExp, S_TOTAL_NUM);
+  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 4 }), dKb, S_TOTAL_NUM);
+  xlSetCell(ws2, XLSX.utils.encode_cell({ r: totalsR, c: 5 }), dailyNet, dailyNet >= 0 ? S_NET_VAL_POS : S_NET_VAL_NEG);
+  ws2['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: totalsR, c: 5 } });
+  ws2['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }
+  ];
+  ws2['!cols'] = [{ wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }];
+  ws2['!rows'] = [{ hpt: 32 }, { hpt: 20 }, { hpt: 8 }, { hpt: 32 }];
+  XLSX.utils.book_append_sheet(wb, ws2, 'สรุปรายวัน');
 
-  // ====== Sheet 3: สรุปรวม — overall info ======
-  const sumData = [
-    ['สรุปบิล — ตัวแทน', agent.name],
+  // Sheet 3: สรุปรวม
+  const ws3 = {};
+  xlSetCell(ws3, 'A1', 'สรุปรวม — ' + agent.name, S_TITLE);
+  const sumLines = [
+    ['ตัวแทน', agent.name],
     ['% ค่าคอม (default)', agent.percent + '%'],
     ['ออกรายงาน', new Date().toLocaleString('th-TH')],
-    ['ช่วงวันที่', sortedDays.length > 0 ? `${formatThaiDate(sortedDays[0])} - ${formatThaiDate(sortedDays[sortedDays.length - 1])}` : '-'],
+    ['ช่วงวันที่', sortedDays.length > 0 ? formatThaiDate(sortedDays[0]) + ' - ' + formatThaiDate(sortedDays[sortedDays.length - 1]) : '-'],
     ['จำนวนวันที่เลือก', sortedDays.length],
-    [],
     ['จำนวนบิลรายรับ', agentTxs.filter(t => t.type === 'income').length],
-    ['จำนวนบิลรายจ่าย', agentTxs.filter(t => t.type === 'expense').length],
-    [],
-    ['(+) รายรับรวม (₭)', totalIncome],
-    ['(-) ค่าคอมรวม (₭)', -totalComm],
-    ['(-) รายจ่ายรวม (₭)', -totalExpense],
-    ['(+) คืนจากเขารวม (₭)', totalKb],
-    [],
-    ['สุทธิ (₭)', grandNet]
+    ['จำนวนบิลรายจ่าย', agentTxs.filter(t => t.type === 'expense').length]
   ];
-  const sumWs = XLSX.utils.aoa_to_sheet(sumData);
-  sumWs['!cols'] = [{ wch: 28 }, { wch: 24 }];
-  XLSX.utils.book_append_sheet(wb, sumWs, 'สรุปรวม');
+  let r3 = 2;
+  for (const [label, val] of sumLines) {
+    xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 0 }), label, S_INFO_LABEL);
+    xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 1 }), val, S_INFO_VAL);
+    r3++;
+  }
+  r3++;
+  const calcRows = [
+    ['(+) รายรับรวม', totalIncome, S_NUM_INCOME],
+    ['(-) ค่าคอมรวม', -totalComm, S_NUM_COMM],
+    ['(-) รายจ่ายรวม', -totalExpense, S_NUM_EXPENSE],
+    ['(+) คืนจากเขารวม', totalKb, S_NUM_KB]
+  ];
+  for (const [label, val, valStyle] of calcRows) {
+    xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 0 }), label, { font: { sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: XL_BORDER_LIGHT });
+    xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 1 }), val, valStyle);
+    r3++;
+  }
+  xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 0 }), 'สุทธิ (₭)', grandNet >= 0 ? S_NET_LABEL_POS : S_NET_LABEL_NEG);
+  xlSetCell(ws3, XLSX.utils.encode_cell({ r: r3, c: 1 }), grandNet, grandNet >= 0 ? S_NET_VAL_POS : S_NET_VAL_NEG);
+
+  ws3['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r3, c: 1 } });
+  ws3['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+  ws3['!cols'] = [{ wch: 26 }, { wch: 24 }];
+  ws3['!rows'] = [{ hpt: 32 }];
+  XLSX.utils.book_append_sheet(wb, ws3, 'สรุปรวม');
 
   const today = new Date().toISOString().slice(0, 10);
   const safeName = (agent.name || 'ตัวแทน').replace(/[\\/:*?"<>|]/g, '');
-  const fname = `บิล_${safeName}_${today}.xlsx`;
+  const fname = 'บิล_' + safeName + '_' + today + '.xlsx';
   try {
     XLSX.writeFile(wb, fname);
     document.getElementById('export-modal').classList.remove('show');
