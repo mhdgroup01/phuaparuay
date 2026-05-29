@@ -1547,7 +1547,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.11';
+const APP_VERSION = '1.99.12';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3613,6 +3613,10 @@ function renderAgents() {
               <input type="date" class="quick-field" data-exp-date value="${todayStr()}">
             </div>
             <div class="bill-row-field">
+              <label class="bill-row-label"><i class="ti ti-note"></i> ${tt('description') || 'คำอธิบาย'}</label>
+              <input type="text" class="quick-field" data-exp-desc placeholder="${tt('description') || 'คำอธิบาย'}" autocomplete="off">
+            </div>
+            <div class="bill-row-field">
               <label class="bill-row-label"><i class="ti ti-cash"></i> ${tt('expenseAmount')}</label>
               <input type="text" inputmode="decimal" class="quick-field bill-amount" data-exp-amount placeholder="${tt('expenseAmount')}" autocomplete="off">
             </div>
@@ -4112,8 +4116,10 @@ function renderAgents() {
         const expKb = parseFloat(expRow.querySelector('[data-exp-kickback]').value);
         const expUnpaidEl = expRow.querySelector('[data-exp-unpaid]');
         const expIsUnpaid = expUnpaidEl && expUnpaidEl.checked;
+        const expDescEl = expRow.querySelector('[data-exp-desc]');
+        const expDesc = expDescEl ? (expDescEl.value || '').trim() : '';
         if (!isNaN(expAmt) && expAmt > 0) {
-          const tx = { id: uid(), type: 'expense', date: expDate, desc: '', amount: expAmt, agentId: id, batchId };
+          const tx = { id: uid(), type: 'expense', date: expDate, desc: expDesc, amount: expAmt, agentId: id, batchId };
           if (!isNaN(expKb) && expKb > 0 && expKb <= 100) tx.kickback = expKb;
           if (expIsUnpaid) tx.unpaid = true;
           newTxs.push(tx);
