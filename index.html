@@ -1372,6 +1372,10 @@ h1, h2, h3, .display {
     </div>
     <div class="modal-body">
       <div id="export-agent-name" style="font-size: 14px; color: var(--text-2); margin-bottom: 10px;"></div>
+      <div style="display: flex; gap: 4px; margin-bottom: 10px; padding: 4px; background: var(--surface-2); border-radius: 10px;">
+        <button class="export-mode-btn active" data-mode="date" style="flex: 1; padding: 8px; font-size: 13px; border: none; background: var(--surface); color: var(--text); border-radius: 7px; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.15s;"><i class="ti ti-calendar"></i> ตามวันที่</button>
+        <button class="export-mode-btn" data-mode="batch" style="flex: 1; padding: 8px; font-size: 13px; border: none; background: transparent; color: var(--text-2); border-radius: 7px; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.15s;"><i class="ti ti-layers-intersect"></i> ตามชุดบิล</button>
+      </div>
       <div style="display: flex; gap: 8px; margin-bottom: 10px;">
         <button class="btn btn-secondary" id="export-select-all" style="flex: 1; padding: 6px 10px; font-size: 13px;"><i class="ti ti-square-check"></i> เลือกทั้งหมด</button>
         <button class="btn btn-secondary" id="export-clear-all" style="flex: 1; padding: 6px 10px; font-size: 13px;"><i class="ti ti-square-off"></i> ล้าง</button>
@@ -1381,7 +1385,7 @@ h1, h2, h3, .display {
       <div style="display: flex; gap: 8px;">
         <button class="btn btn-secondary" id="export-cancel" style="flex: 1;">ยกเลิก</button>
         <button class="btn" id="export-download" style="flex: 2; background: linear-gradient(135deg, #16a34a, #059669); color: white;">
-          <i class="ti ti-download"></i> ดาวน์โหลด <span id="export-day-count">0</span> วัน
+          <i class="ti ti-download"></i> ดาวน์โหลด <span id="export-day-count">0</span> <span id="export-unit">วัน</span>
         </button>
       </div>
     </div>
@@ -1572,7 +1576,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.15';
+const APP_VERSION = '1.99.16';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3321,6 +3325,8 @@ async function loadXlsx() {
 
 let _exportAgentId = null;
 let _exportByDate = {};
+let _exportByBatch = {};
+let _exportMode = 'date'; // 'date' | 'batch'
 
 function exportAgentBillsXlsx(agentId) {
   // Wrapper: opens the date-selection modal
@@ -3338,88 +3344,174 @@ function openExportModal(agentId) {
 
   _exportAgentId = agentId;
   _exportByDate = {};
+  _exportByBatch = {};
   for (const t of agentTxs) {
     if (!_exportByDate[t.date]) _exportByDate[t.date] = [];
     _exportByDate[t.date].push(t);
+    const bkey = t.batchId || `solo-${t.id}`;
+    if (!_exportByBatch[bkey]) _exportByBatch[bkey] = [];
+    _exportByBatch[bkey].push(t);
   }
-  const sortedDates = Object.keys(_exportByDate).sort().reverse();
 
   document.getElementById('export-agent-name').innerHTML = `ตัวแทน: <strong>${escapeHtml(agent.name)}</strong> (${agent.percent}%)`;
-
-  const list = document.getElementById('export-list');
-  list.innerHTML = sortedDates.map(date => {
-    const dayTxs = _exportByDate[date];
-    const dParts = date.split('-');
-    const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : date;
-    let di = 0, de = 0, dc = 0, dk = 0;
-    for (const t of dayTxs) {
-      if (t.type === 'income') {
-        di += t.amount;
-        const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
-        dc += t.amount * (pct / 100);
-      } else {
-        de += t.amount;
-        if (t.kickback) dk += t.amount * (t.kickback / 100);
-      }
-    }
-    const incCount = dayTxs.filter(t => t.type === 'income').length;
-    const expCount = dayTxs.filter(t => t.type === 'expense').length;
-    const chips = [
-      incCount > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #10b981; color: white;">📈${incCount}</span>` : '',
-      expCount > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #ef4444; color: white;">📉${expCount}</span>` : ''
-    ].filter(Boolean).join(' ');
-    return `<label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; cursor: pointer; border: 1px solid var(--border); margin-bottom: 6px;">
-      <input type="checkbox" class="export-day-check" data-day="${date}" checked style="width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;">
-      <div style="flex: 1; min-width: 0;">
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <span style="font-weight: 700; font-size: 14px; color: var(--text);"><i class="ti ti-calendar"></i> ${dStr}</span>
-          <span style="font-size: 11px; color: var(--text-3);">${dayTxs.length} ${tt('items_unit')}</span>
-          ${chips}
-        </div>
-        <div style="font-size: 12px; color: var(--text-2); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap;">
-          ${di > 0 ? `<span style="color: #10b981;">+${fmtShort(di)}</span>` : ''}
-          ${de > 0 ? `<span style="color: #ef4444;">-${fmtShort(de)}</span>` : ''}
-          ${dc > 0 ? `<span style="color: var(--primary);"><i class="ti ti-percentage"></i> ${fmtShort(dc)}</span>` : ''}
-          ${dk > 0 ? `<span style="color: #8b5cf6;">↩ ${fmtShort(dk)}</span>` : ''}
-        </div>
-      </div>
-    </label>`;
-  }).join('');
-
-  list.querySelectorAll('.export-day-check').forEach(c => c.addEventListener('change', updateExportSummary));
-  updateExportSummary();
+  _exportMode = 'date';
+  renderExportList();
   document.getElementById('export-modal').classList.add('show');
+}
+
+function renderExportList() {
+  const agent = getAgent(_exportAgentId);
+  if (!agent) return;
+  const list = document.getElementById('export-list');
+  const unitEl = document.getElementById('export-unit');
+
+  // Update mode-toggle button visuals
+  document.querySelectorAll('.export-mode-btn').forEach(btn => {
+    const active = btn.dataset.mode === _exportMode;
+    btn.classList.toggle('active', active);
+    btn.style.background = active ? 'var(--surface)' : 'transparent';
+    btn.style.color = active ? 'var(--text)' : 'var(--text-2)';
+    btn.style.boxShadow = active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none';
+  });
+
+  if (_exportMode === 'date') {
+    unitEl.textContent = 'วัน';
+    const sortedDates = Object.keys(_exportByDate).sort().reverse();
+    list.innerHTML = sortedDates.map(date => {
+      const dayTxs = _exportByDate[date];
+      const dParts = date.split('-');
+      const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : date;
+      let di = 0, de = 0, dc = 0, dk = 0;
+      for (const t of dayTxs) {
+        if (t.type === 'income') {
+          di += t.amount;
+          const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+          dc += t.amount * (pct / 100);
+        } else {
+          de += t.amount;
+          if (t.kickback) dk += t.amount * (t.kickback / 100);
+        }
+      }
+      const incCount = dayTxs.filter(t => t.type === 'income').length;
+      const expCount = dayTxs.filter(t => t.type === 'expense').length;
+      const chips = [
+        incCount > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #10b981; color: white;">📈${incCount}</span>` : '',
+        expCount > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #ef4444; color: white;">📉${expCount}</span>` : ''
+      ].filter(Boolean).join(' ');
+      return `<label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; cursor: pointer; border: 1px solid var(--border); margin-bottom: 6px;">
+        <input type="checkbox" class="export-check" data-key="${date}" checked style="width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;">
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-weight: 700; font-size: 14px; color: var(--text);"><i class="ti ti-calendar"></i> ${dStr}</span>
+            <span style="font-size: 11px; color: var(--text-3);">${dayTxs.length} ${tt('items_unit')}</span>
+            ${chips}
+          </div>
+          <div style="font-size: 12px; color: var(--text-2); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap;">
+            ${di > 0 ? `<span style="color: #10b981;">+${fmtShort(di)}</span>` : ''}
+            ${de > 0 ? `<span style="color: #ef4444;">-${fmtShort(de)}</span>` : ''}
+            ${dc > 0 ? `<span style="color: var(--primary);"><i class="ti ti-percentage"></i> ${fmtShort(dc)}</span>` : ''}
+            ${dk > 0 ? `<span style="color: #8b5cf6;">↩ ${fmtShort(dk)}</span>` : ''}
+          </div>
+        </div>
+      </label>`;
+    }).join('');
+  } else {
+    // by-batch mode
+    unitEl.textContent = 'ชุด';
+    // Sort batches by most-recent first-tx date
+    const batchKeys = Object.keys(_exportByBatch);
+    batchKeys.sort((a, b) => {
+      const da = _exportByBatch[a].map(t => t.date).sort().reverse()[0] || '';
+      const db = _exportByBatch[b].map(t => t.date).sort().reverse()[0] || '';
+      return db.localeCompare(da);
+    });
+    list.innerHTML = batchKeys.map((bkey, idx) => {
+      const batchTxs = _exportByBatch[bkey];
+      // Find date range for this batch
+      const dates = Array.from(new Set(batchTxs.map(t => t.date))).sort();
+      const dateRange = dates.length === 1
+        ? formatThaiDate(dates[0])
+        : `${formatThaiDate(dates[0])} - ${formatThaiDate(dates[dates.length - 1])}`;
+      let bi = 0, be = 0, bc = 0, bk = 0;
+      for (const t of batchTxs) {
+        if (t.type === 'income') {
+          bi += t.amount;
+          const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+          bc += t.amount * (pct / 100);
+        } else {
+          be += t.amount;
+          if (t.kickback) bk += t.amount * (t.kickback / 100);
+        }
+      }
+      const incCount = batchTxs.filter(t => t.type === 'income').length;
+      const expCount = batchTxs.filter(t => t.type === 'expense').length;
+      const isSolo = bkey.startsWith('solo-');
+      const chips = [
+        incCount > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #10b981; color: white;">📈${incCount}</span>` : '',
+        expCount > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #ef4444; color: white;">📉${expCount}</span>` : ''
+      ].filter(Boolean).join(' ');
+      return `<label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; cursor: pointer; border: 1px solid var(--border); margin-bottom: 6px;">
+        <input type="checkbox" class="export-check" data-key="${bkey}" checked style="width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;">
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-weight: 700; font-size: 14px; color: var(--text);"><i class="ti ${isSolo ? 'ti-receipt' : 'ti-layers-intersect'}"></i> ${isSolo ? 'บิลเดี่ยว' : 'ชุดบิล #' + (idx + 1)}</span>
+            <span style="font-size: 11px; color: var(--text-3);">${batchTxs.length} ${tt('bill_count_label')}</span>
+            ${chips}
+          </div>
+          <div style="font-size: 11px; color: var(--text-3); margin-top: 2px;"><i class="ti ti-calendar"></i> ${dateRange}</div>
+          <div style="font-size: 12px; color: var(--text-2); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap;">
+            ${bi > 0 ? `<span style="color: #10b981;">+${fmtShort(bi)}</span>` : ''}
+            ${be > 0 ? `<span style="color: #ef4444;">-${fmtShort(be)}</span>` : ''}
+            ${bc > 0 ? `<span style="color: var(--primary);"><i class="ti ti-percentage"></i> ${fmtShort(bc)}</span>` : ''}
+            ${bk > 0 ? `<span style="color: #8b5cf6;">↩ ${fmtShort(bk)}</span>` : ''}
+          </div>
+        </div>
+      </label>`;
+    }).join('');
+  }
+
+  list.querySelectorAll('.export-check').forEach(c => c.addEventListener('change', updateExportSummary));
+  updateExportSummary();
+}
+
+function getSelectedTxs() {
+  const agent = getAgent(_exportAgentId);
+  if (!agent) return [];
+  const checkedKeys = Array.from(document.querySelectorAll('.export-check:checked')).map(c => c.dataset.key);
+  const out = [];
+  if (_exportMode === 'date') {
+    for (const k of checkedKeys) out.push(...(_exportByDate[k] || []));
+  } else {
+    for (const k of checkedKeys) out.push(...(_exportByBatch[k] || []));
+  }
+  return out;
 }
 
 function updateExportSummary() {
   const agent = getAgent(_exportAgentId);
   if (!agent) return;
-  const checkedDays = Array.from(document.querySelectorAll('.export-day-check:checked')).map(c => c.dataset.day);
-  let txCount = 0;
+  const checkedKeys = Array.from(document.querySelectorAll('.export-check:checked')).map(c => c.dataset.key);
+  const txs = getSelectedTxs();
   let income = 0, expense = 0, comm = 0, kickback = 0;
-  for (const day of checkedDays) {
-    const dayTxs = _exportByDate[day] || [];
-    txCount += dayTxs.length;
-    for (const t of dayTxs) {
-      const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
-      if (t.type === 'income') {
-        income += t.amount;
-        comm += t.amount * (pct / 100);
-      } else {
-        expense += t.amount;
-        if (t.kickback) kickback += t.amount * (t.kickback / 100);
-      }
+  for (const t of txs) {
+    const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+    if (t.type === 'income') {
+      income += t.amount;
+      comm += t.amount * (pct / 100);
+    } else {
+      expense += t.amount;
+      if (t.kickback) kickback += t.amount * (t.kickback / 100);
     }
   }
   const net = income - expense - comm + kickback;
-  document.getElementById('export-day-count').textContent = checkedDays.length;
-  document.getElementById('export-download').disabled = checkedDays.length === 0;
+  document.getElementById('export-day-count').textContent = checkedKeys.length;
+  document.getElementById('export-download').disabled = checkedKeys.length === 0;
   const sBox = document.getElementById('export-summary');
-  if (checkedDays.length === 0) {
-    sBox.innerHTML = `<div style="text-align: center; padding: 8px; color: var(--text-3); font-size: 12px;">เลือกอย่างน้อย 1 วัน</div>`;
+  if (checkedKeys.length === 0) {
+    sBox.innerHTML = `<div style="text-align: center; padding: 8px; color: var(--text-3); font-size: 12px;">เลือกอย่างน้อย 1 รายการ</div>`;
   } else {
     sBox.innerHTML = `
-      <div style="font-size: 11px; color: var(--text-3); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="ti ti-calculator"></i> สรุป (${txCount} รายการ)</div>
+      <div style="font-size: 11px; color: var(--text-3); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="ti ti-calculator"></i> สรุป (${txs.length} ${tt('bill_count_label')})</div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 13px;">
         ${income > 0 ? `<span style="color: var(--text-2);">${tt('income')}</span><span style="text-align: right; font-weight: 700; color: #10b981;">+${fmt(income)} ₭</span>` : ''}
         ${expense > 0 ? `<span style="color: var(--text-2);">${tt('expense')}</span><span style="text-align: right; font-weight: 700; color: #ef4444;">-${fmt(expense)} ₭</span>` : ''}
@@ -3437,12 +3529,13 @@ function updateExportSummary() {
 async function doExportXlsx() {
   const agent = getAgent(_exportAgentId);
   if (!agent) return;
-  const checkedDays = Array.from(document.querySelectorAll('.export-day-check:checked')).map(c => c.dataset.day);
-  if (checkedDays.length === 0) return;
+  const selectedTxs = getSelectedTxs();
+  if (selectedTxs.length === 0) return;
 
-  // Filter agent's txs by selected days
-  const selectedSet = new Set(checkedDays);
-  const agentTxs = transactions.filter(t => t.agentId === _exportAgentId && selectedSet.has(t.date)).sort((a, b) => a.date.localeCompare(b.date));
+  const agentTxs = selectedTxs.slice().sort((a, b) => a.date.localeCompare(b.date));
+  // Build a set of selected dates for daily summary
+  const datesSet = new Set(agentTxs.map(t => t.date));
+  const sortedDays = Array.from(datesSet).sort();
 
   showToast('กำลังโหลดไลบรารี Excel...', 'info');
   let XLSX;
@@ -3523,13 +3616,18 @@ async function doExportXlsx() {
   ];
   XLSX.utils.book_append_sheet(wb, mainWs, 'รายการบิล');
 
-  // ====== Sheet 2: สรุปรายวัน — by-day breakdown ======
-  const sortedDays = checkedDays.slice().sort();
+  // ====== Sheet 2: สรุปรายวัน — by-day breakdown of SELECTED txs ======
   const dailyHeader = ['วันที่', 'รายรับ (₭)', 'ค่าคอม (₭)', 'รายจ่าย (₭)', 'คืน (₭)', 'สุทธิ (₭)'];
   const dailyRows = [dailyHeader];
+  // Re-group selected txs by date
+  const selectedByDate = {};
+  for (const t of agentTxs) {
+    if (!selectedByDate[t.date]) selectedByDate[t.date] = [];
+    selectedByDate[t.date].push(t);
+  }
   let dInc = 0, dComm = 0, dExp = 0, dKb = 0;
   for (const day of sortedDays) {
-    const dayTxs = _exportByDate[day] || [];
+    const dayTxs = selectedByDate[day] || [];
     let di = 0, dc = 0, de = 0, dk = 0;
     for (const t of dayTxs) {
       const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
@@ -3587,14 +3685,21 @@ async function doExportXlsx() {
   document.getElementById('export-modal-close').addEventListener('click', closeFn);
   document.getElementById('export-cancel').addEventListener('click', closeFn);
   document.getElementById('export-select-all').addEventListener('click', () => {
-    document.querySelectorAll('.export-day-check').forEach(c => c.checked = true);
+    document.querySelectorAll('.export-check').forEach(c => c.checked = true);
     updateExportSummary();
   });
   document.getElementById('export-clear-all').addEventListener('click', () => {
-    document.querySelectorAll('.export-day-check').forEach(c => c.checked = false);
+    document.querySelectorAll('.export-check').forEach(c => c.checked = false);
     updateExportSummary();
   });
   document.getElementById('export-download').addEventListener('click', doExportXlsx);
+  // Mode toggle buttons
+  document.querySelectorAll('.export-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _exportMode = btn.dataset.mode;
+      renderExportList();
+    });
+  });
 })();
 
 function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, weOweAmount) {
