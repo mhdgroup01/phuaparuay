@@ -1384,9 +1384,15 @@ h1, h2, h3, .display {
       <div id="export-summary" style="padding: 12px 14px; background: linear-gradient(135deg, rgba(22, 163, 74, 0.10) 0%, rgba(5, 150, 105, 0.10) 100%); border: 1px solid var(--border-2); border-radius: 12px; margin-bottom: 10px;"></div>
       <div style="display: flex; gap: 8px;">
         <button class="btn btn-secondary" id="export-cancel" style="flex: 1;">ยกเลิก</button>
-        <button class="btn" id="export-download" style="flex: 2; background: linear-gradient(135deg, #16a34a, #059669); color: white;">
-          <i class="ti ti-download"></i> ดาวน์โหลด <span id="export-day-count">0</span> <span id="export-unit">วัน</span>
+        <button class="btn" id="export-download" style="flex: 1.4; background: linear-gradient(135deg, #16a34a, #059669); color: white;">
+          <i class="ti ti-file-spreadsheet"></i> Excel
         </button>
+        <button class="btn" id="export-download-pdf" style="flex: 1.4; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white;">
+          <i class="ti ti-file-type-pdf"></i> PDF
+        </button>
+      </div>
+      <div style="font-size: 11px; color: var(--text-3); text-align: center; margin-top: 6px;">
+        <span id="export-unit-info"><span id="export-day-count">0</span> <span id="export-unit">วัน</span></span> · 0 บิล
       </div>
     </div>
   </div>
@@ -1576,7 +1582,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.18';
+const APP_VERSION = '1.99.19';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3532,7 +3538,15 @@ function updateExportSummary() {
   }
   const net = income - expense - comm + kickback;
   document.getElementById('export-day-count').textContent = checkedKeys.length;
+  // Update the info subtitle to include bill count
+  const infoEl = document.getElementById('export-unit-info');
+  if (infoEl) {
+    const unitText = _exportMode === 'batch' ? 'ชุดบิล' : 'วัน';
+    infoEl.textContent = `${checkedKeys.length} ${unitText} · ${txs.length} บิล`;
+  }
   document.getElementById('export-download').disabled = checkedKeys.length === 0;
+  const pdfBtn = document.getElementById('export-download-pdf');
+  if (pdfBtn) pdfBtn.disabled = checkedKeys.length === 0;
   const sBox = document.getElementById('export-summary');
   if (checkedKeys.length === 0) {
     sBox.innerHTML = `<div style="text-align: center; padding: 8px; color: var(--text-3); font-size: 12px;">เลือกอย่างน้อย 1 รายการ</div>`;
@@ -3832,6 +3846,346 @@ async function doExportXlsx() {
   }
 }
 
+// ====== PDF export ======
+let _pdfLib = null;
+function _loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve;
+    s.onerror = () => reject(new Error('โหลด script ไม่ได้: ' + src));
+    document.head.appendChild(s);
+  });
+}
+function _bufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const CHUNK = 8192;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+async function _fetchFontB64(urls) {
+  for (const url of urls) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const buf = await r.arrayBuffer();
+      // Sanity check — TTF starts with magic bytes
+      if (buf.byteLength < 1000) continue;
+      return _bufferToBase64(buf);
+    } catch (e) { continue; }
+  }
+  return null;
+}
+async function loadPdfLib() {
+  if (_pdfLib) return _pdfLib;
+  // Load jsPDF + autotable
+  if (typeof window.jspdf === 'undefined') {
+    await _loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+  }
+  await _loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js');
+  // Lao font — try multiple CDN URLs
+  const regularUrls = [
+    'https://cdn.jsdelivr.net/gh/notofonts/lao@main/fonts/NotoSansLao/unhinted/ttf/NotoSansLao-Regular.ttf',
+    'https://cdn.jsdelivr.net/gh/notofonts/lao@main/fonts/NotoSansLao/hinted/ttf/NotoSansLao-Regular.ttf',
+    'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-lao@4.5.0/files/noto-sans-lao-lao-400-normal.ttf',
+    'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanslao/NotoSansLao-Regular.ttf'
+  ];
+  const boldUrls = [
+    'https://cdn.jsdelivr.net/gh/notofonts/lao@main/fonts/NotoSansLao/unhinted/ttf/NotoSansLao-Bold.ttf',
+    'https://cdn.jsdelivr.net/gh/notofonts/lao@main/fonts/NotoSansLao/hinted/ttf/NotoSansLao-Bold.ttf',
+    'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-lao@4.5.0/files/noto-sans-lao-lao-700-normal.ttf',
+    'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanslao/NotoSansLao-Bold.ttf'
+  ];
+  const [fontB64, fontBoldB64] = await Promise.all([
+    _fetchFontB64(regularUrls),
+    _fetchFontB64(boldUrls)
+  ]);
+  if (!fontB64) throw new Error('โหลด font Noto Sans Lao ไม่ได้');
+  _pdfLib = { jsPDF: window.jspdf.jsPDF, fontB64, fontBoldB64: fontBoldB64 || fontB64 };
+  return _pdfLib;
+}
+
+async function doExportPdf() {
+  const agent = getAgent(_exportAgentId);
+  if (!agent) return;
+  const selectedTxs = getSelectedTxs();
+  if (selectedTxs.length === 0) return;
+
+  const agentTxs = selectedTxs.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const datesSet = new Set(agentTxs.map(t => t.date));
+  const sortedDays = Array.from(datesSet).sort();
+
+  showToast('ກຳລັງໂຫຼດໄລບຣາລີ PDF...', 'info');
+  let lib;
+  try { lib = await loadPdfLib(); }
+  catch (e) { showToast(e.message, 'error'); return; }
+
+  const { jsPDF, fontB64, fontBoldB64 } = lib;
+
+  // Build doc
+  const doc = new jsPDF({ orientation: 'landscape', format: 'a4', unit: 'mm' });
+  doc.addFileToVFS('NotoSansLao.ttf', fontB64);
+  doc.addFont('NotoSansLao.ttf', 'NotoSansLao', 'normal');
+  doc.addFileToVFS('NotoSansLao-Bold.ttf', fontBoldB64);
+  doc.addFont('NotoSansLao-Bold.ttf', 'NotoSansLao', 'bold');
+  doc.setFont('NotoSansLao');
+
+  // Calculations (same as Excel)
+  let totalIncome = 0, totalExpense = 0, totalComm = 0, totalKb = 0;
+  const tableRows = [];
+  for (const t of agentTxs) {
+    const isIncome = t.type === 'income';
+    let incomeV = '', expenseV = '', pctV = '', commV = '', kbPctV = '', kbAmtV = '';
+    if (isIncome) {
+      const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+      const c = t.amount * (pct / 100);
+      incomeV = t.amount; pctV = pct; commV = c;
+      totalIncome += t.amount; totalComm += c;
+    } else {
+      expenseV = t.amount; totalExpense += t.amount;
+      if (t.kickback) {
+        const k = t.amount * (t.kickback / 100);
+        kbPctV = t.kickback; kbAmtV = k; totalKb += k;
+      }
+    }
+    // SWAPPED label + status
+    const typeLabel = isIncome ? 'ລາຍຈ່າຍ' : 'ລາຍຮັບ';
+    let status;
+    if (isIncome) status = t.unpaid ? 'ຍັງບໍ່ຈ່າຍ' : 'ຈ່າຍແລ້ວ';
+    else status = t.unpaid ? 'ຍັງບໍ່ໄດ້ຮັບ' : 'ໄດ້ຮັບແລ້ວ';
+
+    tableRows.push({
+      __isIncome: isIncome,
+      __unpaid: !!t.unpaid,
+      cells: [
+        formatThaiDate(t.date),
+        typeLabel,
+        t.desc || '—',
+        incomeV !== '' ? incomeV.toLocaleString() : '',
+        expenseV !== '' ? expenseV.toLocaleString() : '',
+        pctV !== '' ? pctV + '%' : '',
+        commV !== '' ? commV.toLocaleString() : '',
+        kbPctV !== '' ? kbPctV + '%' : '',
+        kbAmtV !== '' ? kbAmtV.toLocaleString() : '',
+        status
+      ]
+    });
+  }
+  const grandNet = totalIncome - totalComm - totalExpense + totalKb;
+
+  // Page geometry
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 10;
+  const contentW = pageW - margin * 2;
+
+  // Title block
+  let y = margin;
+  doc.setFillColor(99, 102, 241); // #6366F1
+  doc.rect(margin, y, contentW, 13, 'F');
+  doc.setFont('NotoSansLao', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text('ບິນຂອງຕົວແທນ — ' + agent.name + ' (' + agent.percent + '%)', pageW / 2, y + 8.5, { align: 'center' });
+  y += 13;
+
+  // Subtitle
+  doc.setFillColor(249, 250, 251); // #F9FAFB
+  doc.rect(margin, y, contentW, 7, 'F');
+  doc.setFont('NotoSansLao', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(107, 114, 128); // #6B7280
+  const dateRange = sortedDays.length > 0
+    ? formatThaiDate(sortedDays[0]) + (sortedDays.length > 1 ? ' - ' + formatThaiDate(sortedDays[sortedDays.length - 1]) : '')
+    : '-';
+  const subtitle = 'ອອກລາຍງານ: ' + new Date().toLocaleString('lo-LA') + '  ·  ໄລຍະ: ' + dateRange + '  ·  ' + agentTxs.length + ' ບິນ';
+  doc.text(subtitle, pageW / 2, y + 4.8, { align: 'center' });
+  y += 9;
+
+  // Main table via autoTable
+  const headers = ['ວັນທີ', 'ປະເພດ', 'ຄຳອະທິບາຍ', 'ລາຍຈ່າຍ (₭)', 'ລາຍຮັບ (₭)', '% ຄ່າຄອມ', 'ຄ່າຄອມ (₭)', '% ຄືນ', 'ຈຳນວນຄືນ (₭)', 'ສະຖານະ'];
+  const bodyRows = tableRows.map(r => r.cells);
+  // Totals row
+  bodyRows.push([
+    '', 'ລວມ', '',
+    totalIncome.toLocaleString(),
+    totalExpense.toLocaleString(),
+    '',
+    totalComm.toLocaleString(),
+    '',
+    totalKb.toLocaleString(),
+    ''
+  ]);
+
+  doc.autoTable({
+    head: [headers],
+    body: bodyRows,
+    startY: y,
+    margin: { left: margin, right: margin },
+    styles: {
+      font: 'NotoSansLao',
+      fontSize: 8.5,
+      cellPadding: 2,
+      lineColor: [229, 231, 235],
+      lineWidth: 0.2,
+      textColor: [30, 41, 59],
+      valign: 'middle'
+    },
+    headStyles: {
+      font: 'NotoSansLao',
+      fontStyle: 'bold',
+      fillColor: [79, 70, 229],
+      textColor: [255, 255, 255],
+      fontSize: 9,
+      halign: 'center',
+      cellPadding: 3
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 21 },
+      1: { halign: 'center', cellWidth: 19 },
+      2: { halign: 'left', cellWidth: 'auto' },
+      3: { halign: 'right', cellWidth: 24 },
+      4: { halign: 'right', cellWidth: 24 },
+      5: { halign: 'center', cellWidth: 15 },
+      6: { halign: 'right', cellWidth: 22 },
+      7: { halign: 'center', cellWidth: 13 },
+      8: { halign: 'right', cellWidth: 22 },
+      9: { halign: 'center', cellWidth: 22 }
+    },
+    didParseCell: (data) => {
+      // Header — swap colors for col 3 (red) and col 4 (green)
+      if (data.section === 'head') {
+        if (data.column.index === 3) {
+          data.cell.styles.fillColor = [220, 38, 38]; // RED
+        } else if (data.column.index === 4) {
+          data.cell.styles.fillColor = [5, 150, 105]; // GREEN
+        }
+        return;
+      }
+      const row = tableRows[data.row.index];
+      const isTotalRow = data.row.index >= tableRows.length;
+      if (isTotalRow) {
+        // Totals row
+        data.cell.styles.fillColor = [254, 243, 199]; // amber
+        data.cell.styles.textColor = [146, 64, 14];
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fontSize = 9.5;
+        return;
+      }
+      if (!row) return;
+      // Type chip column
+      if (data.column.index === 1) {
+        if (row.__isIncome) {
+          data.cell.styles.fillColor = [239, 68, 68]; // red
+        } else {
+          data.cell.styles.fillColor = [16, 185, 129]; // green
+        }
+        data.cell.styles.textColor = [255, 255, 255];
+        data.cell.styles.fontStyle = 'bold';
+      }
+      // Income data col (3) — RED text
+      if (data.column.index === 3 && row.cells[3] !== '') {
+        data.cell.styles.textColor = [220, 38, 38];
+        data.cell.styles.fontStyle = 'bold';
+      }
+      // Expense data col (4) — GREEN text
+      if (data.column.index === 4 && row.cells[4] !== '') {
+        data.cell.styles.textColor = [5, 150, 105];
+        data.cell.styles.fontStyle = 'bold';
+      }
+      // Commission col (6) — purple
+      if (data.column.index === 6 && row.cells[6] !== '') {
+        data.cell.styles.textColor = [124, 58, 237];
+      }
+      // KB col (8) — violet
+      if (data.column.index === 8 && row.cells[8] !== '') {
+        data.cell.styles.textColor = [139, 92, 246];
+      }
+      // Status col (9)
+      if (data.column.index === 9) {
+        if (row.__unpaid) {
+          data.cell.styles.fillColor = [254, 243, 199]; // amber bg
+          data.cell.styles.textColor = [217, 119, 6];
+        } else {
+          data.cell.styles.fillColor = [209, 250, 229]; // green bg
+          data.cell.styles.textColor = [5, 150, 105];
+        }
+      }
+    }
+  });
+
+  // Get Y position after table
+  let yAfter = doc.lastAutoTable.finalY + 5;
+
+  // If we don't have enough room for the summary block, add a new page
+  const SUMMARY_HEIGHT = 50;
+  if (yAfter + SUMMARY_HEIGHT > pageH - margin) {
+    doc.addPage();
+    yAfter = margin;
+  }
+
+  // Section header
+  doc.setFillColor(79, 70, 229);
+  doc.rect(margin, yAfter, contentW, 9, 'F');
+  doc.setFont('NotoSansLao', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text('ສະຫຼຸບບວກລົບ', pageW / 2, yAfter + 6, { align: 'center' });
+  yAfter += 11;
+
+  // Calculation rows
+  const isPos = grandNet >= 0;
+  const calcRows = [
+    ['ຕ້ອງຈ່າຍ', totalIncome],
+    ['(-) ຄ່າຄອມ', -totalComm],
+    ['ຕ້ອງໄດ້', -totalExpense],
+    ['ຄືນຄ່າຄອມ', totalKb]
+  ];
+  doc.setFont('NotoSansLao', 'normal');
+  doc.setFontSize(10);
+  const labelX = pageW * 0.6;
+  const valueX = pageW - margin - 5;
+  for (const [label, val] of calcRows) {
+    doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(0.2);
+    doc.line(margin, yAfter + 5.5, pageW - margin, yAfter + 5.5);
+    doc.setTextColor(75, 85, 99);
+    doc.setFont('NotoSansLao', 'normal');
+    doc.text(label, labelX, yAfter + 4, { align: 'right' });
+    doc.setFont('NotoSansLao', 'bold');
+    doc.setTextColor(30, 41, 59);
+    const valStr = (val >= 0 ? '+' : '') + val.toLocaleString() + ' ₭';
+    doc.text(valStr, valueX, yAfter + 4, { align: 'right' });
+    yAfter += 6;
+  }
+  yAfter += 2;
+
+  // Net row — INVERTED colors
+  doc.setFillColor(isPos ? 239 : 16, isPos ? 68 : 185, isPos ? 68 : 129);
+  doc.rect(margin, yAfter, contentW, 13, 'F');
+  doc.setFont('NotoSansLao', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13);
+  doc.text(isPos ? 'ລວມຕ້ອງຈ່າຍ' : 'ລວມຕ້ອງໄດ້', labelX, yAfter + 8.5, { align: 'right' });
+  doc.setFontSize(15);
+  const netStr = (grandNet >= 0 ? '+' : '') + grandNet.toLocaleString() + ' ₭';
+  doc.text(netStr, valueX, yAfter + 8.5, { align: 'right' });
+
+  // Save
+  const today = new Date().toISOString().slice(0, 10);
+  const safeName = (agent.name || 'ຕົວແທນ').replace(/[\\/:*?"<>|]/g, '');
+  const fname = 'ບິນ_' + safeName + '_' + today + '.pdf';
+  try {
+    doc.save(fname);
+    document.getElementById('export-modal').classList.remove('show');
+    showToast('ດາວໂຫຼດ PDF ແລ້ວ', 'success');
+  } catch (e) {
+    showToast('ດາວໂຫຼດບໍ່ສຳເລັດ: ' + e.message, 'error');
+  }
+}
+
 // Wire up export modal
 (function setupExportModal() {
   const closeFn = () => document.getElementById('export-modal').classList.remove('show');
@@ -3846,6 +4200,7 @@ async function doExportXlsx() {
     updateExportSummary();
   });
   document.getElementById('export-download').addEventListener('click', doExportXlsx);
+  document.getElementById('export-download-pdf').addEventListener('click', doExportPdf);
   // Mode toggle buttons
   document.querySelectorAll('.export-mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
