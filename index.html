@@ -1543,7 +1543,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.8';
+const APP_VERSION = '1.99.9';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -6884,10 +6884,12 @@ async function renderPendingAgentsList() {
         for (const t of dayTxs) { if (t.type === 'income') di += t.amount; else de += t.amount; }
         const billRowsHtml = dayTxs.map(t => {
           const pct = (typeof t.percent === 'number') ? t.percent : p.percent;
+          const customPct = typeof t.percent === 'number' && t.percent !== p.percent;
           const c = t.type === 'income' ? t.amount * (pct / 100) : 0;
           const typeIcon = t.type === 'income' ? '🟢' : '🔴';
           return `<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--surface); border-radius: 6px; margin-top: 4px; font-size: 12px;">
             <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${typeIcon} ${escapeHtml(t.desc || '—')}</div>
+            ${t.type === 'income' ? `<span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: ${customPct ? '#f59e0b' : 'rgba(99, 102, 241, 0.15)'}; color: ${customPct ? 'white' : '#6366f1'}; flex-shrink: 0;">${customPct ? '⭐' : ''}${pct}%</span>` : ''}
             <div style="font-weight: 700; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}; white-space: nowrap;">${t.type === 'income' ? '+' : '-'}${fmtShort(t.amount)}</div>
             ${t.type === 'income' && c > 0 ? `<div style="font-size: 10px; color: var(--text-3); white-space: nowrap;">(${fmtShort(c)})</div>` : ''}
           </div>`;
@@ -6998,10 +7000,12 @@ async function renderPendingAgentsList() {
               const kindColor = isDelete ? '#6b7280' : (isNew ? '#10b981' : '#f59e0b');
               const typeIcon = t.type === 'income' ? '🟢' : '🔴';
               const pct = (typeof t.percent === 'number') ? t.percent : g.agentPercent;
+              const customPct = typeof t.percent === 'number' && t.percent !== g.agentPercent;
               const c = t.type === 'income' ? t.amount * (pct / 100) : 0;
               return `<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--surface); border-radius: 6px; margin-top: 4px; font-size: 12px;">
                 <span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: ${kindColor}; color: white; flex-shrink: 0;">${kindLabel}</span>
                 <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${typeIcon} ${escapeHtml(t.desc || '—')}</div>
+                ${t.type === 'income' ? `<span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: ${customPct ? '#f59e0b' : 'rgba(99, 102, 241, 0.15)'}; color: ${customPct ? 'white' : '#6366f1'}; flex-shrink: 0;">${customPct ? '⭐' : ''}${pct}%</span>` : ''}
                 <div style="font-weight: 700; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}; white-space: nowrap;">${t.type === 'income' ? '+' : '-'}${fmtShort(t.amount)}</div>
                 ${t.type === 'income' && c > 0 ? `<div style="font-size: 10px; color: var(--text-3); white-space: nowrap;">(${fmtShort(c)})</div>` : ''}
               </div>`;
