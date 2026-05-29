@@ -715,11 +715,15 @@ h1, h2, h3, .display {
 .bill-row-inline .top-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
 .bill-row-inline .bottom-row { display: flex; align-items: center; gap: 6px; }
 .bill-row-inline .row-num { width: 26px; height: 26px; border-radius: 7px; background: #6366f1; color: white; font-weight: 700; font-size: 13px; font-family: var(--font-display); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.bill-row-inline .brf-date { flex: 1; min-width: 0; }
-.bill-row-inline .brf-date input[type="date"] { width: 100%; padding: 7px 6px; font-size: 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: 7px; background: #f9fafb; color: #1e1b4b; font-family: inherit; outline: none; }
-.bill-row-inline .brf-pct { display: flex; align-items: center; background: #f9fafb; border: 1px solid rgba(0,0,0,0.08); border-radius: 7px; padding: 0 6px 0 4px; flex: 0 0 auto; }
-.bill-row-inline .brf-pct input { width: 36px; border: none; background: transparent; padding: 7px 0; font-size: 13px; color: #1e1b4b; font-family: inherit; outline: none; text-align: right; font-weight: 600; }
-.bill-row-inline .brf-pct span { color: #6b7280; font-size: 12px; padding-left: 2px; }
+.bill-row-inline .brf-date { flex: 0 0 auto; min-width: 0; }
+.bill-row-inline .brf-date input[type="date"] { width: 88px; padding: 7px 4px; font-size: 11px; border: 1px solid rgba(0,0,0,0.08); border-radius: 7px; background: #f9fafb; color: #1e1b4b; font-family: inherit; outline: none; }
+.bill-row-inline .brf-desc { flex: 1; min-width: 0; display: flex; align-items: center; background: #f9fafb; border: 1px solid rgba(0,0,0,0.08); border-radius: 7px; padding: 0 8px; }
+.bill-row-inline .brf-desc i { color: #6b7280; font-size: 14px; margin-right: 5px; flex-shrink: 0; }
+.bill-row-inline .brf-desc input { width: 100%; border: none; background: transparent; padding: 7px 0; font-size: 13px; color: #1e1b4b; font-family: inherit; outline: none; min-width: 0; }
+.bill-row-inline .brf-desc input::placeholder { color: #9ca3af; opacity: 1; }
+.bill-row-inline .brf-pct { display: flex; align-items: center; background: #f9fafb; border: 1px solid rgba(0,0,0,0.08); border-radius: 7px; padding: 0 5px 0 3px; flex: 0 0 auto; }
+.bill-row-inline .brf-pct input { width: 32px; border: none; background: transparent; padding: 7px 0; font-size: 13px; color: #1e1b4b; font-family: inherit; outline: none; text-align: right; font-weight: 600; }
+.bill-row-inline .brf-pct span { color: #6b7280; font-size: 12px; padding-left: 1px; }
 .bill-row-inline .brf-amount-form { flex: 1; min-width: 0; margin: 0; padding: 0; }
 .bill-row-inline .brf-amount { display: flex; align-items: center; background: white; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; padding: 0 10px; }
 .bill-row-inline .brf-amount i { color: #6b7280; font-size: 16px; margin-right: 6px; flex-shrink: 0; }
@@ -1543,7 +1547,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.9';
+const APP_VERSION = '1.99.10';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3672,15 +3676,10 @@ function renderAgents() {
           <div class="brf-date">
             <input type="date" data-row-date value="${todayStr()}" aria-label="${tt('fromDate') || 'วันที่'}">
           </div>
-          <div class="brf-pct">
-            <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
-            <span>%</span>
+          <div class="brf-desc">
+            <i class="ti ti-note"></i>
+            <input type="text" data-row-desc placeholder="${tt('description') || 'คำอธิบาย'}" autocomplete="off" enterkeyhint="next">
           </div>
-          <label class="brf-check" data-row-unpaid-label aria-label="${tt('not_paid_yet')}">
-            <input type="checkbox" data-row-unpaid checked>
-            <span class="check-box"></span>
-          </label>
-          <button class="row-del-btn" data-row-del aria-label="delete row"><i class="ti ti-x"></i></button>
         </div>
         <div class="bottom-row">
           <div class="row-num" data-row-num>${idx + 1}</div>
@@ -3690,6 +3689,15 @@ function renderAgents() {
               <input type="text" inputmode="decimal" enterkeyhint="next" class="bill-amount" data-row-amount data-agent-id="${agentId}" placeholder="${tt('amount')}" autocomplete="off">
             </div>
           </form>
+          <div class="brf-pct">
+            <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
+            <span>%</span>
+          </div>
+          <label class="brf-check" data-row-unpaid-label aria-label="${tt('not_paid_yet')}">
+            <input type="checkbox" data-row-unpaid checked>
+            <span class="check-box"></span>
+          </label>
+          <button class="row-del-btn" data-row-del aria-label="delete row"><i class="ti ti-x"></i></button>
           <button class="row-next-btn" data-row-next aria-label="เพิ่มบรรทัดถัดไป" title="เพิ่มบรรทัดถัดไป"><i class="ti ti-arrow-right"></i></button>
         </div>
       </div>
@@ -3918,6 +3926,13 @@ function renderAgents() {
       if (firstDateInp && newDateInp && firstDateInp.value !== '') {
         newDateInp.value = firstDateInp.value;
       }
+      // Copy desc from PREVIOUS row (cascading — last typed desc propagates forward)
+      const prevRow = rowsContainer.children[idx - 1];
+      const prevDescInp = prevRow ? prevRow.querySelector('[data-row-desc]') : null;
+      const newDescInp = newRow.querySelector('[data-row-desc]');
+      if (prevDescInp && newDescInp && prevDescInp.value !== '') {
+        newDescInp.value = prevDescInp.value;
+      }
     }
 
     const amtInp = newRow.querySelector('[data-row-amount]');
@@ -3976,6 +3991,16 @@ function renderAgents() {
     if (unpaidInp) unpaidInp.addEventListener('change', () => recalcBillSum(agentId));
     const pctInp = newRow.querySelector('[data-row-pct]');
     if (pctInp) pctInp.addEventListener('input', () => recalcBillSum(agentId));
+    // Desc field — Enter jumps to amount field (natural tab-like flow)
+    const descInp = newRow.querySelector('[data-row-desc]');
+    if (descInp) {
+      descInp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          amtInp.focus();
+        }
+      });
+    }
     newRow.querySelector('[data-row-del]').addEventListener('click', () => {
       const total = rowsContainer.children.length;
       if (total <= 1) {
@@ -4066,7 +4091,9 @@ function renderAgents() {
         const isUnpaid = unpaidEl && unpaidEl.checked;
         const pctEl = r.querySelector('[data-row-pct]');
         const rowPctRaw = pctEl ? parseFloat(pctEl.value) : NaN;
-        const tx = { id: uid(), type: 'income', date, desc: '', amount, agentId: id, batchId };
+        const descEl = r.querySelector('[data-row-desc]');
+        const desc = descEl ? (descEl.value || '').trim() : '';
+        const tx = { id: uid(), type: 'income', date, desc, amount, agentId: id, batchId };
         // Only save percent override if user entered a custom value
         if (!isNaN(rowPctRaw) && rowPctRaw >= 0 && rowPctRaw <= 100) {
           if (!agent || rowPctRaw !== agent.percent) {
