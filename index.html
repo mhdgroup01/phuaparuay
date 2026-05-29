@@ -1392,7 +1392,7 @@ h1, h2, h3, .display {
         </button>
       </div>
       <div style="font-size: 11px; color: var(--text-3); text-align: center; margin-top: 6px;">
-        <span id="export-unit-info"><span id="export-day-count">0</span> <span id="export-unit">วัน</span></span> · 0 บิล
+        <span id="export-day-count">0</span> <span id="export-unit">วัน</span> · <span id="export-bill-count">0</span> บิล
       </div>
     </div>
   </div>
@@ -1582,7 +1582,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.19';
+const APP_VERSION = '1.99.20';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3538,12 +3538,8 @@ function updateExportSummary() {
   }
   const net = income - expense - comm + kickback;
   document.getElementById('export-day-count').textContent = checkedKeys.length;
-  // Update the info subtitle to include bill count
-  const infoEl = document.getElementById('export-unit-info');
-  if (infoEl) {
-    const unitText = _exportMode === 'batch' ? 'ชุดบิล' : 'วัน';
-    infoEl.textContent = `${checkedKeys.length} ${unitText} · ${txs.length} บิล`;
-  }
+  const billCountEl = document.getElementById('export-bill-count');
+  if (billCountEl) billCountEl.textContent = txs.length;
   document.getElementById('export-download').disabled = checkedKeys.length === 0;
   const pdfBtn = document.getElementById('export-download-pdf');
   if (pdfBtn) pdfBtn.disabled = checkedKeys.length === 0;
