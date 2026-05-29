@@ -1572,7 +1572,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.14';
+const APP_VERSION = '1.99.15';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3451,85 +3451,122 @@ async function doExportXlsx() {
 
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: รายรับ
-  const incomeBills = agentTxs.filter(t => t.type === 'income');
-  const incHeader = ['วันที่', 'คำอธิบาย', 'จำนวนเงิน (₭)', '% คอม', 'ค่าคอม (₭)', 'รับเงินแล้ว'];
-  const incRows = [incHeader];
-  let incTotal = 0, commTotal = 0;
-  for (const t of incomeBills) {
-    const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
-    const c = t.amount * (pct / 100);
-    incTotal += t.amount;
-    commTotal += c;
-    incRows.push([formatThaiDate(t.date), t.desc || '', t.amount, pct, c, t.unpaid ? 'ยังไม่ได้รับ' : 'รับแล้ว']);
-  }
-  if (incomeBills.length > 0) incRows.push(['', 'รวม', incTotal, '', commTotal, '']);
-  const incWs = XLSX.utils.aoa_to_sheet(incRows);
-  incWs['!cols'] = [{ wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 8 }, { wch: 14 }, { wch: 12 }];
-  XLSX.utils.book_append_sheet(wb, incWs, 'รายรับ');
+  // ====== Sheet 1: รายการบิล — unified table with all bills ======
+  const mainHeader = ['วันที่', 'ประเภท', 'คำอธิบาย', 'รายรับ (₭)', 'รายจ่าย (₭)', '% คอม', 'ค่าคอม (₭)', '% คืน', 'จำนวนคืน (₭)', 'สถานะ'];
+  const mainRows = [mainHeader];
+  let totalIncome = 0, totalExpense = 0, totalComm = 0, totalKb = 0;
 
-  // Sheet 2: รายจ่าย
-  const expBills = agentTxs.filter(t => t.type === 'expense');
-  const expHeader = ['วันที่', 'คำอธิบาย', 'จำนวนเงิน (₭)', '% คืน', 'จำนวนคืน (₭)', 'สุทธิจ่าย (₭)', 'จ่ายแล้ว'];
-  const expRows = [expHeader];
-  let expTotal = 0, kbTotal = 0;
-  for (const t of expBills) {
-    const kbPct = t.kickback || 0;
-    const kbAmt = t.amount * (kbPct / 100);
-    const net = t.amount - kbAmt;
-    expTotal += t.amount;
-    kbTotal += kbAmt;
-    expRows.push([formatThaiDate(t.date), t.desc || '', t.amount, kbPct, kbAmt, net, t.unpaid ? 'ยังไม่จ่าย' : 'จ่ายแล้ว']);
+  for (const t of agentTxs) {
+    const isIncome = t.type === 'income';
+    let income = '', expense = '', pctVal = '', commVal = '', kbPctVal = '', kbAmtVal = '';
+    if (isIncome) {
+      const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+      const c = t.amount * (pct / 100);
+      income = t.amount;
+      pctVal = pct;
+      commVal = c;
+      totalIncome += t.amount;
+      totalComm += c;
+    } else {
+      expense = t.amount;
+      totalExpense += t.amount;
+      if (t.kickback) {
+        const k = t.amount * (t.kickback / 100);
+        kbPctVal = t.kickback;
+        kbAmtVal = k;
+        totalKb += k;
+      }
+    }
+    const status = t.unpaid
+      ? (isIncome ? 'ยังไม่ได้รับ' : 'ยังไม่จ่าย')
+      : (isIncome ? 'รับแล้ว' : 'จ่ายแล้ว');
+    mainRows.push([
+      formatThaiDate(t.date),
+      isIncome ? 'รายรับ' : 'รายจ่าย',
+      t.desc || '',
+      income,
+      expense,
+      pctVal,
+      commVal,
+      kbPctVal,
+      kbAmtVal,
+      status
+    ]);
   }
-  if (expBills.length > 0) expRows.push(['', 'รวม', expTotal, '', kbTotal, expTotal - kbTotal, '']);
-  const expWs = XLSX.utils.aoa_to_sheet(expRows);
-  expWs['!cols'] = [{ wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 12 }];
-  XLSX.utils.book_append_sheet(wb, expWs, 'รายจ่าย');
 
-  // Sheet 3: สรุปรายวัน — by-day breakdown
+  // Totals row
+  mainRows.push([]);
+  mainRows.push(['', 'รวม', '', totalIncome, totalExpense, '', totalComm, '', totalKb, '']);
+  mainRows.push([]);
+
+  // Net calculation block
+  mainRows.push(['', 'สรุปบวกลบสุทธิ', '', '', '', '', '', '', '', '']);
+  mainRows.push(['', '(+) รายรับ', '', totalIncome, '', '', '', '', '', '']);
+  mainRows.push(['', '(-) ค่าคอม', '', -totalComm, '', '', '', '', '', '']);
+  mainRows.push(['', '(-) รายจ่าย', '', -totalExpense, '', '', '', '', '', '']);
+  mainRows.push(['', '(+) คืนจากเขา', '', totalKb, '', '', '', '', '', '']);
+  const grandNet = totalIncome - totalComm - totalExpense + totalKb;
+  mainRows.push(['', 'สุทธิ (₭)', '', grandNet, '', '', '', '', '', '']);
+
+  const mainWs = XLSX.utils.aoa_to_sheet(mainRows);
+  mainWs['!cols'] = [
+    { wch: 14 }, // วันที่
+    { wch: 10 }, // ประเภท
+    { wch: 28 }, // คำอธิบาย
+    { wch: 14 }, // รายรับ
+    { wch: 14 }, // รายจ่าย
+    { wch: 8 },  // % คอม
+    { wch: 14 }, // ค่าคอม
+    { wch: 8 },  // % คืน
+    { wch: 14 }, // จำนวนคืน
+    { wch: 14 }  // สถานะ
+  ];
+  XLSX.utils.book_append_sheet(wb, mainWs, 'รายการบิล');
+
+  // ====== Sheet 2: สรุปรายวัน — by-day breakdown ======
   const sortedDays = checkedDays.slice().sort();
-  const dailyHeader = ['วันที่', 'รายรับ (₭)', 'ค่าคอม (₭)', 'รายจ่าย (₭)', 'คืนจากเขา (₭)', 'สุทธิ (₭)'];
+  const dailyHeader = ['วันที่', 'รายรับ (₭)', 'ค่าคอม (₭)', 'รายจ่าย (₭)', 'คืน (₭)', 'สุทธิ (₭)'];
   const dailyRows = [dailyHeader];
-  let dGrandInc = 0, dGrandComm = 0, dGrandExp = 0, dGrandKb = 0;
+  let dInc = 0, dComm = 0, dExp = 0, dKb = 0;
   for (const day of sortedDays) {
     const dayTxs = _exportByDate[day] || [];
-    let inc = 0, c = 0, exp = 0, kb = 0;
+    let di = 0, dc = 0, de = 0, dk = 0;
     for (const t of dayTxs) {
       const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
-      if (t.type === 'income') { inc += t.amount; c += t.amount * (pct / 100); }
-      else { exp += t.amount; if (t.kickback) kb += t.amount * (t.kickback / 100); }
+      if (t.type === 'income') { di += t.amount; dc += t.amount * (pct / 100); }
+      else { de += t.amount; if (t.kickback) dk += t.amount * (t.kickback / 100); }
     }
-    const dayNet = inc - c - exp + kb;
-    dGrandInc += inc; dGrandComm += c; dGrandExp += exp; dGrandKb += kb;
-    dailyRows.push([formatThaiDate(day), inc, -c, -exp, kb, dayNet]);
+    const dayNet = di - dc - de + dk;
+    dInc += di; dComm += dc; dExp += de; dKb += dk;
+    dailyRows.push([formatThaiDate(day), di, -dc, -de, dk, dayNet]);
   }
-  const dailyNet = dGrandInc - dGrandComm - dGrandExp + dGrandKb;
-  dailyRows.push(['รวม', dGrandInc, -dGrandComm, -dGrandExp, dGrandKb, dailyNet]);
+  const dailyNet = dInc - dComm - dExp + dKb;
+  dailyRows.push([]);
+  dailyRows.push(['รวม', dInc, -dComm, -dExp, dKb, dailyNet]);
   const dailyWs = XLSX.utils.aoa_to_sheet(dailyRows);
-  dailyWs['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+  dailyWs['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, dailyWs, 'สรุปรายวัน');
 
-  // Sheet 4: สรุปรวม
-  const net = incTotal - commTotal - (expTotal - kbTotal);
+  // ====== Sheet 3: สรุปรวม — overall info ======
   const sumData = [
     ['สรุปบิล — ตัวแทน', agent.name],
     ['% ค่าคอม (default)', agent.percent + '%'],
     ['ออกรายงาน', new Date().toLocaleString('th-TH')],
-    ['ช่วงวันที่', sortedDays.length > 0 ? `${formatThaiDate(sortedDays[0])} - ${formatThaiDate(sortedDays[sortedDays.length-1])}` : '-'],
+    ['ช่วงวันที่', sortedDays.length > 0 ? `${formatThaiDate(sortedDays[0])} - ${formatThaiDate(sortedDays[sortedDays.length - 1])}` : '-'],
     ['จำนวนวันที่เลือก', sortedDays.length],
     [],
-    ['จำนวนบิลรายรับ', incomeBills.length],
-    ['จำนวนบิลรายจ่าย', expBills.length],
+    ['จำนวนบิลรายรับ', agentTxs.filter(t => t.type === 'income').length],
+    ['จำนวนบิลรายจ่าย', agentTxs.filter(t => t.type === 'expense').length],
     [],
-    ['(+) รายรับรวม (₭)', incTotal],
-    ['(-) ค่าคอมรวม (₭)', -commTotal],
-    ['(-) รายจ่ายรวม (₭)', -expTotal],
-    ['(+) คืนจากเขา (₭)', kbTotal],
+    ['(+) รายรับรวม (₭)', totalIncome],
+    ['(-) ค่าคอมรวม (₭)', -totalComm],
+    ['(-) รายจ่ายรวม (₭)', -totalExpense],
+    ['(+) คืนจากเขารวม (₭)', totalKb],
     [],
-    ['สุทธิ (₭)', net]
+    ['สุทธิ (₭)', grandNet]
   ];
   const sumWs = XLSX.utils.aoa_to_sheet(sumData);
-  sumWs['!cols'] = [{ wch: 28 }, { wch: 26 }];
+  sumWs['!cols'] = [{ wch: 28 }, { wch: 24 }];
   XLSX.utils.book_append_sheet(wb, sumWs, 'สรุปรวม');
 
   const today = new Date().toISOString().slice(0, 10);
