@@ -709,6 +709,28 @@ h1, h2, h3, .display {
 .bill-compact-cell input::placeholder { color: #9ca3af; font-weight: 400; opacity: 1; }
 .bill-compact-cell .bcc-suffix { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 14px; font-weight: 500; pointer-events: none; }
 .bill-compact-cell input[type="number"] { padding-right: 26px; font-weight: 600; }
+
+/* Single-row compact bill input (all fields in one row) */
+.bill-row-inline { display: flex; align-items: center; gap: 5px; padding: 6px; background: rgba(255,255,255,0.92); border-radius: 10px; }
+.bill-row-inline .row-num { width: 22px; height: 22px; border-radius: 6px; background: #6366f1; color: white; font-weight: 700; font-size: 12px; font-family: var(--font-display); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.bill-row-inline .brf-date { flex: 0 0 auto; min-width: 0; }
+.bill-row-inline .brf-date input[type="date"] { width: 100px; padding: 7px 6px; font-size: 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: 7px; background: #f9fafb; color: #1e1b4b; font-family: inherit; outline: none; }
+.bill-row-inline .brf-pct { display: flex; align-items: center; background: #f9fafb; border: 1px solid rgba(0,0,0,0.08); border-radius: 7px; padding: 0 6px 0 4px; flex: 0 0 auto; }
+.bill-row-inline .brf-pct input { width: 36px; border: none; background: transparent; padding: 7px 0; font-size: 13px; color: #1e1b4b; font-family: inherit; outline: none; text-align: right; font-weight: 600; }
+.bill-row-inline .brf-pct span { color: #6b7280; font-size: 12px; padding-left: 2px; }
+.bill-row-inline .brf-amount { flex: 1; min-width: 0; display: flex; align-items: center; background: white; border: 1px solid rgba(0,0,0,0.12); border-radius: 7px; padding: 0 8px; }
+.bill-row-inline .brf-amount i { color: #6b7280; font-size: 14px; margin-right: 4px; flex-shrink: 0; }
+.bill-row-inline .brf-amount input { width: 100%; border: none; background: transparent; padding: 8px 0; font-size: 15px; color: #1e1b4b; font-family: var(--font-display); outline: none; font-weight: 600; min-width: 0; }
+.bill-row-inline .brf-amount input::placeholder { color: #9ca3af; font-weight: 400; opacity: 1; }
+.bill-row-inline .brf-check { display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; }
+.bill-row-inline .brf-check input { display: none; }
+.bill-row-inline .brf-check .check-box { width: 26px; height: 26px; border-radius: 7px; border: 1.5px solid #d97706; background: #fef3c7; display: flex; align-items: center; justify-content: center; transition: all 0.15s; color: #d97706; font-size: 14px; }
+.bill-row-inline .brf-check input:checked + .check-box { background: #fef3c7; border-color: #d97706; }
+.bill-row-inline .brf-check input:checked + .check-box::before { content: '⏱'; font-size: 13px; }
+.bill-row-inline .brf-check input:not(:checked) + .check-box { background: #d1fae5; border-color: #059669; color: #059669; }
+.bill-row-inline .brf-check input:not(:checked) + .check-box::before { content: '✓'; font-weight: 700; }
+.bill-row-inline .row-del-btn { width: 26px; height: 26px; padding: 0; border-radius: 7px; background: rgba(239, 68, 68, 0.12); border: none; color: #ef4444; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+.bill-row-inline .row-del-btn:hover { background: rgba(239, 68, 68, 0.25); }
 .unpaid-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 8px; border-radius: 8px; background: rgba(224, 168, 117, 0.35); color: #ffd0a8; font-weight: 600; font-family: var(--font-display); flex-shrink: 0; }
 .we-owe-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 8px; border-radius: 8px; background: rgba(217, 122, 122, 0.40); color: #ffd0d0; font-weight: 600; font-family: var(--font-display); flex-shrink: 0; }
 .agent-owed-banner { background: rgba(224, 168, 117, 0.3); border: 1px solid rgba(224, 168, 117, 0.5); border-radius: 14px; padding: 10px 14px; margin-bottom: 10px; position: relative; z-index: 1; backdrop-filter: blur(8px); }
@@ -1516,7 +1538,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.4';
+const APP_VERSION = '1.99.5';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3623,38 +3645,25 @@ function renderAgents() {
   function buildBillRow(agentId, idx) {
     const ag = getAgent(agentId);
     const defaultPct = ag ? ag.percent : 0;
-    return `<div class="bill-input-row" data-row-idx="${idx}">
-      <div class="bill-row-header">
+    return `<div class="bill-input-row" data-row-idx="${idx}" style="padding: 0; background: none; border: none;">
+      <div class="bill-row-inline">
         <div class="row-num" data-row-num>${idx + 1}</div>
-        <div class="bill-row-title">${tt('new_bill_seq')} ${idx + 1}</div>
-        <button class="row-del-btn" data-row-del aria-label="delete row"><i class="ti ti-x"></i></button>
-      </div>
-      <div class="bill-compact-grid">
-        <div class="bill-compact-cell">
-          <span class="bcc-icon"><i class="ti ti-calendar"></i></span>
+        <div class="brf-date">
           <input type="date" data-row-date value="${todayStr()}" aria-label="${tt('fromDate') || 'วันที่'}">
         </div>
-        <div class="bill-compact-cell">
-          <span class="bcc-icon"><i class="ti ti-percentage"></i></span>
+        <div class="brf-pct">
           <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
-          <span class="bcc-suffix">%</span>
+          <span>%</span>
         </div>
-      </div>
-      <div class="bill-compact-grid">
-        <div class="bill-compact-cell">
-          <span class="bcc-icon"><i class="ti ti-cash"></i></span>
+        <div class="brf-amount">
+          <i class="ti ti-cash"></i>
           <input type="text" inputmode="decimal" class="bill-amount" data-row-amount data-agent-id="${agentId}" placeholder="${tt('amount')}" autocomplete="off">
         </div>
-        <div class="bill-compact-cell" style="padding: 0 12px;">
-          <label class="unpaid-toggle" data-row-unpaid-label style="margin: 0; padding: 0; opacity: 1; width: 100%; color: #1e1b4b;">
-            <input type="checkbox" data-row-unpaid checked>
-            <span class="unpaid-check" style="border-color: rgba(0,0,0,0.25); background: rgba(0,0,0,0.04);"></span>
-            <span class="unpaid-label-text" style="font-size: 13px;">
-              <span class="label-state-unpaid" style="color: #d97706;"><i class="ti ti-clock-dollar"></i> ${tt('not_paid_yet')}</span>
-              <span class="label-state-paid" style="color: #059669;"><i class="ti ti-circle-check"></i> ${tt('already_paid_income')}</span>
-            </span>
-          </label>
-        </div>
+        <label class="brf-check" data-row-unpaid-label aria-label="${tt('not_paid_yet')}">
+          <input type="checkbox" data-row-unpaid checked>
+          <span class="check-box"></span>
+        </label>
+        <button class="row-del-btn" data-row-del aria-label="delete row"><i class="ti ti-x"></i></button>
       </div>
     </div>`;
   }
