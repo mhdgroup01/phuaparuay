@@ -1582,7 +1582,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.21';
+const APP_VERSION = '1.99.22';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3857,6 +3857,31 @@ function _loadScript(src) {
     document.head.appendChild(s);
   });
 }
+async function _fetchFontB64(urls) {
+  for (const url of urls) {
+    try {
+      const ctrl = new AbortController();
+      const timeoutId = setTimeout(() => ctrl.abort(), 12000);
+      const r = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(timeoutId);
+      if (!r.ok) continue;
+      const buf = await r.arrayBuffer();
+      if (buf.byteLength < 1000) continue;
+      // Verify it's a TTF (magic bytes: 0x00010000 or 'OTTO' or 'true' or 'ttcf')
+      const view = new DataView(buf);
+      const magic = view.getUint32(0);
+      if (magic !== 0x00010000 && magic !== 0x4F54544F && magic !== 0x74727565 && magic !== 0x74746366) continue;
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      const CHUNK = 8192;
+      for (let i = 0; i < bytes.length; i += CHUNK) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+      return btoa(bin);
+    } catch (e) {
+      console.warn('Font fetch failed:', url, e.message);
+    }
+  }
+  return null;
+}
 async function loadPdfLib() {
   if (_pdfLib) return _pdfLib;
   if (typeof window.jspdf === 'undefined') {
@@ -3865,11 +3890,28 @@ async function loadPdfLib() {
   if (!window.jspdf.jsPDF.API.autoTable) {
     await _loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js');
   }
-  _pdfLib = {
-    jsPDF: window.jspdf.jsPDF,
-    fontB64: PDF_FONT_REGULAR_B64,
-    fontBoldB64: PDF_FONT_BOLD_B64
-  };
+  // Try real Noto Sans Lao from CDN (verified working URLs from openmaptiles + jenskutilek)
+  const notoRegularUrls = [
+    'https://cdn.jsdelivr.net/gh/openmaptiles/fonts@master/noto-sans/NotoSansLao-Regular.ttf',
+    'https://cdn.jsdelivr.net/gh/jenskutilek/free-fonts@master/Noto/Noto%20Sans%20Lao/TTF/NotoSansLao-Regular.ttf'
+  ];
+  const notoBoldUrls = [
+    'https://cdn.jsdelivr.net/gh/openmaptiles/fonts@master/noto-sans/NotoSansLao-Bold.ttf',
+    'https://cdn.jsdelivr.net/gh/jenskutilek/free-fonts@master/Noto/Noto%20Sans%20Lao/TTF/NotoSansLao-Bold.ttf'
+  ];
+  let usedNoto = false;
+  let fontB64 = await _fetchFontB64(notoRegularUrls);
+  let fontBoldB64 = null;
+  if (fontB64) {
+    usedNoto = true;
+    fontBoldB64 = await _fetchFontB64(notoBoldUrls);
+    if (!fontBoldB64) fontBoldB64 = fontB64; // fall back to regular for bold
+  } else {
+    // Fall back to embedded DejaVu Sans (always works)
+    fontB64 = PDF_FONT_REGULAR_B64;
+    fontBoldB64 = PDF_FONT_BOLD_B64;
+  }
+  _pdfLib = { jsPDF: window.jspdf.jsPDF, fontB64, fontBoldB64, usedNoto };
   return _pdfLib;
 }
 async function doExportPdf() {
@@ -3882,10 +3924,14 @@ async function doExportPdf() {
   const datesSet = new Set(agentTxs.map(t => t.date));
   const sortedDays = Array.from(datesSet).sort();
 
-  showToast('ກຳລັງໂຫຼດໄລບຣາລີ PDF...', 'info');
+  showToast('ກຳລັງໂຫຼດ font Noto Sans Lao...', 'info');
   let lib;
   try { lib = await loadPdfLib(); }
   catch (e) { showToast(e.message, 'error'); return; }
+
+  if (!lib.usedNoto) {
+    showToast('ໂຫຼດ Noto Sans Lao ບໍ່ໄດ້ - ໃຊ້ font ສຳຮອງ', 'warning');
+  }
 
   const { jsPDF, fontB64, fontBoldB64 } = lib;
 
