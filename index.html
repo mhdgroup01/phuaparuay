@@ -1295,9 +1295,9 @@ h1, h2, h3, .display {
   </div>
 </div>
 
-<!-- User: Sync Tx Updates Modal (select bills to submit) -->
+<!-- User: Sync Tx Updates Modal (select days to submit) -->
 <div class="modal-overlay" id="sync-tx-modal">
-  <div class="modal" style="max-width: 500px;">
+  <div class="modal" style="max-width: 540px;">
     <div class="modal-header">
       <div class="modal-title"><i class="ti ti-cloud-upload" style="color: var(--primary);"></i> <span data-i18n="sync_modal_title">ส่งอัพเดตให้ Admin</span></div>
       <button class="icon-action" id="sync-tx-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
@@ -1308,12 +1308,13 @@ h1, h2, h3, .display {
         <button class="btn btn-secondary" id="sync-select-all" style="flex: 1; padding: 6px 10px; font-size: 13px;"><i class="ti ti-square-check"></i> <span data-i18n="sync_select_all">เลือกทั้งหมด</span></button>
         <button class="btn btn-secondary" id="sync-clear-all" style="flex: 1; padding: 6px 10px; font-size: 13px;"><i class="ti ti-square-off"></i> <span data-i18n="sync_clear_all">ล้าง</span></button>
       </div>
-      <div id="sync-tx-list" style="max-height: 320px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 8px;"></div>
+      <div id="sync-tx-list" style="max-height: 280px; overflow-y: auto; padding: 4px; margin-bottom: 10px;"></div>
+      <div id="sync-tx-summary" style="padding: 12px 14px; background: linear-gradient(135deg, rgba(124, 122, 217, 0.10) 0%, rgba(164, 140, 208, 0.10) 100%); border: 1px solid var(--border-2); border-radius: 12px; margin-bottom: 10px;"></div>
       <div id="sync-tx-error" style="font-size: 13px; color: var(--red); min-height: 18px; margin-bottom: 8px;"></div>
       <div style="display: flex; gap: 8px;">
         <button class="btn btn-secondary" id="sync-tx-cancel" style="flex: 1;" data-i18n="cancel">ยกเลิก</button>
         <button class="btn" id="sync-tx-submit" style="flex: 2; background: var(--grad-hero); color: white;">
-          <i class="ti ti-send"></i> <span data-i18n="sync_submit_btn">ส่ง</span> <span id="sync-tx-count">0</span> <span data-i18n="items_unit">รายการ</span>
+          <i class="ti ti-send"></i> <span data-i18n="sync_submit_btn">ส่ง</span> <span id="sync-tx-count">0</span> <span data-i18n="days_unit">วัน</span>
         </button>
       </div>
     </div>
@@ -1504,7 +1505,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.94.0';
+const APP_VERSION = '1.95.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1853,6 +1854,7 @@ const T = {
     submit_agent_warning: 'ເມື່ອສົ່ງແລ້ວ ຈະແກ້ໄຂບໍ່ໄດ້ຈົນກວ່າ Admin ຈະອະນຸມັດຫຼືປະຕິເສດ',
     bills_summary: 'ລວມບິນ',
     items_unit: 'ລາຍການ',
+    days_unit: 'ວັນ',
     no_bills_warn: 'ຍັງບໍ່ມີບິນ — ແນະນຳໃຫ້ໃສ່ບິນກ່ອນສົ່ງ',
     pending_approval_btn: 'ລາຍການລໍຖ້າອະນຸມັດ',
     manage_users_btn: 'ຈັດການ Users',
@@ -2204,6 +2206,7 @@ const T = {
     submit_agent_warning: 'เมื่อส่งแล้ว จะแก้ไขไม่ได้จนกว่า Admin จะอนุมัติหรือปฏิเสธ',
     bills_summary: 'รวมบิล',
     items_unit: 'รายการ',
+    days_unit: 'วัน',
     no_bills_warn: 'ยังไม่มีบิล — แนะนำให้กรอกบิลก่อนส่ง',
     pending_approval_btn: 'รายการรออนุมัติ',
     manage_users_btn: 'จัดการ Users',
@@ -2423,7 +2426,8 @@ function getPendingTxChanges(agentId) {
   return transactions.filter(t => t.agentId === agentId && (t.syncStatus === 'draft' || t.syncStatus === 'modified' || t.syncStatus === 'rejected' || (t.syncStatus === 'deletePending' && !t.syncSubmittedAt)));
 }
 
-// Open the sync modal — let user pick which bill changes to submit
+// Open the sync modal — let user pick which DAYS of bill changes to submit
+// Bills are grouped by date — checking a day's checkbox includes all bills of that day
 let _syncAgentId = null;
 function openSyncTxModal(agentId) {
   _syncAgentId = agentId;
@@ -2432,8 +2436,10 @@ function openSyncTxModal(agentId) {
   document.getElementById('sync-tx-agent-name').innerHTML = `${tt('sync_agent_label')}: <strong>${escapeHtml(ag.name)}</strong> (${ag.percent}%)`;
   const list = document.getElementById('sync-tx-list');
   const items = getPendingTxChanges(agentId).sort((a, b) => b.date.localeCompare(a.date));
+  const summaryBox = document.getElementById('sync-tx-summary');
   if (items.length === 0) {
     list.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-3);">${tt('sync_no_items')}</div>`;
+    if (summaryBox) summaryBox.innerHTML = '';
     document.getElementById('sync-tx-count').textContent = '0';
     document.getElementById('sync-tx-modal').classList.add('show');
     return;
@@ -2444,32 +2450,147 @@ function openSyncTxModal(agentId) {
     rejected: { label: tt('badge_rejected'), color: '#ef4444', icon: 'alert-triangle' },
     deletePending: { label: tt('tx_kind_delete'), color: '#6b7280', icon: 'trash' }
   };
-  list.innerHTML = items.map(t => {
-    const s = statusInfo[t.syncStatus] || statusInfo.draft;
-    const dParts = t.date.split('-');
-    const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : t.date;
-    const typeIcon = t.type === 'income' ? '🟢' : '🔴';
-    return `<label style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface-2); border-radius: 8px; cursor: pointer; border: 1px solid var(--border);">
-      <input type="checkbox" class="sync-tx-check" data-tid="${t.id}" checked style="width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;">
-      <div style="flex: 1; min-width: 0;">
-        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px;">
-          <span style="font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: ${s.color}; color: white;"><i class="ti ti-${s.icon}"></i> ${s.label}</span>
-          <span style="font-size: 12px; color: var(--text-3);">${dStr}</span>
+
+  // Group items by date (newest first)
+  const byDate = {};
+  for (const t of items) {
+    if (!byDate[t.date]) byDate[t.date] = [];
+    byDate[t.date].push(t);
+  }
+  const sortedDates = Object.keys(byDate).sort().reverse();
+
+  list.innerHTML = sortedDates.map(date => {
+    const dayTxs = byDate[date];
+    const dParts = date.split('-');
+    const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : date;
+    // Per-day kind counts
+    const kinds = { draft: 0, modified: 0, rejected: 0, deletePending: 0 };
+    let dayIncome = 0, dayExpense = 0, dayComm = 0, dayKickback = 0;
+    for (const t of dayTxs) {
+      kinds[t.syncStatus] = (kinds[t.syncStatus] || 0) + 1;
+      if (t.syncStatus !== 'deletePending') {
+        const pct = (typeof t.percent === 'number') ? t.percent : ag.percent;
+        if (t.type === 'income') {
+          dayIncome += t.amount;
+          dayComm += t.amount * (pct / 100);
+        } else {
+          dayExpense += t.amount;
+          if (t.kickback) dayKickback += t.amount * (t.kickback / 100);
+        }
+      }
+    }
+    const kindChips = [
+      kinds.draft ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #10b981; color: white;">+${kinds.draft}</span>` : '',
+      kinds.modified ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #f59e0b; color: white;">✏️${kinds.modified}</span>` : '',
+      kinds.deletePending ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #6b7280; color: white;">🗑${kinds.deletePending}</span>` : '',
+      kinds.rejected ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #ef4444; color: white;">❌${kinds.rejected}</span>` : ''
+    ].filter(Boolean).join(' ');
+    const billRowsHtml = dayTxs.map(t => {
+      const s = statusInfo[t.syncStatus] || statusInfo.draft;
+      const typeIcon = t.type === 'income' ? '🟢' : '🔴';
+      const pct = (typeof t.percent === 'number') ? t.percent : ag.percent;
+      const comm = t.type === 'income' ? t.amount * (pct / 100) : 0;
+      return `<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--surface); border-radius: 6px; margin-top: 4px; font-size: 12px;">
+        <span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: ${s.color}; color: white; flex-shrink: 0;">${s.label}</span>
+        <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${typeIcon} ${escapeHtml(t.desc || '—')}</div>
+        <div style="font-weight: 700; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}; white-space: nowrap;">${t.type === 'income' ? '+' : '-'}${fmtShort(t.amount)}</div>
+        ${t.type === 'income' && comm > 0 ? `<div style="font-size: 10px; color: var(--text-3); white-space: nowrap;">(คอม ${fmtShort(comm)})</div>` : ''}
+        ${t.syncRejectReason ? `<i class="ti ti-info-circle" style="color: var(--red); flex-shrink: 0;" title="${escapeHtml(t.syncRejectReason)}"></i>` : ''}
+      </div>`;
+    }).join('');
+
+    return `<div style="background: var(--surface-2); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 8px; overflow: hidden;">
+      <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;">
+        <input type="checkbox" class="sync-day-check" data-day="${date}" checked style="width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;">
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-weight: 700; font-size: 14px; color: var(--text);"><i class="ti ti-calendar"></i> ${dStr}</span>
+            <span style="font-size: 11px; color: var(--text-3);">${dayTxs.length} ${tt('items_unit')}</span>
+            ${kindChips}
+          </div>
+          <div style="font-size: 12px; color: var(--text-2); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap;">
+            ${dayIncome > 0 ? `<span style="color: #10b981;">+${fmtShort(dayIncome)}</span>` : ''}
+            ${dayExpense > 0 ? `<span style="color: #ef4444;">-${fmtShort(dayExpense)}</span>` : ''}
+            ${dayComm > 0 ? `<span style="color: var(--primary);"><i class="ti ti-percentage"></i> ${fmtShort(dayComm)}</span>` : ''}
+            ${dayKickback > 0 ? `<span style="color: #8b5cf6;">↩ ${fmtShort(dayKickback)}</span>` : ''}
+          </div>
         </div>
-        <div style="font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${typeIcon} ${escapeHtml(t.desc || '—')} · <strong>${fmt(t.amount)} ₭</strong></div>
-        ${t.syncRejectReason ? `<div style="font-size: 11px; color: var(--red); margin-top: 2px;"><i class="ti ti-info-circle"></i> ${escapeHtml(t.syncRejectReason)}</div>` : ''}
-      </div>
-    </label>`;
+        <button class="sync-day-toggle" data-day="${date}" style="background: none; border: none; cursor: pointer; padding: 4px; color: var(--text-2);" aria-label="expand"><i class="ti ti-chevron-down"></i></button>
+      </label>
+      <div class="sync-day-bills" data-day="${date}" style="display: none; padding: 0 12px 10px 12px;">${billRowsHtml}</div>
+    </div>`;
   }).join('');
-  list.querySelectorAll('.sync-tx-check').forEach(c => c.addEventListener('change', updateSyncCount));
+
+  // Wire up day checkboxes + toggles
+  list.querySelectorAll('.sync-day-check').forEach(c => c.addEventListener('change', updateSyncCount));
+  list.querySelectorAll('.sync-day-toggle').forEach(btn => btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const day = btn.dataset.day;
+    const det = list.querySelector(`.sync-day-bills[data-day="${day}"]`);
+    const ic = btn.querySelector('i');
+    if (!det) return;
+    const open = det.style.display === 'block';
+    det.style.display = open ? 'none' : 'block';
+    if (ic) ic.className = open ? 'ti ti-chevron-down' : 'ti ti-chevron-up';
+  }));
+
+  // Cache items+groups for summary computation
+  _syncCachedItems = items;
+  _syncCachedByDate = byDate;
+  _syncCachedAgent = ag;
   updateSyncCount();
   document.getElementById('sync-tx-modal').classList.add('show');
 }
 
+let _syncCachedItems = [], _syncCachedByDate = {}, _syncCachedAgent = null;
+
 function updateSyncCount() {
-  const checked = document.querySelectorAll('.sync-tx-check:checked').length;
-  document.getElementById('sync-tx-count').textContent = checked;
-  document.getElementById('sync-tx-submit').disabled = checked === 0;
+  // Collect tx IDs from checked days
+  const checkedDays = Array.from(document.querySelectorAll('.sync-day-check:checked')).map(c => c.dataset.day);
+  let txCount = 0;
+  let income = 0, expense = 0, comm = 0, kickback = 0;
+  const ag = _syncCachedAgent;
+  for (const day of checkedDays) {
+    const dayTxs = _syncCachedByDate[day] || [];
+    txCount += dayTxs.length;
+    for (const t of dayTxs) {
+      if (t.syncStatus === 'deletePending') continue; // exclude from totals (will be removed)
+      const pct = (typeof t.percent === 'number') ? t.percent : (ag ? ag.percent : 0);
+      if (t.type === 'income') {
+        income += t.amount;
+        comm += t.amount * (pct / 100);
+      } else {
+        expense += t.amount;
+        if (t.kickback) kickback += t.amount * (t.kickback / 100);
+      }
+    }
+  }
+  const net = income - expense - comm + kickback;
+  document.getElementById('sync-tx-count').textContent = checkedDays.length;
+  const submitBtn = document.getElementById('sync-tx-submit');
+  submitBtn.disabled = checkedDays.length === 0;
+  // Update summary
+  const sBox = document.getElementById('sync-tx-summary');
+  if (sBox) {
+    if (checkedDays.length === 0) {
+      sBox.innerHTML = `<div style="text-align: center; padding: 8px; color: var(--text-3); font-size: 12px;">เลือกอย่างน้อย 1 วัน</div>`;
+    } else {
+      sBox.innerHTML = `
+        <div style="font-size: 11px; color: var(--text-3); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="ti ti-calculator"></i> ${tt('confirm_save_summary')} (${txCount} ${tt('items_unit')})</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 13px;">
+          ${income > 0 ? `<span style="color: var(--text-2);">${tt('income')}</span><span style="text-align: right; font-weight: 700; color: #10b981;">+${fmt(income)} ₭</span>` : ''}
+          ${expense > 0 ? `<span style="color: var(--text-2);">${tt('expense')}</span><span style="text-align: right; font-weight: 700; color: #ef4444;">-${fmt(expense)} ₭</span>` : ''}
+          ${comm > 0 ? `<span style="color: var(--text-2);">${tt('commission')}</span><span style="text-align: right; font-weight: 700; color: var(--primary);">-${fmt(comm)} ₭</span>` : ''}
+          ${kickback > 0 ? `<span style="color: var(--text-2);">${tt('kb_from_him')}</span><span style="text-align: right; font-weight: 700; color: #8b5cf6;">+${fmt(kickback)} ₭</span>` : ''}
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--border);">
+          <span style="font-weight: 700; color: var(--text);">${tt('sum_net')}</span>
+          <span style="font-size: 16px; font-weight: 700; color: ${net >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-display);">${net >= 0 ? '+' : ''}${fmt(net)} ₭</span>
+        </div>
+      `;
+    }
+  }
 }
 
 // Wire up sync tx modal
@@ -2477,15 +2598,22 @@ function updateSyncCount() {
   document.getElementById('sync-tx-close').addEventListener('click', () => document.getElementById('sync-tx-modal').classList.remove('show'));
   document.getElementById('sync-tx-cancel').addEventListener('click', () => document.getElementById('sync-tx-modal').classList.remove('show'));
   document.getElementById('sync-select-all').addEventListener('click', () => {
-    document.querySelectorAll('.sync-tx-check').forEach(c => c.checked = true);
+    document.querySelectorAll('.sync-day-check').forEach(c => c.checked = true);
     updateSyncCount();
   });
   document.getElementById('sync-clear-all').addEventListener('click', () => {
-    document.querySelectorAll('.sync-tx-check').forEach(c => c.checked = false);
+    document.querySelectorAll('.sync-day-check').forEach(c => c.checked = false);
     updateSyncCount();
   });
   document.getElementById('sync-tx-submit').addEventListener('click', () => {
-    const ids = Array.from(document.querySelectorAll('.sync-tx-check:checked')).map(c => c.dataset.tid);
+    const days = Array.from(document.querySelectorAll('.sync-day-check:checked')).map(c => c.dataset.day);
+    if (days.length === 0) return;
+    // Collect all tx IDs from selected days
+    const ids = [];
+    for (const day of days) {
+      const dayTxs = _syncCachedByDate[day] || [];
+      for (const t of dayTxs) ids.push(t.id);
+    }
     if (ids.length === 0) return;
     const nowIso = new Date().toISOString();
     let changed = 0;
