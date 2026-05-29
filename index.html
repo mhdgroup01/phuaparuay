@@ -733,6 +733,9 @@ h1, h2, h3, .display {
 .bill-row-inline .brf-check input:not(:checked) + .check-box::before { content: '✓'; }
 .bill-row-inline .row-del-btn { width: 28px; height: 28px; padding: 0; border-radius: 7px; background: rgba(239, 68, 68, 0.12); border: none; color: #ef4444; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
 .bill-row-inline .row-del-btn:hover { background: rgba(239, 68, 68, 0.25); }
+.bill-row-inline .row-next-btn { width: 38px; height: 40px; padding: 0; border-radius: 8px; background: var(--grad-hero); border: none; color: white; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+.bill-row-inline .row-next-btn:active { transform: scale(0.92); }
+.bill-row-inline .row-next-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .unpaid-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 8px; border-radius: 8px; background: rgba(224, 168, 117, 0.35); color: #ffd0a8; font-weight: 600; font-family: var(--font-display); flex-shrink: 0; }
 .we-owe-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 8px; border-radius: 8px; background: rgba(217, 122, 122, 0.40); color: #ffd0d0; font-weight: 600; font-family: var(--font-display); flex-shrink: 0; }
 .agent-owed-banner { background: rgba(224, 168, 117, 0.3); border: 1px solid rgba(224, 168, 117, 0.5); border-radius: 14px; padding: 10px 14px; margin-bottom: 10px; position: relative; z-index: 1; backdrop-filter: blur(8px); }
@@ -1540,7 +1543,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.6';
+const APP_VERSION = '1.99.7';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3671,6 +3674,7 @@ function renderAgents() {
               <input type="text" inputmode="decimal" enterkeyhint="next" class="bill-amount" data-row-amount data-agent-id="${agentId}" placeholder="${tt('amount')}" autocomplete="off">
             </div>
           </form>
+          <button class="row-next-btn" data-row-next aria-label="เพิ่มบรรทัดถัดไป" title="เพิ่มบรรทัดถัดไป"><i class="ti ti-arrow-right"></i></button>
         </div>
       </div>
     </div>`;
@@ -3936,6 +3940,19 @@ function renderAgents() {
         }
         addBillRow(agentId);
         return false;
+      });
+    }
+    // Explicit "next" button — works reliably on iOS where the number keypad has no Return key
+    const nextBtn = newRow.querySelector('[data-row-next]');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        const val = parseAmount(amtInp.value);
+        if (!val || val <= 0 || isNaN(val)) {
+          showToast(tt('enter_amount_first'), 'error');
+          amtInp.focus();
+          return;
+        }
+        addBillRow(agentId);
       });
     }
     newRow.querySelector('[data-row-date]').addEventListener('change', () => recalcBillSum(agentId));
