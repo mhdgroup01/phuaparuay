@@ -1363,6 +1363,31 @@ h1, h2, h3, .display {
   </div>
 </div>
 
+<!-- Excel Export Modal — select which date groups to export -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal" style="max-width: 540px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-file-spreadsheet" style="color: #16a34a;"></i> ดาวน์โหลด Excel</div>
+      <button class="icon-action" id="export-modal-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="export-agent-name" style="font-size: 14px; color: var(--text-2); margin-bottom: 10px;"></div>
+      <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+        <button class="btn btn-secondary" id="export-select-all" style="flex: 1; padding: 6px 10px; font-size: 13px;"><i class="ti ti-square-check"></i> เลือกทั้งหมด</button>
+        <button class="btn btn-secondary" id="export-clear-all" style="flex: 1; padding: 6px 10px; font-size: 13px;"><i class="ti ti-square-off"></i> ล้าง</button>
+      </div>
+      <div id="export-list" style="max-height: 280px; overflow-y: auto; padding: 4px; margin-bottom: 10px;"></div>
+      <div id="export-summary" style="padding: 12px 14px; background: linear-gradient(135deg, rgba(22, 163, 74, 0.10) 0%, rgba(5, 150, 105, 0.10) 100%); border: 1px solid var(--border-2); border-radius: 12px; margin-bottom: 10px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" id="export-cancel" style="flex: 1;">ยกเลิก</button>
+        <button class="btn" id="export-download" style="flex: 2; background: linear-gradient(135deg, #16a34a, #059669); color: white;">
+          <i class="ti ti-download"></i> ดาวน์โหลด <span id="export-day-count">0</span> วัน
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Admin: Pending Agents Approval Modal -->
 <div class="modal-overlay" id="admin-pending-modal">
   <div class="modal" style="max-width: 600px;">
@@ -1547,7 +1572,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.13';
+const APP_VERSION = '1.99.14';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3294,14 +3319,130 @@ async function loadXlsx() {
   });
 }
 
-async function exportAgentBillsXlsx(agentId) {
+let _exportAgentId = null;
+let _exportByDate = {};
+
+function exportAgentBillsXlsx(agentId) {
+  // Wrapper: opens the date-selection modal
+  openExportModal(agentId);
+}
+
+function openExportModal(agentId) {
   const agent = getAgent(agentId);
   if (!agent) return;
-  const agentTxs = transactions.filter(t => t.agentId === agentId).sort((a, b) => a.date.localeCompare(b.date));
+  const agentTxs = transactions.filter(t => t.agentId === agentId).sort((a, b) => b.date.localeCompare(a.date));
   if (agentTxs.length === 0) {
     showToast(tt('noBills') || 'ไม่มีบิล', 'error');
     return;
   }
+
+  _exportAgentId = agentId;
+  _exportByDate = {};
+  for (const t of agentTxs) {
+    if (!_exportByDate[t.date]) _exportByDate[t.date] = [];
+    _exportByDate[t.date].push(t);
+  }
+  const sortedDates = Object.keys(_exportByDate).sort().reverse();
+
+  document.getElementById('export-agent-name').innerHTML = `ตัวแทน: <strong>${escapeHtml(agent.name)}</strong> (${agent.percent}%)`;
+
+  const list = document.getElementById('export-list');
+  list.innerHTML = sortedDates.map(date => {
+    const dayTxs = _exportByDate[date];
+    const dParts = date.split('-');
+    const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : date;
+    let di = 0, de = 0, dc = 0, dk = 0;
+    for (const t of dayTxs) {
+      if (t.type === 'income') {
+        di += t.amount;
+        const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+        dc += t.amount * (pct / 100);
+      } else {
+        de += t.amount;
+        if (t.kickback) dk += t.amount * (t.kickback / 100);
+      }
+    }
+    const incCount = dayTxs.filter(t => t.type === 'income').length;
+    const expCount = dayTxs.filter(t => t.type === 'expense').length;
+    const chips = [
+      incCount > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #10b981; color: white;">📈${incCount}</span>` : '',
+      expCount > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #ef4444; color: white;">📉${expCount}</span>` : ''
+    ].filter(Boolean).join(' ');
+    return `<label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; cursor: pointer; border: 1px solid var(--border); margin-bottom: 6px;">
+      <input type="checkbox" class="export-day-check" data-day="${date}" checked style="width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;">
+      <div style="flex: 1; min-width: 0;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="font-weight: 700; font-size: 14px; color: var(--text);"><i class="ti ti-calendar"></i> ${dStr}</span>
+          <span style="font-size: 11px; color: var(--text-3);">${dayTxs.length} ${tt('items_unit')}</span>
+          ${chips}
+        </div>
+        <div style="font-size: 12px; color: var(--text-2); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap;">
+          ${di > 0 ? `<span style="color: #10b981;">+${fmtShort(di)}</span>` : ''}
+          ${de > 0 ? `<span style="color: #ef4444;">-${fmtShort(de)}</span>` : ''}
+          ${dc > 0 ? `<span style="color: var(--primary);"><i class="ti ti-percentage"></i> ${fmtShort(dc)}</span>` : ''}
+          ${dk > 0 ? `<span style="color: #8b5cf6;">↩ ${fmtShort(dk)}</span>` : ''}
+        </div>
+      </div>
+    </label>`;
+  }).join('');
+
+  list.querySelectorAll('.export-day-check').forEach(c => c.addEventListener('change', updateExportSummary));
+  updateExportSummary();
+  document.getElementById('export-modal').classList.add('show');
+}
+
+function updateExportSummary() {
+  const agent = getAgent(_exportAgentId);
+  if (!agent) return;
+  const checkedDays = Array.from(document.querySelectorAll('.export-day-check:checked')).map(c => c.dataset.day);
+  let txCount = 0;
+  let income = 0, expense = 0, comm = 0, kickback = 0;
+  for (const day of checkedDays) {
+    const dayTxs = _exportByDate[day] || [];
+    txCount += dayTxs.length;
+    for (const t of dayTxs) {
+      const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+      if (t.type === 'income') {
+        income += t.amount;
+        comm += t.amount * (pct / 100);
+      } else {
+        expense += t.amount;
+        if (t.kickback) kickback += t.amount * (t.kickback / 100);
+      }
+    }
+  }
+  const net = income - expense - comm + kickback;
+  document.getElementById('export-day-count').textContent = checkedDays.length;
+  document.getElementById('export-download').disabled = checkedDays.length === 0;
+  const sBox = document.getElementById('export-summary');
+  if (checkedDays.length === 0) {
+    sBox.innerHTML = `<div style="text-align: center; padding: 8px; color: var(--text-3); font-size: 12px;">เลือกอย่างน้อย 1 วัน</div>`;
+  } else {
+    sBox.innerHTML = `
+      <div style="font-size: 11px; color: var(--text-3); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="ti ti-calculator"></i> สรุป (${txCount} รายการ)</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 13px;">
+        ${income > 0 ? `<span style="color: var(--text-2);">${tt('income')}</span><span style="text-align: right; font-weight: 700; color: #10b981;">+${fmt(income)} ₭</span>` : ''}
+        ${expense > 0 ? `<span style="color: var(--text-2);">${tt('expense')}</span><span style="text-align: right; font-weight: 700; color: #ef4444;">-${fmt(expense)} ₭</span>` : ''}
+        ${comm > 0 ? `<span style="color: var(--text-2);">${tt('commission')}</span><span style="text-align: right; font-weight: 700; color: var(--primary);">-${fmt(comm)} ₭</span>` : ''}
+        ${kickback > 0 ? `<span style="color: var(--text-2);">${tt('kb_from_him')}</span><span style="text-align: right; font-weight: 700; color: #8b5cf6;">+${fmt(kickback)} ₭</span>` : ''}
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--border);">
+        <span style="font-weight: 700; color: var(--text);">${tt('sum_net')}</span>
+        <span style="font-size: 16px; font-weight: 700; color: ${net >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-display);">${net >= 0 ? '+' : ''}${fmt(net)} ₭</span>
+      </div>
+    `;
+  }
+}
+
+async function doExportXlsx() {
+  const agent = getAgent(_exportAgentId);
+  if (!agent) return;
+  const checkedDays = Array.from(document.querySelectorAll('.export-day-check:checked')).map(c => c.dataset.day);
+  if (checkedDays.length === 0) return;
+
+  // Filter agent's txs by selected days
+  const selectedSet = new Set(checkedDays);
+  const agentTxs = transactions.filter(t => t.agentId === _exportAgentId && selectedSet.has(t.date)).sort((a, b) => a.date.localeCompare(b.date));
 
   showToast('กำลังโหลดไลบรารี Excel...', 'info');
   let XLSX;
@@ -3310,33 +3451,24 @@ async function exportAgentBillsXlsx(agentId) {
 
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: Income bills
+  // Sheet 1: รายรับ
   const incomeBills = agentTxs.filter(t => t.type === 'income');
   const incHeader = ['วันที่', 'คำอธิบาย', 'จำนวนเงิน (₭)', '% คอม', 'ค่าคอม (₭)', 'รับเงินแล้ว'];
   const incRows = [incHeader];
   let incTotal = 0, commTotal = 0;
   for (const t of incomeBills) {
     const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
-    const comm = t.amount * (pct / 100);
+    const c = t.amount * (pct / 100);
     incTotal += t.amount;
-    commTotal += comm;
-    incRows.push([
-      formatThaiDate(t.date),
-      t.desc || '',
-      t.amount,
-      pct,
-      comm,
-      t.unpaid ? 'ยังไม่ได้รับ' : 'รับแล้ว'
-    ]);
+    commTotal += c;
+    incRows.push([formatThaiDate(t.date), t.desc || '', t.amount, pct, c, t.unpaid ? 'ยังไม่ได้รับ' : 'รับแล้ว']);
   }
-  if (incomeBills.length > 0) {
-    incRows.push(['', 'รวม', incTotal, '', commTotal, '']);
-  }
+  if (incomeBills.length > 0) incRows.push(['', 'รวม', incTotal, '', commTotal, '']);
   const incWs = XLSX.utils.aoa_to_sheet(incRows);
   incWs['!cols'] = [{ wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 8 }, { wch: 14 }, { wch: 12 }];
-  XLSX.utils.book_append_sheet(wb, incWs, 'รายรับ (บิลขาย)');
+  XLSX.utils.book_append_sheet(wb, incWs, 'รายรับ');
 
-  // Sheet 2: Expense bills
+  // Sheet 2: รายจ่าย
   const expBills = agentTxs.filter(t => t.type === 'expense');
   const expHeader = ['วันที่', 'คำอธิบาย', 'จำนวนเงิน (₭)', '% คืน', 'จำนวนคืน (₭)', 'สุทธิจ่าย (₭)', 'จ่ายแล้ว'];
   const expRows = [expHeader];
@@ -3347,55 +3479,86 @@ async function exportAgentBillsXlsx(agentId) {
     const net = t.amount - kbAmt;
     expTotal += t.amount;
     kbTotal += kbAmt;
-    expRows.push([
-      formatThaiDate(t.date),
-      t.desc || '',
-      t.amount,
-      kbPct,
-      kbAmt,
-      net,
-      t.unpaid ? 'ยังไม่จ่าย' : 'จ่ายแล้ว'
-    ]);
+    expRows.push([formatThaiDate(t.date), t.desc || '', t.amount, kbPct, kbAmt, net, t.unpaid ? 'ยังไม่จ่าย' : 'จ่ายแล้ว']);
   }
-  if (expBills.length > 0) {
-    expRows.push(['', 'รวม', expTotal, '', kbTotal, expTotal - kbTotal, '']);
-  }
+  if (expBills.length > 0) expRows.push(['', 'รวม', expTotal, '', kbTotal, expTotal - kbTotal, '']);
   const expWs = XLSX.utils.aoa_to_sheet(expRows);
   expWs['!cols'] = [{ wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(wb, expWs, 'รายจ่าย');
 
-  // Sheet 3: Summary
+  // Sheet 3: สรุปรายวัน — by-day breakdown
+  const sortedDays = checkedDays.slice().sort();
+  const dailyHeader = ['วันที่', 'รายรับ (₭)', 'ค่าคอม (₭)', 'รายจ่าย (₭)', 'คืนจากเขา (₭)', 'สุทธิ (₭)'];
+  const dailyRows = [dailyHeader];
+  let dGrandInc = 0, dGrandComm = 0, dGrandExp = 0, dGrandKb = 0;
+  for (const day of sortedDays) {
+    const dayTxs = _exportByDate[day] || [];
+    let inc = 0, c = 0, exp = 0, kb = 0;
+    for (const t of dayTxs) {
+      const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+      if (t.type === 'income') { inc += t.amount; c += t.amount * (pct / 100); }
+      else { exp += t.amount; if (t.kickback) kb += t.amount * (t.kickback / 100); }
+    }
+    const dayNet = inc - c - exp + kb;
+    dGrandInc += inc; dGrandComm += c; dGrandExp += exp; dGrandKb += kb;
+    dailyRows.push([formatThaiDate(day), inc, -c, -exp, kb, dayNet]);
+  }
+  const dailyNet = dGrandInc - dGrandComm - dGrandExp + dGrandKb;
+  dailyRows.push(['รวม', dGrandInc, -dGrandComm, -dGrandExp, dGrandKb, dailyNet]);
+  const dailyWs = XLSX.utils.aoa_to_sheet(dailyRows);
+  dailyWs['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(wb, dailyWs, 'สรุปรายวัน');
+
+  // Sheet 4: สรุปรวม
   const net = incTotal - commTotal - (expTotal - kbTotal);
   const sumData = [
     ['สรุปบิล — ตัวแทน', agent.name],
     ['% ค่าคอม (default)', agent.percent + '%'],
     ['ออกรายงาน', new Date().toLocaleString('th-TH')],
+    ['ช่วงวันที่', sortedDays.length > 0 ? `${formatThaiDate(sortedDays[0])} - ${formatThaiDate(sortedDays[sortedDays.length-1])}` : '-'],
+    ['จำนวนวันที่เลือก', sortedDays.length],
     [],
     ['จำนวนบิลรายรับ', incomeBills.length],
     ['จำนวนบิลรายจ่าย', expBills.length],
     [],
-    ['รายรับรวม (₭)', incTotal],
-    ['ค่าคอมรวม (₭)', -commTotal],
-    ['รายจ่ายรวม (₭)', -expTotal],
-    ['คืนจากเขา (₭)', kbTotal],
+    ['(+) รายรับรวม (₭)', incTotal],
+    ['(-) ค่าคอมรวม (₭)', -commTotal],
+    ['(-) รายจ่ายรวม (₭)', -expTotal],
+    ['(+) คืนจากเขา (₭)', kbTotal],
     [],
     ['สุทธิ (₭)', net]
   ];
   const sumWs = XLSX.utils.aoa_to_sheet(sumData);
-  sumWs['!cols'] = [{ wch: 24 }, { wch: 26 }];
-  XLSX.utils.book_append_sheet(wb, sumWs, 'สรุป');
+  sumWs['!cols'] = [{ wch: 28 }, { wch: 26 }];
+  XLSX.utils.book_append_sheet(wb, sumWs, 'สรุปรวม');
 
-  // Trigger download
   const today = new Date().toISOString().slice(0, 10);
   const safeName = (agent.name || 'ตัวแทน').replace(/[\\/:*?"<>|]/g, '');
   const fname = `บิล_${safeName}_${today}.xlsx`;
   try {
     XLSX.writeFile(wb, fname);
+    document.getElementById('export-modal').classList.remove('show');
     showToast('ดาวน์โหลด Excel แล้ว', 'success');
   } catch (e) {
     showToast('ดาวน์โหลดไม่สำเร็จ: ' + e.message, 'error');
   }
 }
+
+// Wire up export modal
+(function setupExportModal() {
+  const closeFn = () => document.getElementById('export-modal').classList.remove('show');
+  document.getElementById('export-modal-close').addEventListener('click', closeFn);
+  document.getElementById('export-cancel').addEventListener('click', closeFn);
+  document.getElementById('export-select-all').addEventListener('click', () => {
+    document.querySelectorAll('.export-day-check').forEach(c => c.checked = true);
+    updateExportSummary();
+  });
+  document.getElementById('export-clear-all').addEventListener('click', () => {
+    document.querySelectorAll('.export-day-check').forEach(c => c.checked = false);
+    updateExportSummary();
+  });
+  document.getElementById('export-download').addEventListener('click', doExportXlsx);
+})();
 
 function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, weOweAmount) {
   if (agentTxs.length === 0) {
