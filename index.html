@@ -1547,7 +1547,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.10';
+const APP_VERSION = '1.99.11';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3680,15 +3680,6 @@ function renderAgents() {
             <i class="ti ti-note"></i>
             <input type="text" data-row-desc placeholder="${tt('description') || 'คำอธิบาย'}" autocomplete="off" enterkeyhint="next">
           </div>
-        </div>
-        <div class="bottom-row">
-          <div class="row-num" data-row-num>${idx + 1}</div>
-          <form class="brf-amount-form" data-row-form action="#" onsubmit="return false;">
-            <div class="brf-amount">
-              <i class="ti ti-cash"></i>
-              <input type="text" inputmode="decimal" enterkeyhint="next" class="bill-amount" data-row-amount data-agent-id="${agentId}" placeholder="${tt('amount')}" autocomplete="off">
-            </div>
-          </form>
           <div class="brf-pct">
             <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
             <span>%</span>
@@ -3698,6 +3689,15 @@ function renderAgents() {
             <span class="check-box"></span>
           </label>
           <button class="row-del-btn" data-row-del aria-label="delete row"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="bottom-row">
+          <div class="row-num" data-row-num>${idx + 1}</div>
+          <form class="brf-amount-form" data-row-form action="#" onsubmit="return false;">
+            <div class="brf-amount">
+              <i class="ti ti-cash"></i>
+              <input type="text" inputmode="decimal" enterkeyhint="next" class="bill-amount" data-row-amount data-agent-id="${agentId}" placeholder="${tt('amount')}" autocomplete="off">
+            </div>
+          </form>
           <button class="row-next-btn" data-row-next aria-label="เพิ่มบรรทัดถัดไป" title="เพิ่มบรรทัดถัดไป"><i class="ti ti-arrow-right"></i></button>
         </div>
       </div>
