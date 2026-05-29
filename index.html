@@ -1505,7 +1505,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.95.0';
+const APP_VERSION = '1.96.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1855,6 +1855,8 @@ const T = {
     bills_summary: 'ລວມບິນ',
     items_unit: 'ລາຍການ',
     days_unit: 'ວັນ',
+    confirm_approve_all: 'ຢືນຢັນອະນຸມັດທັງໝົດ',
+    reject_all: 'ປະຕິເສດທັງໝົດ',
     no_bills_warn: 'ຍັງບໍ່ມີບິນ — ແນະນຳໃຫ້ໃສ່ບິນກ່ອນສົ່ງ',
     pending_approval_btn: 'ລາຍການລໍຖ້າອະນຸມັດ',
     manage_users_btn: 'ຈັດການ Users',
@@ -2207,6 +2209,8 @@ const T = {
     bills_summary: 'รวมบิล',
     items_unit: 'รายการ',
     days_unit: 'วัน',
+    confirm_approve_all: 'ยืนยันอนุมัติทั้งหมด',
+    reject_all: 'ปฏิเสธทั้งหมด',
     no_bills_warn: 'ยังไม่มีบิล — แนะนำให้กรอกบิลก่อนส่ง',
     pending_approval_btn: 'รายการรออนุมัติ',
     manage_users_btn: 'จัดการ Users',
@@ -6702,55 +6706,71 @@ async function renderPendingAgentsList() {
       return;
     }
 
-    // Render tx updates section (top)
-    let txUpdatesHtml = '';
-    if (txUpdates.length > 0) {
-      txUpdatesHtml = `<div style="margin-bottom: 16px;">
-        <div style="font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; padding: 0 4px;"><i class="ti ti-cloud-upload"></i> ${tt('section_tx_updates')} (${txUpdates.length})</div>
-        ${txUpdates.map(u => {
-          const t = u.tx;
-          const dParts = (t.date || '').split('-');
-          const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : (t.date || '—');
-          const typeIcon = t.type === 'income' ? '🟢' : '🔴';
-          const isDelete = u.kind === 'deletePending';
-          const isNew = t.syncedAt == null;
-          const kindLabel = isDelete ? `🗑️ ${tt('tx_kind_delete')}` : (isNew ? `➕ ${tt('tx_kind_new')}` : `✏️ ${tt('tx_kind_edit')}`);
-          const kindColor = isDelete ? '#ef4444' : (isNew ? '#10b981' : '#f59e0b');
-          const pct = (typeof t.percent === 'number') ? t.percent : u.agentPercent;
-          const comm = t.type === 'income' ? t.amount * (pct / 100) : 0;
-          return `<div style="padding: 12px; background: var(--surface-2); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 6px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
-              <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: ${kindColor}; color: white;">${kindLabel}</span>
-              <span style="font-size: 12px; color: var(--text-2);">${tt('sync_agent_label')} <strong>${escapeHtml(u.agentName)}</strong></span>
-              <span style="font-size: 11px; color: var(--text-3); margin-left: auto;"><i class="ti ti-user"></i> ${escapeHtml(u.submittedByName)}</span>
-            </div>
-            <div style="font-size: 13px; color: var(--text); margin-bottom: 6px;">
-              <span style="color: var(--text-3); font-size: 12px;">${dStr}</span> · ${typeIcon} ${escapeHtml(t.desc || '—')} · <strong>${fmt(t.amount)} ₭</strong>
-              ${t.type === 'income' ? `<div style="font-size: 11px; color: var(--text-3); margin-top: 2px;">คอม ${pct}% = ${fmt(comm)} ₭${t.kickback ? ` · คืน ${fmt(t.kickback)}` : ''}</div>` : ''}
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn admin-approve-tx-btn" data-tid="${t.id}" data-owner="${u.submittedBy}" style="flex: 1; padding: 8px; font-size: 13px; background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="ti ti-check"></i> ${tt('approve')}</button>
-              <button class="btn admin-reject-tx-btn" data-tid="${t.id}" data-owner="${u.submittedBy}" data-desc="${escapeHtml(t.desc || '—')}" data-uname="${escapeHtml(u.submittedByName)}" style="flex: 1; padding: 8px; font-size: 13px; background: var(--grad-red); color: white;"><i class="ti ti-x"></i> ${tt('reject')}</button>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`;
-    }
-
-    let agentsHtml = '';
-    if (pending.length > 0) {
-      agentsHtml = `${txUpdatesHtml ? '<div style="font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; padding: 0 4px;"><i class="ti ti-user-plus"></i> ' + tt('section_new_agents') + ' (' + pending.length + ')</div>' : ''}` + pending.map((p, idx) => {
+    // Helper: render one pending agent card (groups bills by date, has summary, one-button approve)
+    function renderPendingAgentCard(p, idx) {
       const d = p.submittedAt ? new Date(p.submittedAt) : null;
       const dateStr = d ? `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '—';
       const txs = Array.isArray(p.transactions) ? p.transactions : [];
-      const incomeTotal = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-      const expenseTotal = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-      const commTotal = txs.filter(t => t.type === 'income').reduce((s, t) => {
+      // Totals across all bills
+      let income = 0, expense = 0, comm = 0, kickback = 0;
+      for (const t of txs) {
         const pct = (typeof t.percent === 'number') ? t.percent : p.percent;
-        return s + t.amount * (pct / 100);
-      }, 0);
-      return `
-      <div style="padding: 14px; background: var(--surface-2); border-radius: 12px; border: 1px solid var(--border);">
+        if (t.type === 'income') {
+          income += t.amount;
+          comm += t.amount * (pct / 100);
+        } else {
+          expense += t.amount;
+          if (t.kickback) kickback += t.amount * (t.kickback / 100);
+        }
+      }
+      const net = income - expense - comm + kickback;
+      // Group txs by date
+      const byDate = {};
+      for (const t of txs) { (byDate[t.date] = byDate[t.date] || []).push(t); }
+      const sortedDates = Object.keys(byDate).sort().reverse();
+      const daysHtml = sortedDates.map(date => {
+        const dayTxs = byDate[date];
+        const dParts = date.split('-');
+        const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : date;
+        let di = 0, de = 0;
+        for (const t of dayTxs) { if (t.type === 'income') di += t.amount; else de += t.amount; }
+        const billRowsHtml = dayTxs.map(t => {
+          const pct = (typeof t.percent === 'number') ? t.percent : p.percent;
+          const c = t.type === 'income' ? t.amount * (pct / 100) : 0;
+          const typeIcon = t.type === 'income' ? '🟢' : '🔴';
+          return `<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--surface); border-radius: 6px; margin-top: 4px; font-size: 12px;">
+            <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${typeIcon} ${escapeHtml(t.desc || '—')}</div>
+            <div style="font-weight: 700; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}; white-space: nowrap;">${t.type === 'income' ? '+' : '-'}${fmtShort(t.amount)}</div>
+            ${t.type === 'income' && c > 0 ? `<div style="font-size: 10px; color: var(--text-3); white-space: nowrap;">(${fmtShort(c)})</div>` : ''}
+          </div>`;
+        }).join('');
+        return `<div style="background: var(--surface-2); border-radius: 10px; border: 1px solid var(--border); margin-top: 6px; overflow: hidden;">
+          <button class="pa-day-toggle" data-key="ag-${idx}-${date}" style="display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 10px; background: none; border: none; cursor: pointer; text-align: left; color: var(--text); font-family: inherit;">
+            <span style="font-weight: 700; font-size: 13px;"><i class="ti ti-calendar"></i> ${dStr}</span>
+            <span style="font-size: 11px; color: var(--text-3);">${dayTxs.length} ${tt('items_unit')}</span>
+            ${di > 0 ? `<span style="font-size: 11px; color: #10b981; margin-left: auto;">+${fmtShort(di)}</span>` : '<span style="margin-left: auto;"></span>'}
+            ${de > 0 ? `<span style="font-size: 11px; color: #ef4444;">-${fmtShort(de)}</span>` : ''}
+            <i class="ti ti-chevron-down" style="color: var(--text-3);"></i>
+          </button>
+          <div class="pa-day-bills" data-key="ag-${idx}-${date}" style="display: none; padding: 0 10px 8px 10px;">${billRowsHtml}</div>
+        </div>`;
+      }).join('');
+
+      const summaryHtml = `<div style="padding: 12px 14px; background: linear-gradient(135deg, rgba(124, 122, 217, 0.10) 0%, rgba(164, 140, 208, 0.10) 100%); border: 1px solid var(--border-2); border-radius: 12px; margin-top: 10px;">
+        <div style="font-size: 11px; color: var(--text-3); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="ti ti-calculator"></i> ${tt('confirm_save_summary')} (${txs.length} ${tt('items_unit')})</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 13px;">
+          ${income > 0 ? `<span style="color: var(--text-2);">${tt('income')}</span><span style="text-align: right; font-weight: 700; color: #10b981;">+${fmt(income)} ₭</span>` : ''}
+          ${expense > 0 ? `<span style="color: var(--text-2);">${tt('expense')}</span><span style="text-align: right; font-weight: 700; color: #ef4444;">-${fmt(expense)} ₭</span>` : ''}
+          ${comm > 0 ? `<span style="color: var(--text-2);">${tt('commission')}</span><span style="text-align: right; font-weight: 700; color: var(--primary);">-${fmt(comm)} ₭</span>` : ''}
+          ${kickback > 0 ? `<span style="color: var(--text-2);">${tt('kb_from_him')}</span><span style="text-align: right; font-weight: 700; color: #8b5cf6;">+${fmt(kickback)} ₭</span>` : ''}
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--border);">
+          <span style="font-weight: 700; color: var(--text);">${tt('sum_net')}</span>
+          <span style="font-size: 16px; font-weight: 700; color: ${net >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-display);">${net >= 0 ? '+' : ''}${fmt(net)} ₭</span>
+        </div>
+      </div>`;
+
+      return `<div style="padding: 14px; background: var(--surface-2); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 10px;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
           <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="ti ti-user-check"></i></div>
           <div style="flex: 1; min-width: 0;">
@@ -6759,94 +6779,185 @@ async function renderPendingAgentsList() {
             <div style="font-size: 11px; color: var(--text-3); margin-top: 2px;"><i class="ti ti-clock"></i> ${dateStr}</div>
           </div>
         </div>
-
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; padding: 10px; background: var(--surface); border-radius: 10px;">
-          <div style="text-align: center;">
-            <div style="font-size: 11px; color: var(--text-3);">${tt('bill_count_label')}</div>
-            <div style="font-size: 16px; font-weight: 700; color: var(--text);">${txs.length}</div>
-          </div>
-          <div style="text-align: center; border-left: 1px solid var(--border); border-right: 1px solid var(--border);">
-            <div style="font-size: 11px; color: var(--text-3);">${tt('income')}</div>
-            <div style="font-size: 14px; font-weight: 700; color: #10b981;">${fmtShort(incomeTotal)}</div>
-          </div>
-          <div style="text-align: center;">
-            <div style="font-size: 11px; color: var(--text-3);">${tt('commission')}</div>
-            <div style="font-size: 14px; font-weight: 700; color: var(--primary);">${fmtShort(commTotal)}</div>
-          </div>
-        </div>
-
-        ${txs.length > 0 ? `
-        <button class="admin-view-txs-btn" data-idx="${idx}" style="width: 100%; margin-bottom: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 13px; cursor: pointer; font-weight: 500;">
-          <i class="ti ti-list-details"></i> ${tt('admin_view_all_bills')} (${txs.length})
-        </button>
-        <div class="admin-txs-detail" data-idx="${idx}" style="display: none; max-height: 280px; overflow-y: auto; margin-bottom: 10px; padding: 8px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
-          ${txs.slice().sort((a,b) => b.date.localeCompare(a.date)).map(t => {
-            const txPct = typeof t.percent === 'number' ? t.percent : p.percent;
-            const comm = t.type === 'income' ? t.amount * (txPct / 100) : 0;
-            const dParts = t.date.split('-');
-            const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : t.date;
-            const typeIcon = t.type === 'income' ? '🟢' : '🔴';
-            const typeColor = t.type === 'income' ? '#10b981' : '#ef4444';
-            return `<div style="padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 12px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-                <span style="color: var(--text-2); flex-shrink: 0; font-size: 11px;">${dStr}</span>
-                <span style="flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${typeIcon} ${escapeHtml(t.desc || '—')}</span>
-                <span style="font-weight: 700; color: ${typeColor};">${fmt(t.amount)}</span>
-              </div>
-              ${t.type === 'income' ? `<div style="font-size: 10px; color: var(--text-3); margin-top: 2px; text-align: right;">คอม ${txPct}% = ${fmt(comm)} ₭${t.kickback ? ` · คืน ${fmt(t.kickback)}` : ''}${billIsUnpaid(t) ? ' · 💸 ยังค้าง' : ''}</div>` : ''}
-            </div>`;
-          }).join('')}
-        </div>
-        ` : `<div style="text-align: center; padding: 10px; color: var(--text-3); font-size: 13px; font-style: italic; margin-bottom: 8px;">⚠️ ${tt('no_bills_agent_yet')}</div>`}
-
-        <div style="display: flex; gap: 8px;">
-          <button class="btn admin-approve-btn" data-aid="${p.agentId}" data-owner="${p.submittedBy}" data-name="${p.name.replace(/"/g, '&quot;')}" data-txcount="${txs.length}" style="flex: 1; padding: 10px; font-size: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="ti ti-check"></i> ${tt('approve')}</button>
-          <button class="btn admin-reject-show-btn" data-aid="${p.agentId}" data-owner="${p.submittedBy}" data-name="${p.name.replace(/"/g, '&quot;')}" data-uname="${(p.submittedByName || '').replace(/"/g, '&quot;')}" style="flex: 1; padding: 10px; font-size: 14px; background: var(--grad-red); color: white;"><i class="ti ti-x"></i> ${tt('reject')}</button>
+        ${txs.length > 0 ? daysHtml : `<div style="text-align: center; padding: 10px; color: var(--text-3); font-size: 13px; font-style: italic;">⚠️ ${tt('no_bills_agent_yet')}</div>`}
+        ${summaryHtml}
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <button class="btn admin-reject-show-btn" data-aid="${p.agentId}" data-owner="${p.submittedBy}" data-name="${escapeHtml(p.name)}" data-uname="${escapeHtml(p.submittedByName || '')}" style="flex: 1; padding: 10px; font-size: 14px; background: var(--grad-red); color: white;"><i class="ti ti-x"></i> ${tt('reject')}</button>
+          <button class="btn admin-approve-btn" data-aid="${p.agentId}" data-owner="${p.submittedBy}" data-name="${escapeHtml(p.name)}" data-txcount="${txs.length}" style="flex: 2; padding: 10px; font-size: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="ti ti-check"></i> ${tt('confirm_approve_all')}</button>
         </div>
       </div>`;
-    }).join('');
+    }
+
+    // Group tx updates by (owner, agent) — admin approves all changes for one user's agent at once
+    function renderTxUpdateGroups() {
+      if (txUpdates.length === 0) return '';
+      // Bucket by ownerId + agentId
+      const groups = {};
+      for (const u of txUpdates) {
+        const key = `${u.submittedBy}::${u.agentId}`;
+        if (!groups[key]) groups[key] = {
+          ownerUserId: u.submittedBy,
+          ownerName: u.submittedByName,
+          agentId: u.agentId,
+          agentName: u.agentName,
+          agentPercent: u.agentPercent,
+          updates: []
+        };
+        groups[key].updates.push(u);
+      }
+      const groupList = Object.values(groups);
+
+      return `<div style="margin-bottom: 16px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; padding: 0 4px;"><i class="ti ti-cloud-upload"></i> ${tt('section_tx_updates')} (${groupList.length})</div>
+        ${groupList.map((g, gIdx) => {
+          // Totals across all updates in this group (excl. deletePending)
+          let income = 0, expense = 0, comm = 0, kickback = 0, delCount = 0;
+          for (const u of g.updates) {
+            if (u.kind === 'deletePending') { delCount++; continue; }
+            const t = u.tx;
+            const pct = (typeof t.percent === 'number') ? t.percent : g.agentPercent;
+            if (t.type === 'income') {
+              income += t.amount;
+              comm += t.amount * (pct / 100);
+            } else {
+              expense += t.amount;
+              if (t.kickback) kickback += t.amount * (t.kickback / 100);
+            }
+          }
+          const net = income - expense - comm + kickback;
+          // Group updates by date
+          const byDate = {};
+          for (const u of g.updates) { (byDate[u.tx.date] = byDate[u.tx.date] || []).push(u); }
+          const sortedDates = Object.keys(byDate).sort().reverse();
+          const daysHtml = sortedDates.map(date => {
+            const dayUpdates = byDate[date];
+            const dParts = date.split('-');
+            const dStr = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0].slice(2)}` : date;
+            const kinds = { pending: 0, deletePending: 0 };
+            const newC = dayUpdates.filter(u => u.kind === 'pending' && u.tx.syncedAt == null).length;
+            const editC = dayUpdates.filter(u => u.kind === 'pending' && u.tx.syncedAt != null).length;
+            const delC = dayUpdates.filter(u => u.kind === 'deletePending').length;
+            const chips = [
+              newC > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #10b981; color: white;">+${newC}</span>` : '',
+              editC > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #f59e0b; color: white;">✏️${editC}</span>` : '',
+              delC > 0 ? `<span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #6b7280; color: white;">🗑${delC}</span>` : ''
+            ].filter(Boolean).join(' ');
+            const billRowsHtml = dayUpdates.map(u => {
+              const t = u.tx;
+              const isDelete = u.kind === 'deletePending';
+              const isNew = t.syncedAt == null;
+              const kindLabel = isDelete ? `🗑 ${tt('tx_kind_delete')}` : (isNew ? `➕ ${tt('tx_kind_new')}` : `✏️ ${tt('tx_kind_edit')}`);
+              const kindColor = isDelete ? '#6b7280' : (isNew ? '#10b981' : '#f59e0b');
+              const typeIcon = t.type === 'income' ? '🟢' : '🔴';
+              const pct = (typeof t.percent === 'number') ? t.percent : g.agentPercent;
+              const c = t.type === 'income' ? t.amount * (pct / 100) : 0;
+              return `<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--surface); border-radius: 6px; margin-top: 4px; font-size: 12px;">
+                <span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: ${kindColor}; color: white; flex-shrink: 0;">${kindLabel}</span>
+                <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${typeIcon} ${escapeHtml(t.desc || '—')}</div>
+                <div style="font-weight: 700; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}; white-space: nowrap;">${t.type === 'income' ? '+' : '-'}${fmtShort(t.amount)}</div>
+                ${t.type === 'income' && c > 0 ? `<div style="font-size: 10px; color: var(--text-3); white-space: nowrap;">(${fmtShort(c)})</div>` : ''}
+              </div>`;
+            }).join('');
+            return `<div style="background: var(--surface-2); border-radius: 10px; border: 1px solid var(--border); margin-top: 6px; overflow: hidden;">
+              <button class="pa-day-toggle" data-key="tx-${gIdx}-${date}" style="display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 10px; background: none; border: none; cursor: pointer; text-align: left; color: var(--text); font-family: inherit;">
+                <span style="font-weight: 700; font-size: 13px;"><i class="ti ti-calendar"></i> ${dStr}</span>
+                <span style="font-size: 11px; color: var(--text-3);">${dayUpdates.length} ${tt('items_unit')}</span>
+                <span style="margin-left: auto; display: flex; gap: 4px;">${chips}</span>
+                <i class="ti ti-chevron-down" style="color: var(--text-3);"></i>
+              </button>
+              <div class="pa-day-bills" data-key="tx-${gIdx}-${date}" style="display: none; padding: 0 10px 8px 10px;">${billRowsHtml}</div>
+            </div>`;
+          }).join('');
+          const txIds = g.updates.map(u => u.txId).join(',');
+
+          const summaryHtml = `<div style="padding: 12px 14px; background: linear-gradient(135deg, rgba(124, 122, 217, 0.10) 0%, rgba(164, 140, 208, 0.10) 100%); border: 1px solid var(--border-2); border-radius: 12px; margin-top: 10px;">
+            <div style="font-size: 11px; color: var(--text-3); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="ti ti-calculator"></i> ${tt('confirm_save_summary')} (${g.updates.length} ${tt('items_unit')}${delCount > 0 ? ` · 🗑${delCount}` : ''})</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 13px;">
+              ${income > 0 ? `<span style="color: var(--text-2);">${tt('income')}</span><span style="text-align: right; font-weight: 700; color: #10b981;">+${fmt(income)} ₭</span>` : ''}
+              ${expense > 0 ? `<span style="color: var(--text-2);">${tt('expense')}</span><span style="text-align: right; font-weight: 700; color: #ef4444;">-${fmt(expense)} ₭</span>` : ''}
+              ${comm > 0 ? `<span style="color: var(--text-2);">${tt('commission')}</span><span style="text-align: right; font-weight: 700; color: var(--primary);">-${fmt(comm)} ₭</span>` : ''}
+              ${kickback > 0 ? `<span style="color: var(--text-2);">${tt('kb_from_him')}</span><span style="text-align: right; font-weight: 700; color: #8b5cf6;">+${fmt(kickback)} ₭</span>` : ''}
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--border);">
+              <span style="font-weight: 700; color: var(--text);">${tt('sum_net')}</span>
+              <span style="font-size: 16px; font-weight: 700; color: ${net >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-display);">${net >= 0 ? '+' : ''}${fmt(net)} ₭</span>
+            </div>
+          </div>`;
+
+          return `<div style="padding: 14px; background: var(--surface-2); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="ti ti-cloud-upload"></i></div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 16px; font-weight: 700; color: var(--text);">${escapeHtml(g.agentName)}</div>
+                <div style="font-size: 13px; color: var(--text-2); margin-top: 2px;"><i class="ti ti-percentage"></i> ${g.agentPercent}% · <i class="ti ti-user"></i> ${escapeHtml(g.ownerName || '—')}</div>
+              </div>
+            </div>
+            ${daysHtml}
+            ${summaryHtml}
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <button class="btn admin-reject-tx-group-btn" data-tids="${txIds}" data-owner="${g.ownerUserId}" data-aname="${escapeHtml(g.agentName)}" data-uname="${escapeHtml(g.ownerName || '')}" data-count="${g.updates.length}" style="flex: 1; padding: 10px; font-size: 14px; background: var(--grad-red); color: white;"><i class="ti ti-x"></i> ${tt('reject_all')}</button>
+              <button class="btn admin-approve-tx-group-btn" data-tids="${txIds}" data-owner="${g.ownerUserId}" data-aname="${escapeHtml(g.agentName)}" data-count="${g.updates.length}" style="flex: 2; padding: 10px; font-size: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="ti ti-check"></i> ${tt('confirm_approve_all')}</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    const txUpdatesHtml = renderTxUpdateGroups();
+    let agentsHtml = '';
+    if (pending.length > 0) {
+      agentsHtml = `${txUpdatesHtml ? `<div style="font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; padding: 0 4px;"><i class="ti ti-user-plus"></i> ${tt('section_new_agents')} (${pending.length})</div>` : ''}` +
+        pending.map((p, idx) => renderPendingAgentCard(p, idx)).join('');
     }
     listEl.innerHTML = txUpdatesHtml + agentsHtml;
 
-    // Approve single tx update
-    listEl.querySelectorAll('.admin-approve-tx-btn').forEach(b => b.addEventListener('click', async () => {
-      const tid = b.dataset.tid, owner = b.dataset.owner;
-      b.disabled = true;
-      try {
-        await callAdminFn('approve_tx_update', { ownerUserId: owner, txId: tid });
-        await loadCloudData();
-        renderAll();
-        await renderPendingAgentsList();
-        refreshPendingCount();
-        showToast(tt('approved_done'), 'success');
-      } catch (e) { alert(tt('error_occurred') + ': ' + e.message); b.disabled = false; }
+    // Day toggle (collapsible)
+    listEl.querySelectorAll('.pa-day-toggle').forEach(btn => btn.addEventListener('click', () => {
+      const key = btn.dataset.key;
+      const det = listEl.querySelector(`.pa-day-bills[data-key="${key}"]`);
+      const ic = btn.querySelector('i.ti-chevron-down, i.ti-chevron-up');
+      if (!det) return;
+      const open = det.style.display === 'block';
+      det.style.display = open ? 'none' : 'block';
+      if (ic) ic.className = open ? 'ti ti-chevron-down' : 'ti ti-chevron-up';
     }));
-    // Reject single tx update
-    listEl.querySelectorAll('.admin-reject-tx-btn').forEach(b => b.addEventListener('click', () => {
+
+    // Approve tx update group (all updates for one agent of one user)
+    listEl.querySelectorAll('.admin-approve-tx-group-btn').forEach(b => b.addEventListener('click', async () => {
+      const tids = b.dataset.tids.split(',').filter(Boolean);
+      const owner = b.dataset.owner, aname = b.dataset.aname, count = b.dataset.count;
+      showConfirm(tt('confirm_approve_all') + '?', `${aname} — ${count} ${tt('items_unit')}`, async () => {
+        b.disabled = true;
+        try {
+          for (const tid of tids) {
+            await callAdminFn('approve_tx_update', { ownerUserId: owner, txId: tid });
+          }
+          await loadCloudData();
+          renderAll();
+          await renderPendingAgentsList();
+          refreshPendingCount();
+          showToast(tt('approved_done'), 'success');
+        } catch (e) { alert(tt('error_occurred') + ': ' + e.message); b.disabled = false; }
+      }, false);
+    }));
+
+    // Reject tx update group (all updates for one agent)
+    listEl.querySelectorAll('.admin-reject-tx-group-btn').forEach(b => b.addEventListener('click', () => {
       document.getElementById('admin-reject-title').textContent = tt('reject_bill_title');
-      document.getElementById('admin-reject-target').innerHTML = `<strong>${b.dataset.desc}</strong> · ${escapeHtml(b.dataset.uname)}`;
+      document.getElementById('admin-reject-target').innerHTML = `<strong>${b.dataset.aname}</strong> · ${escapeHtml(b.dataset.uname)} (${b.dataset.count} ${tt('items_unit')})`;
       document.getElementById('admin-reject-reason').value = '';
       document.getElementById('admin-reject-error').textContent = '';
       const submitBtn = document.getElementById('admin-reject-submit');
-      submitBtn.dataset.kind = 'tx';
-      submitBtn.dataset.tid = b.dataset.tid;
+      submitBtn.dataset.kind = 'tx-group';
+      submitBtn.dataset.tids = b.dataset.tids;
       submitBtn.dataset.owner = b.dataset.owner;
+      delete submitBtn.dataset.tid;
+      delete submitBtn.dataset.aid;
       submitBtn.disabled = false;
       showAdminModal('admin-reject-modal', true);
     }));
 
-    // Toggle "view bills" sections
-    listEl.querySelectorAll('.admin-view-txs-btn').forEach(b => b.addEventListener('click', () => {
-      const idx = b.dataset.idx;
-      const detail = listEl.querySelector(`.admin-txs-detail[data-idx="${idx}"]`);
-      if (!detail) return;
-      const isOpen = detail.style.display === 'block';
-      detail.style.display = isOpen ? 'none' : 'block';
-      b.innerHTML = isOpen
-        ? `<i class="ti ti-list-details"></i> ${tt('admin_view_all_bills')} (${detail.children.length})`
-        : `<i class="ti ti-chevron-up"></i> ${tt('admin_hide_bills')}`;
-    }));
-
+    // Approve agent (with all its bills) — single button at the bottom of pending agent card
     listEl.querySelectorAll('.admin-approve-btn').forEach(b => b.addEventListener('click', async () => {
       const aid = b.dataset.aid, owner = b.dataset.owner, name = b.dataset.name, txc = b.dataset.txcount;
       const txMsg = parseInt(txc) > 0 ? `\n\n${tt('bills_summary')} ${txc} ${tt('items_unit')} — ${tt('bills_will_copy')}` : '';
@@ -6854,7 +6965,6 @@ async function renderPendingAgentsList() {
         b.disabled = true;
         try {
           await callAdminFn('approve_agent', { ownerUserId: owner, agentId: aid });
-          // Reload admin's own data to show the new agent + bills
           await loadCloudData();
           renderAll();
           await renderPendingAgentsList();
@@ -6863,6 +6973,8 @@ async function renderPendingAgentsList() {
         } catch (e) { alert(tt('error_occurred') + ': ' + e.message); b.disabled = false; }
       }, false);
     }));
+
+    // Reject agent (with reason)
     listEl.querySelectorAll('.admin-reject-show-btn').forEach(b => b.addEventListener('click', () => {
       document.getElementById('admin-reject-title').textContent = tt('reject_agent_title');
       document.getElementById('admin-reject-target').innerHTML = `<strong>${b.dataset.name}</strong> · ${escapeHtml(b.dataset.uname)}`;
@@ -6870,6 +6982,8 @@ async function renderPendingAgentsList() {
       document.getElementById('admin-reject-error').textContent = '';
       const submitBtn = document.getElementById('admin-reject-submit');
       delete submitBtn.dataset.kind;
+      delete submitBtn.dataset.tid;
+      delete submitBtn.dataset.tids;
       submitBtn.dataset.aid = b.dataset.aid;
       submitBtn.dataset.owner = b.dataset.owner;
       submitBtn.disabled = false;
@@ -6969,19 +7083,26 @@ function exitViewAsUser() {
     const reason = document.getElementById('admin-reject-reason').value.trim();
     const errEl = document.getElementById('admin-reject-error');
     errEl.textContent = '';
-    if (!reason) { errEl.textContent = 'กรุณากรอกเหตุผล'; return; }
+    if (!reason) { errEl.textContent = tt('reject_reason_required'); return; }
     rejSubmit.disabled = true;
     try {
-      if (rejSubmit.dataset.kind === 'tx') {
+      const kind = rejSubmit.dataset.kind;
+      if (kind === 'tx-group') {
+        const tids = (rejSubmit.dataset.tids || '').split(',').filter(Boolean);
+        for (const tid of tids) {
+          await callAdminFn('reject_tx_update', { ownerUserId: rejSubmit.dataset.owner, txId: tid, reason });
+        }
+      } else if (kind === 'tx') {
         await callAdminFn('reject_tx_update', { ownerUserId: rejSubmit.dataset.owner, txId: rejSubmit.dataset.tid, reason });
       } else {
         await callAdminFn('reject_agent', { ownerUserId: rejSubmit.dataset.owner, agentId: rejSubmit.dataset.aid, reason });
       }
       showAdminModal('admin-reject-modal', false);
       delete rejSubmit.dataset.kind;
+      delete rejSubmit.dataset.tids;
       await renderPendingAgentsList();
       refreshPendingCount();
-      showToast('ปฏิเสธแล้ว', 'success');
+      showToast(tt('rejected_done'), 'success');
     } catch (e) {
       errEl.textContent = e.message;
     } finally {
