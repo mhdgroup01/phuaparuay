@@ -1543,7 +1543,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.7';
+const APP_VERSION = '1.99.8';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -2742,6 +2742,22 @@ async function pushCloudData() {
         const txt = await upsertResp.text().catch(() => '');
         console.error('Cloud save HTTP', upsertResp.status, txt);
       }
+    }
+
+    // If admin (and not in view-as mode) — auto-mirror agent updates back to owners
+    if (currentUser.role === 'admin' && !viewingAsUser) {
+      // Find agents that came from users (have submittedBy field)
+      const userAgents = agents.filter(a => a.submittedBy && a.submittedBy !== currentUser.id);
+      // Mirror each agent independently (don't block the main save)
+      (async () => {
+        for (const ag of userAgents) {
+          try {
+            await callAdminFn('mirror_agent_to_owner', { ownerUserId: ag.submittedBy, agentId: ag.id });
+          } catch (e) {
+            console.warn('Mirror to owner failed:', ag.id, e.message);
+          }
+        }
+      })();
     }
   } catch (e) { console.error('Cloud save failed:', e.message); }
 }
