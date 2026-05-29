@@ -1390,6 +1390,9 @@ h1, h2, h3, .display {
         <button class="btn" id="export-download-pdf" style="flex: 1.4; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white;">
           <i class="ti ti-file-type-pdf"></i> PDF
         </button>
+        <button class="btn" id="export-download-png" style="flex: 1.4; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white;">
+          <i class="ti ti-photo"></i> PNG
+        </button>
       </div>
       <div style="font-size: 11px; color: var(--text-3); text-align: center; margin-top: 6px;">
         <span id="export-day-count">0</span> <span id="export-unit">วัน</span> · <span id="export-bill-count">0</span> บิล
@@ -1582,7 +1585,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.23';
+const APP_VERSION = '1.99.24';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3543,6 +3546,8 @@ function updateExportSummary() {
   document.getElementById('export-download').disabled = checkedKeys.length === 0;
   const pdfBtn = document.getElementById('export-download-pdf');
   if (pdfBtn) pdfBtn.disabled = checkedKeys.length === 0;
+  const pngBtn = document.getElementById('export-download-png');
+  if (pngBtn) pngBtn.disabled = checkedKeys.length === 0;
   const sBox = document.getElementById('export-summary');
   if (checkedKeys.length === 0) {
     sBox.innerHTML = `<div style="text-align: center; padding: 8px; color: var(--text-3); font-size: 12px;">เลือกอย่างน้อย 1 รายการ</div>`;
@@ -4152,6 +4157,226 @@ async function doExportPdf() {
   }
 }
 
+// ====== PNG export (canvas, no dependency) ======
+async function doExportPng() {
+  const agent = getAgent(_exportAgentId);
+  if (!agent) return;
+  const selectedTxs = getSelectedTxs();
+  if (selectedTxs.length === 0) return;
+
+  const agentTxs = selectedTxs.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const datesSet = new Set(agentTxs.map(t => t.date));
+  const sortedDays = Array.from(datesSet).sort();
+
+  showToast('ກຳລັງສ້າງ PNG...', 'info');
+
+  // ---- Calculations + rows (same rules as PDF/Excel) ----
+  let totalIncome = 0, totalExpense = 0, totalComm = 0, totalKb = 0;
+  const rows = [];
+  for (const t of agentTxs) {
+    const isIncome = t.type === 'income';
+    let incomeV = '', expenseV = '', pctV = '', commV = '', kbPctV = '', kbAmtV = '';
+    if (isIncome) {
+      const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+      const c = t.amount * (pct / 100);
+      incomeV = t.amount; pctV = pct; commV = c;
+      totalIncome += t.amount; totalComm += c;
+    } else {
+      expenseV = t.amount; totalExpense += t.amount;
+      if (t.kickback) { const k = t.amount * (t.kickback / 100); kbPctV = t.kickback; kbAmtV = k; totalKb += k; }
+    }
+    const typeLabel = isIncome ? 'ລາຍຈ່າຍ' : 'ລາຍຮັບ';
+    let status;
+    if (isIncome) status = t.unpaid ? 'ຍັງບໍ່ຈ່າຍ' : 'ຈ່າຍແລ້ວ';
+    else status = t.unpaid ? 'ຍັງບໍ່ໄດ້ຮັບ' : 'ໄດ້ຮັບແລ້ວ';
+    rows.push({
+      isIncome, unpaid: !!t.unpaid,
+      cells: [
+        formatThaiDate(t.date), typeLabel, t.desc || '—',
+        incomeV !== '' ? incomeV.toLocaleString() : '',
+        expenseV !== '' ? expenseV.toLocaleString() : '',
+        pctV !== '' ? pctV + '%' : '',
+        commV !== '' ? commV.toLocaleString() : '',
+        kbPctV !== '' ? kbPctV + '%' : '',
+        kbAmtV !== '' ? kbAmtV.toLocaleString() : '',
+        status
+      ]
+    });
+  }
+  const grandNet = totalIncome - totalComm - totalExpense + totalKb;
+  const isPos = grandNet >= 0;
+
+  // ---- Layout constants (CSS px; scaled by DPR for crispness) ----
+  const DPR = Math.max(2, window.devicePixelRatio || 1);
+  const FONT = '"Noto Sans Lao", "Noto Sans Thai", "Sarabun", system-ui, sans-serif';
+  const PAD = 24;
+  const headers = ['ວັນທີ', 'ປະເພດ', 'ຄຳອະທິບາຍ', 'ລາຍຈ່າຍ (₭)', 'ລາຍຮັບ (₭)', '% ຄອມ', 'ຄ່າຄອມ (₭)', '% ຄືນ', 'ຈຳນວນຄືນ (₭)', 'ສະຖານະ'];
+  const colW = [96, 86, 200, 116, 116, 64, 110, 56, 116, 104];
+  const aligns = ['center', 'center', 'left', 'right', 'right', 'center', 'right', 'center', 'right', 'center'];
+  const tableW = colW.reduce((a, b) => a + b, 0);
+  const W = tableW + PAD * 2;
+  const titleH = 56, subH = 30, headH = 38, rowH = 34, totalRowH = 38;
+  const sumHeaderH = 40, calcRowH = 30, netRowH = 54;
+  const calcCount = 4;
+  const tableTop = PAD + titleH + subH;
+  const tableBottom = tableTop + headH + rows.length * rowH + totalRowH;
+  const sumTop = tableBottom + 22;
+  const H = sumTop + sumHeaderH + calcCount * calcRowH + 12 + netRowH + PAD;
+
+  // ---- Canvas setup ----
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+  ctx.textBaseline = 'middle';
+
+  const fillRect = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
+  const roundRect = (x, y, w, h, r, color) => {
+    ctx.fillStyle = color; ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); ctx.fill();
+  };
+  const text = (str, x, y, opt) => {
+    opt = opt || {};
+    const size = opt.size || 13, weight = opt.weight || '400', color = opt.color || '#1e293b', align = opt.align || 'left';
+    ctx.font = weight + ' ' + size + 'px ' + FONT;
+    ctx.fillStyle = color; ctx.textAlign = align; ctx.fillText(str, x, y);
+  };
+
+  // Background
+  fillRect(0, 0, W, H, '#ffffff');
+
+  // Title bar
+  let y = PAD;
+  roundRect(PAD, y, tableW, titleH, 10, '#6366f1');
+  text('ບິນຂອງຕົວແທນ — ' + agent.name + ' (' + agent.percent + '%)', W / 2, y + titleH / 2, { size: 22, weight: '700', color: '#fff', align: 'center' });
+  y += titleH;
+
+  // Subtitle
+  const dateRange = sortedDays.length > 0
+    ? formatThaiDate(sortedDays[0]) + (sortedDays.length > 1 ? ' - ' + formatThaiDate(sortedDays[sortedDays.length - 1]) : '')
+    : '-';
+  text('ໄລຍະ: ' + dateRange + '  ·  ' + agentTxs.length + ' ບິນ  ·  ' + new Date().toLocaleString('lo-LA'),
+    W / 2, y + subH / 2, { size: 12, color: '#6b7280', align: 'center' });
+  y += subH;
+
+  // Column x offsets
+  const colX = []; let cx = PAD;
+  for (const w of colW) { colX.push(cx); cx += w; }
+  const cellTextX = (i) => aligns[i] === 'left' ? colX[i] + 10 : aligns[i] === 'right' ? colX[i] + colW[i] - 10 : colX[i] + colW[i] / 2;
+
+  // Header row
+  fillRect(PAD, y, tableW, headH, '#4f46e5');
+  fillRect(colX[3], y, colW[3], headH, '#dc2626'); // swap: red
+  fillRect(colX[4], y, colW[4], headH, '#059669'); // swap: green
+  for (let i = 0; i < headers.length; i++) {
+    text(headers[i], cellTextX(i), y + headH / 2, { size: 12, weight: '700', color: '#fff', align: aligns[i] });
+  }
+  y += headH;
+
+  // Data rows
+  const clipText = (str, maxW, size, weight) => {
+    ctx.font = weight + ' ' + size + 'px ' + FONT;
+    if (ctx.measureText(str).width <= maxW) return str;
+    let s = str;
+    while (s.length > 1 && ctx.measureText(s + '…').width > maxW) s = s.slice(0, -1);
+    return s + '…';
+  };
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    const rowY = y + r * rowH;
+    fillRect(PAD, rowY, tableW, rowH, r % 2 ? '#f8fafc' : '#ffffff');
+    // type chip
+    const chipColor = row.isIncome ? '#ef4444' : '#10b981';
+    roundRect(colX[1] + 8, rowY + 6, colW[1] - 16, rowH - 12, 8, chipColor);
+    text(row.cells[1], colX[1] + colW[1] / 2, rowY + rowH / 2, { size: 11, weight: '700', color: '#fff', align: 'center' });
+    // other cells
+    for (let i = 0; i < row.cells.length; i++) {
+      if (i === 1) continue;
+      const val = row.cells[i];
+      if (val === '' || val == null) continue;
+      let color = '#1e293b', weight = '400';
+      if (i === 3) { color = '#dc2626'; weight = '700'; }       // income data → red
+      else if (i === 4) { color = '#059669'; weight = '700'; }  // expense data → green
+      else if (i === 6) { color = '#7c3aed'; }                  // commission → purple
+      else if (i === 8) { color = '#8b5cf6'; }                  // kickback → violet
+      else if (i === 9) {                                       // status badge
+        const bg = row.unpaid ? '#fef3c7' : '#d1fae5';
+        const fg = row.unpaid ? '#d97706' : '#059669';
+        roundRect(colX[9] + 6, rowY + 6, colW[9] - 12, rowH - 12, 8, bg);
+        text(val, colX[9] + colW[9] / 2, rowY + rowH / 2, { size: 11, weight: '600', color: fg, align: 'center' });
+        continue;
+      }
+      const maxW = colW[i] - 20;
+      text(clipText(val, maxW, 12.5, weight), cellTextX(i), rowY + rowH / 2, { size: 12.5, weight, color, align: aligns[i] });
+    }
+    // row separator
+    ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, rowY + rowH + 0.5); ctx.lineTo(PAD + tableW, rowY + rowH + 0.5); ctx.stroke();
+  }
+  y += rows.length * rowH;
+
+  // Totals row
+  fillRect(PAD, y, tableW, totalRowH, '#fef3c7');
+  const totals = ['', 'ລວມ', '', totalIncome.toLocaleString(), totalExpense.toLocaleString(), '', totalComm.toLocaleString(), '', totalKb.toLocaleString(), ''];
+  for (let i = 0; i < totals.length; i++) {
+    if (totals[i] === '') continue;
+    text(totals[i], cellTextX(i), y + totalRowH / 2, { size: 13, weight: '700', color: '#92400e', align: aligns[i] });
+  }
+  y += totalRowH;
+
+  // Table outer border
+  ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(PAD + 0.5, tableTop + 0.5, tableW, tableBottom - tableTop);
+
+  // ---- Summary block ----
+  y = sumTop;
+  roundRect(PAD, y, tableW, sumHeaderH, 8, '#4f46e5');
+  text('ສະຫຼຸບບວກລົບ', W / 2, y + sumHeaderH / 2, { size: 15, weight: '700', color: '#fff', align: 'center' });
+  y += sumHeaderH + 6;
+
+  const calcRows = [
+    ['ຕ້ອງຈ່າຍ', totalIncome],
+    ['(-) ຄ່າຄອມ', -totalComm],
+    ['ຕ້ອງໄດ້', -totalExpense],
+    ['ຄືນຄ່າຄອມ', totalKb]
+  ];
+  const labelX = PAD + tableW * 0.62;
+  const valueX = PAD + tableW - 12;
+  for (const pair of calcRows) {
+    const label = pair[0], val = pair[1];
+    ctx.strokeStyle = '#eef2f7'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, y + calcRowH - 0.5); ctx.lineTo(PAD + tableW, y + calcRowH - 0.5); ctx.stroke();
+    text(label, labelX, y + calcRowH / 2, { size: 13, color: '#4b5563', align: 'right' });
+    const vs = (val >= 0 ? '+' : '') + val.toLocaleString() + ' ₭';
+    text(vs, valueX, y + calcRowH / 2, { size: 13, weight: '700', color: '#1e293b', align: 'right' });
+    y += calcRowH;
+  }
+  y += 8;
+
+  // Net row — INVERTED colors
+  roundRect(PAD, y, tableW, netRowH, 10, isPos ? '#ef4444' : '#10b981');
+  text(isPos ? 'ລວມຕ້ອງຈ່າຍ' : 'ລວມຕ້ອງໄດ້', labelX, y + netRowH / 2, { size: 15, weight: '700', color: '#fff', align: 'right' });
+  const netStr = (grandNet >= 0 ? '+' : '') + grandNet.toLocaleString() + ' ₭';
+  text(netStr, valueX, y + netRowH / 2, { size: 18, weight: '700', color: '#fff', align: 'right' });
+
+  // ---- Export ----
+  const today = new Date().toISOString().slice(0, 10);
+  const safeName = (agent.name || 'ຕົວແທນ').replace(/[\\/:*?"<>|]/g, '');
+  const fname = 'ບິນ_' + safeName + '_' + today + '.png';
+  canvas.toBlob((blob) => {
+    if (!blob) { showToast('ສ້າງ PNG ບໍ່ສຳເລັດ', 'error'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    document.getElementById('export-modal').classList.remove('show');
+    showToast('ດາວໂຫຼດ PNG ແລ້ວ', 'success');
+  }, 'image/png');
+}
+
 // Wire up export modal
 (function setupExportModal() {
   const closeFn = () => document.getElementById('export-modal').classList.remove('show');
@@ -4167,6 +4392,7 @@ async function doExportPdf() {
   });
   document.getElementById('export-download').addEventListener('click', doExportXlsx);
   document.getElementById('export-download-pdf').addEventListener('click', doExportPdf);
+  document.getElementById('export-download-png').addEventListener('click', doExportPng);
   // Mode toggle buttons
   document.querySelectorAll('.export-mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
