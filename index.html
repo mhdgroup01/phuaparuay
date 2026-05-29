@@ -1505,7 +1505,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.0';
+const APP_VERSION = '1.99.1';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3852,6 +3852,17 @@ function renderAgents() {
     const idx = rowsContainer.children.length;
     rowsContainer.insertAdjacentHTML('beforeend', buildBillRow(agentId, idx));
     const newRow = rowsContainer.lastElementChild;
+
+    // Inherit % from first row (so consecutive bills share the same %)
+    if (idx > 0) {
+      const firstRow = rowsContainer.firstElementChild;
+      const firstPctInp = firstRow ? firstRow.querySelector('[data-row-pct]') : null;
+      const newPctInp = newRow.querySelector('[data-row-pct]');
+      if (firstPctInp && newPctInp && firstPctInp.value !== '') {
+        newPctInp.value = firstPctInp.value;
+      }
+    }
+
     const amtInp = newRow.querySelector('[data-row-amount]');
     amtInp.addEventListener('input', (e) => {
       const before = e.target.value;
