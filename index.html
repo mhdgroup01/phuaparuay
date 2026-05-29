@@ -1547,7 +1547,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.12';
+const APP_VERSION = '1.99.13';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3277,6 +3277,126 @@ function formatThaiDate(isoDate) {
   return `${d}/${m}/${parseInt(y, 10) + 543}`;
 }
 
+// ====== Excel export ======
+let _xlsxLib = null;
+async function loadXlsx() {
+  if (_xlsxLib) return _xlsxLib;
+  if (typeof XLSX !== 'undefined') { _xlsxLib = XLSX; return XLSX; }
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => {
+      if (typeof window.XLSX !== 'undefined') { _xlsxLib = window.XLSX; resolve(window.XLSX); }
+      else reject(new Error('โหลด XLSX ไม่สำเร็จ'));
+    };
+    s.onerror = () => reject(new Error('โหลดไลบรารี Excel ไม่ได้ — ตรวจการเชื่อมเน็ต'));
+    document.head.appendChild(s);
+  });
+}
+
+async function exportAgentBillsXlsx(agentId) {
+  const agent = getAgent(agentId);
+  if (!agent) return;
+  const agentTxs = transactions.filter(t => t.agentId === agentId).sort((a, b) => a.date.localeCompare(b.date));
+  if (agentTxs.length === 0) {
+    showToast(tt('noBills') || 'ไม่มีบิล', 'error');
+    return;
+  }
+
+  showToast('กำลังโหลดไลบรารี Excel...', 'info');
+  let XLSX;
+  try { XLSX = await loadXlsx(); }
+  catch (e) { showToast(e.message, 'error'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Income bills
+  const incomeBills = agentTxs.filter(t => t.type === 'income');
+  const incHeader = ['วันที่', 'คำอธิบาย', 'จำนวนเงิน (₭)', '% คอม', 'ค่าคอม (₭)', 'รับเงินแล้ว'];
+  const incRows = [incHeader];
+  let incTotal = 0, commTotal = 0;
+  for (const t of incomeBills) {
+    const pct = (typeof t.percent === 'number') ? t.percent : agent.percent;
+    const comm = t.amount * (pct / 100);
+    incTotal += t.amount;
+    commTotal += comm;
+    incRows.push([
+      formatThaiDate(t.date),
+      t.desc || '',
+      t.amount,
+      pct,
+      comm,
+      t.unpaid ? 'ยังไม่ได้รับ' : 'รับแล้ว'
+    ]);
+  }
+  if (incomeBills.length > 0) {
+    incRows.push(['', 'รวม', incTotal, '', commTotal, '']);
+  }
+  const incWs = XLSX.utils.aoa_to_sheet(incRows);
+  incWs['!cols'] = [{ wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 8 }, { wch: 14 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, incWs, 'รายรับ (บิลขาย)');
+
+  // Sheet 2: Expense bills
+  const expBills = agentTxs.filter(t => t.type === 'expense');
+  const expHeader = ['วันที่', 'คำอธิบาย', 'จำนวนเงิน (₭)', '% คืน', 'จำนวนคืน (₭)', 'สุทธิจ่าย (₭)', 'จ่ายแล้ว'];
+  const expRows = [expHeader];
+  let expTotal = 0, kbTotal = 0;
+  for (const t of expBills) {
+    const kbPct = t.kickback || 0;
+    const kbAmt = t.amount * (kbPct / 100);
+    const net = t.amount - kbAmt;
+    expTotal += t.amount;
+    kbTotal += kbAmt;
+    expRows.push([
+      formatThaiDate(t.date),
+      t.desc || '',
+      t.amount,
+      kbPct,
+      kbAmt,
+      net,
+      t.unpaid ? 'ยังไม่จ่าย' : 'จ่ายแล้ว'
+    ]);
+  }
+  if (expBills.length > 0) {
+    expRows.push(['', 'รวม', expTotal, '', kbTotal, expTotal - kbTotal, '']);
+  }
+  const expWs = XLSX.utils.aoa_to_sheet(expRows);
+  expWs['!cols'] = [{ wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, expWs, 'รายจ่าย');
+
+  // Sheet 3: Summary
+  const net = incTotal - commTotal - (expTotal - kbTotal);
+  const sumData = [
+    ['สรุปบิล — ตัวแทน', agent.name],
+    ['% ค่าคอม (default)', agent.percent + '%'],
+    ['ออกรายงาน', new Date().toLocaleString('th-TH')],
+    [],
+    ['จำนวนบิลรายรับ', incomeBills.length],
+    ['จำนวนบิลรายจ่าย', expBills.length],
+    [],
+    ['รายรับรวม (₭)', incTotal],
+    ['ค่าคอมรวม (₭)', -commTotal],
+    ['รายจ่ายรวม (₭)', -expTotal],
+    ['คืนจากเขา (₭)', kbTotal],
+    [],
+    ['สุทธิ (₭)', net]
+  ];
+  const sumWs = XLSX.utils.aoa_to_sheet(sumData);
+  sumWs['!cols'] = [{ wch: 24 }, { wch: 26 }];
+  XLSX.utils.book_append_sheet(wb, sumWs, 'สรุป');
+
+  // Trigger download
+  const today = new Date().toISOString().slice(0, 10);
+  const safeName = (agent.name || 'ตัวแทน').replace(/[\\/:*?"<>|]/g, '');
+  const fname = `บิล_${safeName}_${today}.xlsx`;
+  try {
+    XLSX.writeFile(wb, fname);
+    showToast('ดาวน์โหลด Excel แล้ว', 'success');
+  } catch (e) {
+    showToast('ดาวน์โหลดไม่สำเร็จ: ' + e.message, 'error');
+  }
+}
+
 function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, weOweAmount) {
   if (agentTxs.length === 0) {
     return `<div style="padding: 12px; text-align: center; font-size: 14px; opacity: 0.85;">${tt('noBills')}</div>`;
@@ -3648,9 +3768,10 @@ function renderAgents() {
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; position: relative; z-index: 1;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; position: relative; z-index: 1;">
         <button class="agent-action" data-add-bill="${a.id}"><i class="ti ti-circle-plus"></i> ${tt('addBill')}</button>
         <button class="agent-action" data-toggle-bills="${a.id}"><i class="ti ti-list"></i> ${tt('viewBills')} (${agentTxs.length})</button>
+        <button class="agent-action" data-export-bills="${a.id}" aria-label="ดาวน์โหลด Excel" title="ดาวน์โหลด Excel" style="padding: 8px 14px; flex-shrink: 0;"><i class="ti ti-file-spreadsheet"></i></button>
       </div>
 
       <div class="bill-list" id="bill-list-${a.id}" style="display: none;">
@@ -4139,6 +4260,10 @@ function renderAgents() {
       const panel = document.getElementById('bill-list-' + id);
       panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
     });
+  });
+
+  el.querySelectorAll('[data-export-bills]').forEach(b => {
+    b.addEventListener('click', () => exportAgentBillsXlsx(b.dataset.exportBills));
   });
 
   el.querySelectorAll('[data-del-bill]').forEach(b => {
