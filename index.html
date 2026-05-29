@@ -909,12 +909,12 @@ h1, h2, h3, .display {
 
   <input type="file" id="import-file" accept="application/json" style="display:none">
 
-  <div class="tab-bar">
+  <div class="tab-bar" id="tab-bar">
     <button class="tab-btn active dash" data-tab="dashboard" data-theme="dash">
       <i class="ti ti-layout-dashboard"></i>
       <span data-i18n="tabDashboard">หน้าหลัก</span>
     </button>
-    <button class="tab-btn" data-tab="transactions" data-theme="tx">
+    <button class="tab-btn" id="tab-btn-transactions" data-tab="transactions" data-theme="tx">
       <i class="ti ti-circle-plus"></i>
       <span data-i18n="tabTransactions">รายการ</span>
     </button>
@@ -1195,7 +1195,7 @@ h1, h2, h3, .display {
               <span id="account-role-badge" style="display: none; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; letter-spacing: 0.5px; flex-shrink: 0;">ADMIN</span>
             </div>
           </div>
-          <button id="logout-btn" class="btn btn-secondary" style="padding: 8px 14px; font-size: 14px; flex-shrink: 0;"><i class="ti ti-logout"></i> <span data-i18n="logout">ออกจากระบบ</span></button>
+          <button id="logout-btn" class="btn btn-secondary" title="ออกจากระบบ" aria-label="ออกจากระบบ" style="padding: 6px 10px; font-size: 13px; flex-shrink: 0; min-width: auto;"><i class="ti ti-logout" style="font-size: 16px;"></i></button>
         </div>
 
         <button id="admin-users-btn" style="display: none; width: 100%; margin-top: 12px; padding: 14px 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; align-items: center; justify-content: center; gap: 8px;">
@@ -1505,7 +1505,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.96.0';
+const APP_VERSION = '1.97.0';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -6678,6 +6678,22 @@ function updateAdminUiVisibility() {
     pBtn.style.display = isAdmin ? 'flex' : 'none';
     if (isAdmin) refreshPendingCount();
   }
+  // Non-admin users: hide "รายการ" (transactions) tab — they add bills directly from agent card
+  const isNonAdminCtx = currentUser && currentUser.role !== 'admin' && !viewingAsUser;
+  const txTabBtn = document.getElementById('tab-btn-transactions');
+  const tabBar = document.getElementById('tab-bar');
+  const fab = document.getElementById('fab');
+  if (txTabBtn) txTabBtn.style.display = isNonAdminCtx ? 'none' : '';
+  if (tabBar) tabBar.style.gridTemplateColumns = isNonAdminCtx ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)';
+  if (fab) fab.style.display = isNonAdminCtx ? 'none' : '';
+  // If current tab is transactions and user is non-admin → switch to dashboard
+  if (isNonAdminCtx) {
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab && activeTab.dataset.tab === 'transactions') {
+      const dashBtn = document.querySelector('[data-tab="dashboard"]');
+      if (dashBtn) dashBtn.click();
+    }
+  }
 }
 
 // Periodically refresh pending count badge
@@ -6925,20 +6941,18 @@ async function renderPendingAgentsList() {
     // Approve tx update group (all updates for one agent of one user)
     listEl.querySelectorAll('.admin-approve-tx-group-btn').forEach(b => b.addEventListener('click', async () => {
       const tids = b.dataset.tids.split(',').filter(Boolean);
-      const owner = b.dataset.owner, aname = b.dataset.aname, count = b.dataset.count;
-      showConfirm(tt('confirm_approve_all') + '?', `${aname} — ${count} ${tt('items_unit')}`, async () => {
-        b.disabled = true;
-        try {
-          for (const tid of tids) {
-            await callAdminFn('approve_tx_update', { ownerUserId: owner, txId: tid });
-          }
-          await loadCloudData();
-          renderAll();
-          await renderPendingAgentsList();
-          refreshPendingCount();
-          showToast(tt('approved_done'), 'success');
-        } catch (e) { alert(tt('error_occurred') + ': ' + e.message); b.disabled = false; }
-      }, false);
+      const owner = b.dataset.owner;
+      b.disabled = true;
+      try {
+        for (const tid of tids) {
+          await callAdminFn('approve_tx_update', { ownerUserId: owner, txId: tid });
+        }
+        await loadCloudData();
+        renderAll();
+        await renderPendingAgentsList();
+        refreshPendingCount();
+        showToast(tt('approved_done'), 'success');
+      } catch (e) { alert(tt('error_occurred') + ': ' + e.message); b.disabled = false; }
     }));
 
     // Reject tx update group (all updates for one agent)
@@ -6959,19 +6973,16 @@ async function renderPendingAgentsList() {
 
     // Approve agent (with all its bills) — single button at the bottom of pending agent card
     listEl.querySelectorAll('.admin-approve-btn').forEach(b => b.addEventListener('click', async () => {
-      const aid = b.dataset.aid, owner = b.dataset.owner, name = b.dataset.name, txc = b.dataset.txcount;
-      const txMsg = parseInt(txc) > 0 ? `\n\n${tt('bills_summary')} ${txc} ${tt('items_unit')} — ${tt('bills_will_copy')}` : '';
-      showConfirm(tt('approve_agent_q'), `${name}${txMsg}`, async () => {
-        b.disabled = true;
-        try {
-          await callAdminFn('approve_agent', { ownerUserId: owner, agentId: aid });
-          await loadCloudData();
-          renderAll();
-          await renderPendingAgentsList();
-          refreshPendingCount();
-          showToast(tt('approved_with_bills'), 'success');
-        } catch (e) { alert(tt('error_occurred') + ': ' + e.message); b.disabled = false; }
-      }, false);
+      const aid = b.dataset.aid, owner = b.dataset.owner;
+      b.disabled = true;
+      try {
+        await callAdminFn('approve_agent', { ownerUserId: owner, agentId: aid });
+        await loadCloudData();
+        renderAll();
+        await renderPendingAgentsList();
+        refreshPendingCount();
+        showToast(tt('approved_with_bills'), 'success');
+      } catch (e) { alert(tt('error_occurred') + ': ' + e.message); b.disabled = false; }
     }));
 
     // Reject agent (with reason)
