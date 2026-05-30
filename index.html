@@ -754,7 +754,35 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .agent-action:active { transform: scale(0.97); }
 .agent-action i { font-size: 19px; }
 
-.quick-bill { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; padding: 12px; margin-bottom: 10px; position: relative; z-index: 1; backdrop-filter: blur(8px); animation: slideDown 0.2s ease-out; }
+.quick-bill { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-bottom: 10px; position: relative; z-index: 1; color: var(--text); animation: slideDown 0.2s ease-out; }
+/* Override light pastel colors (designed for dark agent-card gradient) to darker variants on gray */
+.quick-bill [style*="color: #d0ffe0"],
+.quick-bill [style*="color:#d0ffe0"] { color: var(--green) !important; }
+.quick-bill [style*="color: #ffd0a8"],
+.quick-bill [style*="color:#ffd0a8"] { color: var(--orange) !important; }
+.quick-bill [style*="color: #ffd0d0"],
+.quick-bill [style*="color:#ffd0d0"] { color: var(--red) !important; }
+.quick-bill .quick-field { background: var(--surface); border: 1px solid var(--border-2); color: var(--text); }
+.quick-bill .quick-field:focus { background: var(--surface); border-color: var(--primary); }
+.quick-bill .quick-field::placeholder { color: var(--text-3); }
+.quick-bill .quick-btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border-2); }
+.quick-bill .quick-btn-secondary:hover { background: var(--surface-2); }
+.quick-bill .quick-btn-primary { background: var(--grad-hero); color: white; }
+.quick-bill .quick-btn-primary:hover { filter: brightness(1.05); }
+/* Children that were styled for dark agent-card gradient → adapt to gray quick-bill */
+.quick-bill .bill-input-row { background: var(--surface); border: 1px solid var(--border); }
+.quick-bill .bill-row-field { border-top: 1px solid var(--border); }
+.quick-bill .bill-row-label { color: var(--text-2); }
+.quick-bill .pct-input-wrap { background: var(--surface-2); border: 1px solid var(--border); }
+.quick-bill .pct-input-wrap input { color: var(--text); }
+.quick-bill .expense-special-section { background: var(--surface); border: 1px dashed var(--border-2); }
+.quick-bill .exp-date-lock { background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
+.quick-bill .exp-date-lock:hover { background: var(--surface); }
+.quick-bill input[type="checkbox"] { accent-color: var(--primary); }
+.quick-bill .unpaid-toggle input:checked ~ .unpaid-label-text { color: var(--orange); }
+.quick-bill .unpaid-toggle input:not(:checked) ~ .unpaid-label-text { color: var(--green); }
+.quick-bill .unpaid-check { border-color: var(--border-2); background: var(--surface); }
+.quick-bill .quick-bill-preview { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 .quick-field { width: 100%; padding: 10px 12px; font-size: 17px; border: 1px solid rgba(255,255,255,0.25); border-radius: 10px; background: rgba(255,255,255,0.9); color: #1e1b4b; font-family: inherit; outline: none; }
 .quick-field:focus { background: white; border-color: rgba(255,255,255,0.6); }
@@ -1796,7 +1824,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.41';
+const APP_VERSION = '1.99.42';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
