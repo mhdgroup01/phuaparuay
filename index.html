@@ -833,6 +833,12 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .bill-row-inline .brf-calc .calc-box { width: 28px; height: 28px; border-radius: 7px; border: 1.5px solid rgba(0,0,0,0.08); background: #f3f4f6; color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 14px; }
 .bill-row-inline .brf-calc .calc-box i { font-size: 14px; }
 .bill-row-inline .brf-calc input:checked + .calc-box { background: #ede9fe; border-color: #8b5cf6; color: #7c3aed; }
+.bill-row-inline .brf-k { display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; }
+.bill-row-inline .brf-k input { display: none; }
+.bill-row-inline .brf-k .k-box { width: 28px; height: 28px; border-radius: 7px; border: 1.5px solid rgba(0,0,0,0.08); background: #f3f4f6; color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 13px; font-weight: 800; font-family: var(--font-display); letter-spacing: -0.02em; }
+.bill-row-inline .brf-k input:checked + .k-box { background: #fef3c7; border-color: #f59e0b; color: #d97706; }
+.bill-row-inline .brf-amount .k-suffix { display: none; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 6px; background: #fef3c7; color: #d97706; margin-left: 6px; flex-shrink: 0; font-family: var(--font-display); letter-spacing: -0.01em; }
+.bill-row-inline .brf-amount[data-k-mode="1"] .k-suffix { display: inline-flex; align-items: center; }
 .bill-row-inline .row-del-btn { width: 28px; height: 28px; padding: 0; border-radius: 7px; background: rgba(239, 68, 68, 0.12); border: none; color: #ef4444; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
 .bill-row-inline .row-del-btn:hover { background: rgba(239, 68, 68, 0.25); }
 .bill-row-inline .row-next-btn { width: 38px; height: 40px; padding: 0; border-radius: 8px; background: var(--grad-hero); border: none; color: white; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
@@ -1783,7 +1789,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.38';
+const APP_VERSION = '1.99.39';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1854,6 +1860,7 @@ const T = {
     no_agents_in_group: 'ບໍ່ມີຕົວແທນໃນກຸ່ມນີ້',
     expand_card: 'ຂະຫຍາຍເຕັມຈໍ', collapse_card: 'ຫຍໍ້ກັບ',
     calc_mode_hint: 'ໂໝດບວກລົບ',
+    k_mode_hint: 'ໂໝດ × 1,000',
     close: 'ປິດ', delete: 'ລຶບ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
@@ -2225,6 +2232,7 @@ const T = {
     no_agents_in_group: 'ไม่มีตัวแทนในกลุ่มนี้',
     expand_card: 'ขยายเต็มจอ', collapse_card: 'ย่อกลับ',
     calc_mode_hint: 'โหมดบวก/ลบ',
+    k_mode_hint: 'โหมด × 1,000',
     close: 'ปิด', delete: 'ลบ',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
@@ -5454,6 +5462,10 @@ function renderAgents() {
             <input type="checkbox" data-row-calc checked>
             <span class="calc-box"><i class="ti ti-calculator"></i></span>
           </label>
+          <label class="brf-k" title="${tt('k_mode_hint') || 'โหมด × 1,000'}">
+            <input type="checkbox" data-row-k checked>
+            <span class="k-box">K</span>
+          </label>
           <div class="brf-pct">
             <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
             <span>%</span>
@@ -5470,6 +5482,7 @@ function renderAgents() {
             <div class="brf-amount">
               <i class="ti ti-cash"></i>
               <input type="text" inputmode="decimal" enterkeyhint="next" class="bill-amount" data-row-amount data-agent-id="${agentId}" placeholder="${tt('amount')}" autocomplete="off">
+              <span class="k-suffix">×1K</span>
             </div>
           </form>
           <button class="row-next-btn" data-row-next aria-label="เพิ่มบรรทัดถัดไป" title="เพิ่มบรรทัดถัดไป"><i class="ti ti-arrow-right"></i></button>
@@ -5710,14 +5723,34 @@ function renderAgents() {
     }
 
     const amtInp = newRow.querySelector('[data-row-amount]');
+    const amtWrap = newRow.querySelector('.brf-amount');
     const calcInp = newRow.querySelector('[data-row-calc]');
+    const kInp = newRow.querySelector('[data-row-k]');
     // Reflect calc checkbox state onto the amount input via data attribute
     const syncCalcMode = () => { amtInp.dataset.calcMode = calcInp && calcInp.checked ? '1' : ''; };
+    const syncKMode = () => {
+      const on = !!(kInp && kInp.checked);
+      amtInp.dataset.kMode = on ? '1' : '';
+      if (amtWrap) amtWrap.dataset.kMode = on ? '1' : '';
+    };
     syncCalcMode();
+    syncKMode();
     if (calcInp) calcInp.addEventListener('change', () => {
       syncCalcMode();
       // If turning OFF, resolve any pending expression
       if (!calcInp.checked) resolveCalcAmount(amtInp);
+      recalcBillSum(agentId);
+    });
+    if (kInp) kInp.addEventListener('change', () => {
+      syncKMode();
+      // If the field is already in "expr=result" form, re-evaluate so result reflects new K state
+      if (amtInp.value.includes('=')) {
+        const eqIdx = amtInp.value.lastIndexOf('=');
+        amtInp.value = amtInp.value.slice(0, eqIdx);  // strip "=result"
+        amtInp.dataset.calcResult = '';
+        resolveCalcAmount(amtInp);
+      }
+      recalcBillSum(agentId);
     });
     amtInp.addEventListener('input', (e) => {
       handleCalcAmountInput(e, () => recalcBillSum(agentId));
@@ -6681,6 +6714,10 @@ function wireSubAgentActions(el) {
             <input type="checkbox" data-sub-row-calc checked>
             <span class="calc-box"><i class="ti ti-calculator"></i></span>
           </label>
+          <label class="brf-k" title="${tt('k_mode_hint') || 'โหมด × 1,000'}">
+            <input type="checkbox" data-sub-row-k checked>
+            <span class="k-box">K</span>
+          </label>
           <div class="brf-pct">
             <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-sub-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
             <span>%</span>
@@ -6697,6 +6734,7 @@ function wireSubAgentActions(el) {
             <div class="brf-amount">
               <i class="ti ti-cash"></i>
               <input type="text" inputmode="decimal" enterkeyhint="next" class="bill-amount" data-sub-row-amount data-sub-agent-id="${saId}" placeholder="${tt('amount')}" autocomplete="off">
+              <span class="k-suffix">×1K</span>
             </div>
           </form>
           <button class="row-next-btn" data-sub-row-next aria-label="เพิ่มบรรทัดถัดไป" title="เพิ่มบรรทัดถัดไป"><i class="ti ti-arrow-right"></i></button>
@@ -6870,12 +6908,31 @@ function wireSubAgentActions(el) {
     }
 
     const amtInp = newRow.querySelector('[data-sub-row-amount]');
+    const amtWrap = newRow.querySelector('.brf-amount');
     const calcInp = newRow.querySelector('[data-sub-row-calc]');
+    const kInp = newRow.querySelector('[data-sub-row-k]');
     const syncCalcMode = () => { amtInp.dataset.calcMode = calcInp && calcInp.checked ? '1' : ''; };
+    const syncKMode = () => {
+      const on = !!(kInp && kInp.checked);
+      amtInp.dataset.kMode = on ? '1' : '';
+      if (amtWrap) amtWrap.dataset.kMode = on ? '1' : '';
+    };
     syncCalcMode();
+    syncKMode();
     if (calcInp) calcInp.addEventListener('change', () => {
       syncCalcMode();
       if (!calcInp.checked) resolveCalcAmount(amtInp);
+      recalcSubBillSum(saId);
+    });
+    if (kInp) kInp.addEventListener('change', () => {
+      syncKMode();
+      if (amtInp.value.includes('=')) {
+        const eqIdx = amtInp.value.lastIndexOf('=');
+        amtInp.value = amtInp.value.slice(0, eqIdx);
+        amtInp.dataset.calcResult = '';
+        resolveCalcAmount(amtInp);
+      }
+      recalcSubBillSum(saId);
     });
     amtInp.addEventListener('input', (e) => {
       handleCalcAmountInput(e, () => recalcSubBillSum(saId));
@@ -8430,9 +8487,11 @@ function evalExpression(expr) {
 // - Typing "=" evaluates the expression and shows "expr=result" (keeps history visible).
 // - Other typing with operators is allowed (live preview via readBillAmount).
 // - Without operators, falls back to standard thousand-separator formatting.
+// When data-k-mode="1" is ALSO set, the evaluated result is multiplied by 1000.
 function handleCalcAmountInput(e, onAfter) {
   const inp = e.target;
   const isCalc = inp.dataset.calcMode === '1';
+  const isK = inp.dataset.kMode === '1';
   if (isCalc) {
     const justTypedEquals = e.inputType === 'insertText' && e.data === '=';
     if (justTypedEquals) {
@@ -8444,7 +8503,8 @@ function handleCalcAmountInput(e, onAfter) {
       const exprToEval = prevEq >= 0 ? exprPart.slice(prevEq + 1) : exprPart;
       const result = evalExpression(exprToEval);
       if (!isNaN(result)) {
-        const rounded = Math.round(result * 100) / 100;
+        const finalResult = isK ? result * 1000 : result;
+        const rounded = Math.round(finalResult * 100) / 100;
         inp.value = exprToEval + '=' + formatAmountInput(String(rounded));
         inp.dataset.calcResult = String(rounded);
       } else {
@@ -8485,9 +8545,10 @@ function handleCalcAmountInput(e, onAfter) {
 // "expr=result" (so the user can still see the math). Called on blur and before save.
 function resolveCalcAmount(inp) {
   if (!inp || inp.dataset.calcMode !== '1') return;
+  const isK = inp.dataset.kMode === '1';
   const val = inp.value || '';
   if (val.includes('=')) {
-    // Already in "expr=result" form — just cache the numeric result
+    // Already in "expr=result" form — just cache the numeric result (already K-applied at eval time)
     const idx = val.lastIndexOf('=');
     const r = parseAmount(val.slice(idx + 1));
     if (!isNaN(r)) inp.dataset.calcResult = String(r);
@@ -8497,7 +8558,8 @@ function resolveCalcAmount(inp) {
   if (/[+\-]/.test(val.replace(/^-/, ''))) {
     const result = evalExpression(val);
     if (!isNaN(result)) {
-      const rounded = Math.round(result * 100) / 100;
+      const finalResult = isK ? result * 1000 : result;
+      const rounded = Math.round(finalResult * 100) / 100;
       inp.value = val + '=' + formatAmountInput(String(rounded));
       inp.dataset.calcResult = String(rounded);
     }
@@ -8506,22 +8568,29 @@ function resolveCalcAmount(inp) {
 
 // Read the numeric amount from a bill-row amount input.
 // Works for calc-mode "expr=result", pure expressions "1+2", and standard "1,234".
+// Applies K-mode (×1000) to pure numbers / unresolved expressions.
+// For "expr=result" the result is already K-applied at eval time so we return it as-is.
 function readBillAmount(inp) {
   if (!inp) return NaN;
-  // Stored calc-result wins (most accurate, set right after evaluation)
+  const isK = inp.dataset.kMode === '1';
+  // Stored calc-result wins (most accurate, set right after evaluation — already K-applied)
   if (inp.dataset.calcResult) {
     const r = parseFloat(inp.dataset.calcResult);
     if (!isNaN(r)) return r;
   }
   const val = inp.value || '';
   if (val.includes('=')) {
+    // Already evaluated — result is already K-applied
     return parseAmount(val.slice(val.lastIndexOf('=') + 1));
   }
   if (/[+\-]/.test(val.replace(/^-/, ''))) {
     const r = evalExpression(val);
-    return isNaN(r) ? NaN : r;
+    if (isNaN(r)) return NaN;
+    return isK ? r * 1000 : r;
   }
-  return parseAmount(val);
+  const r = parseAmount(val);
+  if (isNaN(r)) return NaN;
+  return isK ? r * 1000 : r;
 }
 
 function formatAmountInput(str) {
