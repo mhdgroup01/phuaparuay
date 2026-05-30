@@ -810,6 +810,10 @@ h1, h2, h3, .display {
 .batch-actions { display: flex; gap: 4px; flex-wrap: wrap; }
 .batch-pay-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,0.25); color: white; cursor: pointer; font-family: var(--font-display); transition: transform 0.1s; }
 .batch-pay-btn:hover { transform: translateY(-1px); }
+.batch-copy-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.20); color: white; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+.batch-copy-btn:hover { background: rgba(255,255,255,0.30); transform: translateY(-1px); }
+.batch-copy-btn:active { transform: scale(0.92); }
+.batch-copy-btn i { font-size: 14px; }
 .batch-pay-income { background: rgba(224, 168, 117, 0.40); }
 .batch-pay-expense { background: rgba(217, 122, 122, 0.40); }
 .batch-pay-balanced { background: rgba(91, 168, 132, 0.30); }
@@ -1648,7 +1652,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.30';
+const APP_VERSION = '1.99.31';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -4828,11 +4832,14 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
       }
 
       const showBatchHeader = batchTxs.length > 1 || hasAnyUnpaid || isOffset;
+      const copyBatchBtn = batchTxs.length > 1
+        ? `<button class="batch-copy-btn" data-copy-batch="${batchKey}" data-copy-batch-agent="${agent.id}" title="${tt('copy_bills_title') || 'คัดลอกบิล'}" aria-label="copy batch"><i class="ti ti-copy"></i></button>`
+        : '';
 
       return `<div class="batch-group" data-batch="${batchKey}">
         ${showBatchHeader ? `<div class="batch-header">
           <div class="batch-label"><i class="ti ti-layers-intersect"></i> ${batchTxs.length} ${tt('bill_count_label')}</div>
-          <div class="batch-actions">${netPayBtn}</div>
+          <div class="batch-actions">${copyBatchBtn}${netPayBtn}</div>
         </div>` : ''}
         ${billsHtml}
       </div>`;
@@ -5602,6 +5609,19 @@ function renderAgents() {
       openCopyBillsModal(txs, agentId, false);
     });
   });
+  // Copy a single batch (group of bills saved together)
+  el.querySelectorAll('[data-copy-batch]').forEach(b => {
+    b.addEventListener('click', () => {
+      const batchKey = b.dataset.copyBatch;
+      const agentId = b.dataset.copyBatchAgent;
+      const isSolo = batchKey.startsWith('solo-');
+      const txs = isSolo
+        ? transactions.filter(t => t.id === batchKey.slice(5) && t.agentId === agentId)
+        : transactions.filter(t => t.agentId === agentId && t.batchId === batchKey);
+      if (txs.length === 0) { showToast(tt('noBills') || 'ไม่มีบิล', 'error'); return; }
+      openCopyBillsModal(txs, agentId, false);
+    });
+  });
 
   // Tap a bill's % badge to quick-edit per-bill commission percent (works for both admin and user)
   el.querySelectorAll('[data-edit-pct]').forEach(b => {
@@ -6001,10 +6021,13 @@ function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed,
       }
 
       const showBatchHeader = batchTxs.length > 1 || hasAnyUnpaid || isOffset;
+      const copyBatchBtn = batchTxs.length > 1
+        ? `<button class="batch-copy-btn" data-sub-copy-batch="${batchKey}" data-sub-copy-batch-agent="${agent.id}" title="${tt('copy_bills_title') || 'คัดลอกบิล'}" aria-label="copy batch"><i class="ti ti-copy"></i></button>`
+        : '';
       return `<div class="batch-group" data-batch="${batchKey}">
         ${showBatchHeader ? `<div class="batch-header">
           <div class="batch-label"><i class="ti ti-layers-intersect"></i> ${batchTxs.length} ${tt('bill_count_label')}</div>
-          <div class="batch-actions">${netPayBtn}</div>
+          <div class="batch-actions">${copyBatchBtn}${netPayBtn}</div>
         </div>` : ''}
         ${billsHtml}
       </div>`;
@@ -6493,6 +6516,19 @@ function wireSubAgentActions(el) {
       const date = b.dataset.subCopyDay;
       const saId = b.dataset.subCopyDayAgent;
       const txs = subTransactions.filter(t => t.subAgentId === saId && t.date === date);
+      if (txs.length === 0) { showToast(tt('noBills') || 'ไม่มีบิล', 'error'); return; }
+      openCopyBillsModal(txs, saId, true);
+    });
+  });
+  // Copy a single batch (group of bills saved together) for a sub-agent
+  el.querySelectorAll('[data-sub-copy-batch]').forEach(b => {
+    b.addEventListener('click', () => {
+      const batchKey = b.dataset.subCopyBatch;
+      const saId = b.dataset.subCopyBatchAgent;
+      const isSolo = batchKey.startsWith('solo-');
+      const txs = isSolo
+        ? subTransactions.filter(t => t.id === batchKey.slice(5) && t.subAgentId === saId)
+        : subTransactions.filter(t => t.subAgentId === saId && t.batchId === batchKey);
       if (txs.length === 0) { showToast(tt('noBills') || 'ไม่มีบิล', 'error'); return; }
       openCopyBillsModal(txs, saId, true);
     });
