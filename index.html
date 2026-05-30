@@ -515,6 +515,24 @@ h1, h2, h3, .display {
 .empty-state i { font-size: 50px; opacity: 0.4; display: block; margin-bottom: 12px; color: var(--primary-2); }
 
 .agent-card { border-radius: 20px; padding: 16px; margin-bottom: 12px; position: relative; overflow: hidden; color: white; box-shadow: var(--shadow); transition: transform 0.2s; }
+.agent-group-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; margin: 14px 0 8px; background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 11px; font-weight: 600; font-size: 14px; color: var(--text); font-family: var(--font-display); }
+.agent-group-header:first-child { margin-top: 0; }
+.agent-group-header i { color: var(--pink); font-size: 17px; margin-right: 4px; }
+.agent-group-count { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: rgba(236, 72, 153, 0.16); color: var(--pink); font-weight: 700; }
+.agent-group-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,0.20); border: 1px solid rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.18s; flex-shrink: 0; }
+.agent-group-chip:hover { background: rgba(255,255,255,0.32); }
+.agent-group-chip i { font-size: 12px; }
+.group-list-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; }
+.group-list-row input { flex: 1; padding: 6px 10px; font-size: 14px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--text); font-family: inherit; }
+.group-list-row input:focus { outline: none; background: var(--surface); border-color: var(--border-2); }
+.group-list-row button { padding: 6px 10px; background: transparent; border: none; border-radius: 7px; cursor: pointer; color: var(--text-3); font-family: inherit; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.group-list-row button:hover { background: var(--surface); color: var(--text); }
+.group-list-row button.danger:hover { color: var(--red); }
+.pick-group-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; cursor: pointer; transition: all 0.18s; font-family: inherit; font-size: 14px; color: var(--text); width: 100%; text-align: left; }
+.pick-group-option:hover { background: var(--surface); border-color: var(--primary); transform: translateY(-1px); }
+.pick-group-option.current { background: rgba(236, 72, 153, 0.10); border-color: var(--pink); }
+.pick-group-option i { color: var(--pink); font-size: 17px; flex-shrink: 0; }
+.pick-group-option .selected-mark { margin-left: auto; color: var(--pink); }
 .agent-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .agent-card::before { content: ''; position: absolute; top: -40px; right: -40px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.15); }
 .agent-card::after { content: ''; position: absolute; bottom: -60px; left: -30px; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.08); }
@@ -1177,6 +1195,7 @@ h1, h2, h3, .display {
             <span class="section-title-icon" style="background: rgba(236, 72, 153, 0.15); color: var(--pink);"><i class="ti ti-users"></i></span>
             <span><span data-i18n="agentList">รายชื่อตัวแทน</span> <span id="agent-count-badge" class="chip" style="margin-left: 6px;">0</span></span>
           </span>
+          <button id="manage-groups-btn" style="padding: 6px 12px; border: 1px solid var(--border-2); background: var(--surface-2); color: var(--text); border-radius: 9px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"><i class="ti ti-folders"></i> <span data-i18n="manage_groups">จัดการกลุ่ม</span></button>
         </div>
         <div id="agent-list"></div>
       </div>
@@ -1649,10 +1668,45 @@ h1, h2, h3, .display {
   </div>
 </div>
 
+<div class="modal-overlay" id="manage-groups-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-folders" style="color: var(--pink);"></i> <span data-i18n="manage_groups">จัดการกลุ่ม</span></div>
+      <button class="icon-action" data-close-manage-groups aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display: flex; gap: 6px; margin-bottom: 14px;">
+        <input type="text" id="new-group-name" class="field" data-i18n-placeholder="new_group_placeholder" placeholder="ชื่อกลุ่มใหม่" style="margin-bottom: 0; flex: 1;">
+        <button id="add-group-btn" class="btn btn-pink" style="width: auto; padding: 0 14px; font-size: 14px; flex-shrink: 0;"><i class="ti ti-plus"></i></button>
+      </div>
+      <div id="groups-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto;"></div>
+      <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px;">
+        <button class="btn btn-secondary" data-close-manage-groups data-i18n="close">ปิด</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pick-group-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-folder" style="color: var(--pink);"></i> <span data-i18n="pick_group_title">เลือกกลุ่ม</span></div>
+      <button class="icon-action" data-close-pick-group aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="pick-group-agent-label" style="padding: 10px 12px; background: var(--surface-2); border-radius: 10px; margin-bottom: 12px; font-size: 14px; color: var(--text-2);"></div>
+      <div id="pick-group-options" style="display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto;"></div>
+      <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px;">
+        <button class="btn btn-secondary" data-close-pick-group data-i18n="cancel">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.32';
+const APP_VERSION = '1.99.33';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1715,6 +1769,12 @@ const T = {
     session_expired_save: 'ເຊດຊັນໝົດອາຍຸ — ຂໍ້ມູນຍັງຢູ່ໃນເຄື່ອງ. ກະລຸນາລົງຊື່ເຂົ້າໃຊ້ໃໝ່ເພື່ອບັນທຶກໄປຄລາວ',
     cloud_save_failed: 'ບັນທຶກໄປຄລາວບໍ່ສຳເລັດ — ຂໍ້ມູນຍັງຢູ່ໃນເຄື່ອງ',
     cloud_load_failed: 'ໂຫລດຂໍ້ມູນຈາກຄລາວບໍ່ສຳເລັດ — ໃຊ້ຂໍ້ມູນທີ່ບັນທຶກໄວ້ໃນເຄື່ອງ',
+    manage_groups: 'ຈັດການກຸ່ມ', no_group: 'ບໍ່ມີກຸ່ມ', no_groups_yet: 'ຍັງບໍ່ມີກຸ່ມ — ເພີ່ມກຸ່ມທຳອິດໄດ້ທີ່ດ້ານເທິງ',
+    new_group_placeholder: 'ຊື່ກຸ່ມໃໝ່', change_group: 'ປ່ຽນກຸ່ມ', pick_group_title: 'ເລືອກກຸ່ມ',
+    group_added: 'ເພີ່ມກຸ່ມແລ້ວ', group_renamed: 'ປ່ຽນຊື່ກຸ່ມແລ້ວ', group_deleted: 'ລຶບກຸ່ມແລ້ວ', group_changed: 'ປ່ຽນກຸ່ມແລ້ວ',
+    fill_group_name: 'ກະລຸນາຕັ້ງຊື່ກຸ່ມ', group_name_dup: 'ຊື່ກຸ່ມນີ້ມີຢູ່ແລ້ວ',
+    delete_group_q: 'ລຶບກຸ່ມ', delete_group_with_members: 'ກຸ່ມນີ້ມີ {n} ຕົວແທນ — ຕົວແທນຈະຍ້າຍໄປຢູ່ "ບໍ່ມີກຸ່ມ"',
+    close: 'ປິດ', delete: 'ລຶບ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
     timeRange: 'ຊ່ວງເວລາ', all: 'ທັງໝົດ', today: 'ມື້ນີ້', yesterday: 'ມື້ວານ', last7days: '7 ມື້', thisMonth: 'ເດືອນນີ້', lastMonth: 'ເດືອນກ່ອນ', thisYear: 'ປີນີ້', custom: 'ເລືອກເອງ',
@@ -2077,6 +2137,12 @@ const T = {
     session_expired_save: 'เซสชั่นหมดอายุ — ข้อมูลยังอยู่ในเครื่อง กรุณาลงชื่อเข้าใช้ใหม่เพื่อบันทึกขึ้นคลาวด์',
     cloud_save_failed: 'บันทึกขึ้นคลาวด์ไม่สำเร็จ — ข้อมูลยังอยู่ในเครื่อง',
     cloud_load_failed: 'โหลดข้อมูลจากคลาวด์ไม่สำเร็จ — ใช้ข้อมูลที่บันทึกไว้ในเครื่อง',
+    manage_groups: 'จัดการกลุ่ม', no_group: 'ไม่มีกลุ่ม', no_groups_yet: 'ยังไม่มีกลุ่ม — เพิ่มกลุ่มแรกได้ที่ด้านบน',
+    new_group_placeholder: 'ชื่อกลุ่มใหม่', change_group: 'เปลี่ยนกลุ่ม', pick_group_title: 'เลือกกลุ่ม',
+    group_added: 'เพิ่มกลุ่มแล้ว', group_renamed: 'เปลี่ยนชื่อกลุ่มแล้ว', group_deleted: 'ลบกลุ่มแล้ว', group_changed: 'เปลี่ยนกลุ่มแล้ว',
+    fill_group_name: 'กรุณาตั้งชื่อกลุ่ม', group_name_dup: 'ชื่อกลุ่มนี้มีอยู่แล้ว',
+    delete_group_q: 'ลบกลุ่ม', delete_group_with_members: 'กลุ่มนี้มี {n} ตัวแทน — ตัวแทนจะย้ายไปอยู่ "ไม่มีกลุ่ม"',
+    close: 'ปิด', delete: 'ลบ',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
     timeRange: 'ช่วงเวลา', all: 'ทั้งหมด', today: 'วันนี้', yesterday: 'เมื่อวาน', last7days: '7 วัน', thisMonth: 'เดือนนี้', lastMonth: 'เดือนก่อน', thisYear: 'ปีนี้', custom: 'เลือกเอง',
@@ -2481,12 +2547,14 @@ const AGENT_GRADIENTS = [
 const STORE_KEYS = {
   tx: 'iet:transactions:v1',
   agents: 'iet:agents:v1',
+  agentGroups: 'iet:agentgroups:v1',
   subAgents: 'iet:subagents:v1',
   subTx: 'iet:subtransactions:v1'
 };
 
 let transactions = [];
 let agents = [];
+let agentGroups = [];
 let subAgents = [];
 let subTransactions = [];
 let chart = null;
@@ -2542,6 +2610,9 @@ function loadState() {
     agents = JSON.parse(localStorage.getItem(STORE_KEYS.agents) || '[]');
   } catch (e) { agents = []; }
   try {
+    agentGroups = JSON.parse(localStorage.getItem(STORE_KEYS.agentGroups) || '[]');
+  } catch (e) { agentGroups = []; }
+  try {
     subAgents = JSON.parse(localStorage.getItem(STORE_KEYS.subAgents) || '[]');
   } catch (e) { subAgents = []; }
   try {
@@ -2554,6 +2625,10 @@ function saveTx() {
 }
 function saveAgents() {
   localStorage.setItem(STORE_KEYS.agents, JSON.stringify(agents));
+  scheduleCloudSave();
+}
+function saveAgentGroups() {
+  localStorage.setItem(STORE_KEYS.agentGroups, JSON.stringify(agentGroups));
   scheduleCloudSave();
 }
 function saveSubAgents() {
@@ -2896,6 +2971,7 @@ async function pushCloudData() {
     data: {
       transactions,
       agents,
+      agentGroups,
       subAgents,
       subTransactions,
       settings: { lang: currentLang, font: currentFont, theme: currentTheme }
@@ -3046,10 +3122,12 @@ async function loadCloudData() {
       if (row.data) {
         transactions = Array.isArray(row.data.transactions) ? row.data.transactions : [];
         agents = Array.isArray(row.data.agents) ? row.data.agents : [];
+        agentGroups = Array.isArray(row.data.agentGroups) ? row.data.agentGroups : [];
         subAgents = Array.isArray(row.data.subAgents) ? row.data.subAgents : [];
         subTransactions = Array.isArray(row.data.subTransactions) ? row.data.subTransactions : [];
         localStorage.setItem(STORE_KEYS.tx, JSON.stringify(transactions));
         localStorage.setItem(STORE_KEYS.agents, JSON.stringify(agents));
+        localStorage.setItem(STORE_KEYS.agentGroups, JSON.stringify(agentGroups));
         localStorage.setItem(STORE_KEYS.subAgents, JSON.stringify(subAgents));
         localStorage.setItem(STORE_KEYS.subTx, JSON.stringify(subTransactions));
         const s = row.data.settings || {};
@@ -3061,12 +3139,13 @@ async function loadCloudData() {
       // No cloud row. ONLY treat as "new user" if local is also empty — otherwise local
       // may contain data that's not yet persisted to cloud (e.g. saved during a network blip);
       // push that up instead of wiping it.
-      const localHasData = (transactions.length + agents.length + subAgents.length + subTransactions.length) > 0;
+      const localHasData = (transactions.length + agents.length + agentGroups.length + subAgents.length + subTransactions.length) > 0;
       if (localHasData) {
         await pushCloudData();
       } else {
         transactions = [];
         agents = [];
+        agentGroups = [];
         subAgents = [];
         subTransactions = [];
         await pushCloudData();
@@ -5000,7 +5079,38 @@ function renderAgents() {
     el.innerHTML = `<div class="empty-state"><i class="ti ti-user-off"></i>${tt('noAgents')}<br><span style="font-size: 13px;">${tt('add_first_agent')}</span></div>`;
     return;
   }
-  el.innerHTML = agents.map(a => {
+
+  // ---- Sort agents by group order for header injection ----
+  const groupOrderMap = {};
+  agentGroups.forEach((g, i) => { groupOrderMap[g.id] = (typeof g.order === 'number') ? g.order : i; });
+  // Agents in defined groups come first (in group order), then ungrouped
+  const sortedAgents = agents.slice().sort((a, b) => {
+    const ag = a.groupId && agentGroups.find(g => g.id === a.groupId) ? a.groupId : '';
+    const bg = b.groupId && agentGroups.find(g => g.id === b.groupId) ? b.groupId : '';
+    if (ag === bg) return 0;
+    if (!ag) return 1;     // a is ungrouped → b first
+    if (!bg) return -1;    // b is ungrouped → a first
+    return (groupOrderMap[ag] || 0) - (groupOrderMap[bg] || 0);
+  });
+
+  let lastGroupKey = '__INIT__';
+  el.innerHTML = sortedAgents.map(a => {
+    // Group header injection
+    const aGroupId = (a.groupId && agentGroups.find(g => g.id === a.groupId)) ? a.groupId : '';
+    const currentKey = aGroupId || '__UNGROUPED__';
+    let groupHeaderHtml = '';
+    if (currentKey !== lastGroupKey) {
+      const g = aGroupId ? agentGroups.find(gx => gx.id === aGroupId) : null;
+      const memberCount = sortedAgents.filter(x => {
+        const xg = (x.groupId && agentGroups.find(gg => gg.id === x.groupId)) ? x.groupId : '';
+        return xg === aGroupId;
+      }).length;
+      const groupName = g ? escapeHtml(g.name) : tt('no_group');
+      const groupIcon = g ? 'ti-folder' : 'ti-folder-off';
+      groupHeaderHtml = `<div class="agent-group-header"><span><i class="ti ${groupIcon}"></i> ${groupName}</span><span class="agent-group-count">${memberCount}</span></div>`;
+      lastGroupKey = currentKey;
+    }
+
     const grad = agentGradient(a.name);
     const agentTxsAsc = transactions.filter(t => t.agentId === a.id && t.type === 'income').sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
     const expenseTxsAsc = transactions.filter(t => t.agentId === a.id && t.type === 'expense').sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
@@ -5026,13 +5136,17 @@ function renderAgents() {
       rejected: { label: tt('badge_rejected'), color: '#ef4444', icon: 'x' }
     };
     const sb = statusBadges[status];
-    return `<div class="agent-card" style="background: ${grad};">
+    const currentGroup = aGroupId ? agentGroups.find(gx => gx.id === aGroupId) : null;
+    const groupChipLabel = currentGroup ? escapeHtml(currentGroup.name) : tt('no_group');
+    const groupChipIcon = currentGroup ? 'ti-folder' : 'ti-folder-off';
+    return groupHeaderHtml + `<div class="agent-card" style="background: ${grad};">
       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1;">
         <div class="agent-avatar" style="--name-grad: ${grad};">${escapeHtml(a.name.slice(0, 2).toUpperCase())}</div>
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <div class="agent-name-gradient" style="--name-grad: ${grad}; font-weight: 700; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display);">${escapeHtml(a.name)}</div>
             ${(!isAdmin || a.submittedBy) ? `<span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: ${sb.color}; color: white; flex-shrink: 0;"><i class="ti ti-${sb.icon}"></i> ${sb.label}</span>` : ''}
+            <button class="agent-group-chip" data-pick-group="${a.id}" title="${tt('change_group') || 'เปลี่ยนกลุ่ม'}"><i class="ti ${groupChipIcon}"></i> ${groupChipLabel}</button>
           </div>
           <div style="font-size: 13px; opacity: 0.9;"><i class="ti ti-receipt"></i> ${agentTxs.length + expenseTxsAsc.length} ${tt('bill_count_label')} · ${tt('agent_total')} ${fmtShort(agentTotal)} ₭</div>
         </div>
@@ -5861,6 +5975,164 @@ function renderAgents() {
         showToast(tt('deleted'), 'success');
       });
     });
+  });
+
+  // Pick group for agent
+  el.querySelectorAll('[data-pick-group]').forEach(b => {
+    b.addEventListener('click', () => openPickGroupModal(b.dataset.pickGroup));
+  });
+}
+
+// ============================================================
+// AGENT GROUPS — create / rename / delete groups, assign agents
+// ============================================================
+let _pickGroupAgentId = null;
+
+function openManageGroupsModal() {
+  renderGroupsList();
+  document.getElementById('manage-groups-modal').classList.add('show');
+  setTimeout(() => {
+    const inp = document.getElementById('new-group-name');
+    if (inp) inp.focus();
+  }, 100);
+}
+function closeManageGroupsModal() {
+  document.getElementById('manage-groups-modal').classList.remove('show');
+}
+
+function renderGroupsList() {
+  const listEl = document.getElementById('groups-list');
+  if (!listEl) return;
+  if (agentGroups.length === 0) {
+    listEl.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-3); font-size: 13px;">${tt('no_groups_yet') || 'ยังไม่มีกลุ่ม — เพิ่มกลุ่มแรกได้ที่ด้านบน'}</div>`;
+    return;
+  }
+  // Sort by order
+  const ordered = agentGroups.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+  listEl.innerHTML = ordered.map(g => {
+    const memberCount = agents.filter(a => a.groupId === g.id).length;
+    return `<div class="group-list-row" data-group-row="${g.id}">
+      <i class="ti ti-folder" style="color: var(--pink); font-size: 18px;"></i>
+      <input type="text" value="${escapeHtml(g.name)}" data-group-name-edit="${g.id}">
+      <span style="font-size: 11px; color: var(--text-3); padding: 2px 8px; background: var(--surface); border-radius: 999px; font-weight: 600;">${memberCount}</span>
+      <button data-group-delete="${g.id}" class="danger" title="${tt('delete') || 'ลบ'}"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join('');
+
+  // Wire inline rename (on blur or Enter)
+  listEl.querySelectorAll('[data-group-name-edit]').forEach(inp => {
+    const id = inp.dataset.groupNameEdit;
+    const commit = () => {
+      const g = agentGroups.find(x => x.id === id);
+      if (!g) return;
+      const newName = inp.value.trim();
+      if (!newName) { inp.value = g.name; return; }
+      if (newName !== g.name) {
+        g.name = newName;
+        saveAgentGroups();
+        renderAll();
+        showToast(tt('group_renamed') || 'แก้ชื่อกลุ่มแล้ว', 'success');
+      }
+    };
+    inp.addEventListener('blur', commit);
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    });
+  });
+
+  // Delete
+  listEl.querySelectorAll('[data-group-delete]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.groupDelete;
+      const g = agentGroups.find(x => x.id === id);
+      if (!g) return;
+      const memberCount = agents.filter(a => a.groupId === id).length;
+      const note = memberCount > 0
+        ? (tt('delete_group_with_members') || `กลุ่มนี้มี ${memberCount} ตัวแทน — ตัวแทนจะย้ายไปอยู่ "ไม่มีกลุ่ม"`).replace('{n}', memberCount)
+        : '';
+      showConfirm(`${tt('delete_group_q') || 'ลบกลุ่ม'} "${g.name}"?`, note, () => {
+        agentGroups = agentGroups.filter(x => x.id !== id);
+        agents.forEach(a => { if (a.groupId === id) delete a.groupId; });
+        saveAgentGroups();
+        saveAgents();
+        renderGroupsList();
+        renderAll();
+        showToast(tt('group_deleted') || 'ลบกลุ่มแล้ว', 'success');
+      });
+    });
+  });
+}
+
+function addNewGroup() {
+  const inp = document.getElementById('new-group-name');
+  const name = (inp.value || '').trim();
+  if (!name) { showToast(tt('fill_group_name') || 'กรุณาตั้งชื่อกลุ่ม', 'error'); return; }
+  // Reject duplicates
+  if (agentGroups.find(g => g.name === name)) {
+    showToast(tt('group_name_dup') || 'ชื่อกลุ่มนี้มีอยู่แล้ว', 'error');
+    return;
+  }
+  const maxOrder = agentGroups.reduce((m, g) => Math.max(m, g.order || 0), -1);
+  agentGroups.push({ id: uid(), name, order: maxOrder + 1 });
+  saveAgentGroups();
+  inp.value = '';
+  inp.focus();
+  renderGroupsList();
+  renderAll();
+  showToast(tt('group_added') || 'เพิ่มกลุ่มแล้ว', 'success');
+}
+
+function openPickGroupModal(agentId) {
+  const a = getAgent(agentId);
+  if (!a) return;
+  _pickGroupAgentId = agentId;
+  document.getElementById('pick-group-agent-label').innerHTML = `<i class="ti ti-user" style="color: var(--pink);"></i> ${escapeHtml(a.name)}`;
+  renderPickGroupOptions();
+  document.getElementById('pick-group-modal').classList.add('show');
+}
+function closePickGroupModal() {
+  document.getElementById('pick-group-modal').classList.remove('show');
+  _pickGroupAgentId = null;
+}
+
+function renderPickGroupOptions() {
+  const a = getAgent(_pickGroupAgentId);
+  if (!a) return;
+  const optsEl = document.getElementById('pick-group-options');
+  const ordered = agentGroups.slice().sort((x, y) => (x.order || 0) - (y.order || 0));
+  const currentId = a.groupId || '';
+  const optionRow = (id, name, icon) => {
+    const isCurrent = id === currentId;
+    return `<button class="pick-group-option ${isCurrent ? 'current' : ''}" data-pick-group-option="${id}">
+      <i class="ti ${icon}"></i>
+      <span>${escapeHtml(name)}</span>
+      ${isCurrent ? '<i class="ti ti-circle-check selected-mark"></i>' : ''}
+    </button>`;
+  };
+  let html = '';
+  html += optionRow('', tt('no_group') || 'ไม่มีกลุ่ม', 'ti-folder-off');
+  ordered.forEach(g => { html += optionRow(g.id, g.name, 'ti-folder'); });
+  if (agentGroups.length === 0) {
+    html += `<div style="text-align: center; padding: 14px; color: var(--text-3); font-size: 13px;">${tt('no_groups_yet') || 'ยังไม่มีกลุ่ม'} — <a href="#" id="pick-group-open-manage" style="color: var(--primary); font-weight: 600;">${tt('manage_groups') || 'จัดการกลุ่ม'}</a></div>`;
+  }
+  optsEl.innerHTML = html;
+  optsEl.querySelectorAll('[data-pick-group-option]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.pickGroupOption;
+      const ag = getAgent(_pickGroupAgentId);
+      if (!ag) return;
+      if (id) ag.groupId = id; else delete ag.groupId;
+      saveAgents();
+      closePickGroupModal();
+      renderAll();
+      showToast(tt('group_changed') || 'เปลี่ยนกลุ่มแล้ว', 'success');
+    });
+  });
+  const openLink = optsEl.querySelector('#pick-group-open-manage');
+  if (openLink) openLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    closePickGroupModal();
+    openManageGroupsModal();
   });
 }
 
@@ -8620,6 +8892,19 @@ document.getElementById('edit-agent-modal').addEventListener('click', (e) => { i
 document.querySelectorAll('[data-close-copy-modal]').forEach(b => b.addEventListener('click', closeCopyBillsModal));
 document.getElementById('copy-bills-modal').addEventListener('click', (e) => { if (e.target.id === 'copy-bills-modal') closeCopyBillsModal(); });
 
+// Manage Groups modal
+document.getElementById('manage-groups-btn').addEventListener('click', openManageGroupsModal);
+document.querySelectorAll('[data-close-manage-groups]').forEach(b => b.addEventListener('click', closeManageGroupsModal));
+document.getElementById('manage-groups-modal').addEventListener('click', (e) => { if (e.target.id === 'manage-groups-modal') closeManageGroupsModal(); });
+document.getElementById('add-group-btn').addEventListener('click', addNewGroup);
+document.getElementById('new-group-name').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); addNewGroup(); }
+});
+
+// Pick Group modal
+document.querySelectorAll('[data-close-pick-group]').forEach(b => b.addEventListener('click', closePickGroupModal));
+document.getElementById('pick-group-modal').addEventListener('click', (e) => { if (e.target.id === 'pick-group-modal') closePickGroupModal(); });
+
 document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
   const id = document.getElementById('edit-tx-id').value;
   const isSub = document.getElementById('edit-tx-modal').dataset.subMode === '1';
@@ -9302,10 +9587,12 @@ async function handleLogout() {
     currentUser = null;
     transactions = [];
     agents = [];
+    agentGroups = [];
     subAgents = [];
     subTransactions = [];
     localStorage.removeItem(STORE_KEYS.tx);
     localStorage.removeItem(STORE_KEYS.agents);
+    localStorage.removeItem(STORE_KEYS.agentGroups);
     localStorage.removeItem(STORE_KEYS.subAgents);
     localStorage.removeItem(STORE_KEYS.subTx);
     try {
@@ -9822,6 +10109,7 @@ async function enterViewAsUser(userId, username) {
     const userData = userRow.data || {};
     transactions = Array.isArray(userData.transactions) ? userData.transactions : [];
     agents = Array.isArray(userData.agents) ? userData.agents : [];
+    agentGroups = Array.isArray(userData.agentGroups) ? userData.agentGroups : [];
     subAgents = Array.isArray(userData.subAgents) ? userData.subAgents : [];
     subTransactions = Array.isArray(userData.subTransactions) ? userData.subTransactions : [];
     // Don't persist to localStorage — keep admin's own cache intact
@@ -9844,6 +10132,9 @@ function exitViewAsUser() {
   try {
     agents = JSON.parse(localStorage.getItem(STORE_KEYS.agents) || '[]');
   } catch (e) { agents = []; }
+  try {
+    agentGroups = JSON.parse(localStorage.getItem(STORE_KEYS.agentGroups) || '[]');
+  } catch (e) { agentGroups = []; }
   try {
     subAgents = JSON.parse(localStorage.getItem(STORE_KEYS.subAgents) || '[]');
   } catch (e) { subAgents = []; }
