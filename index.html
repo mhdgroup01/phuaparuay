@@ -490,6 +490,9 @@ h1, h2, h3, .display {
 .type-pill.active-income { background: var(--grad-green); color: white; box-shadow: 0 6px 16px rgba(91, 168, 132, 0.18); transform: translateY(-1px); }
 .type-pill.active-expense { background: var(--grad-red); color: white; box-shadow: 0 6px 16px rgba(235, 51, 73, 0.3); transform: translateY(-1px); }
 .type-pill.inactive { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.sub-type-pill { padding: 9px 8px; font-size: 13px; cursor: pointer; border-radius: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid rgba(255,255,255,0.3); font-family: inherit; background: rgba(255,255,255,0.12); color: white; transition: all 0.2s; }
+.sub-type-pill.sub-type-income.active { background: rgba(255,255,255,0.95); color: #059669; border-color: transparent; }
+.sub-type-pill.sub-type-expense.active { background: rgba(255,255,255,0.95); color: #dc2626; border-color: transparent; }
 
 .btn { padding: 16px; border-radius: 16px; cursor: pointer; font-size: 18px; width: 100%; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; font-family: inherit; transition: all 0.2s; color: white; }
 .btn:active { transform: scale(0.98); }
@@ -964,6 +967,10 @@ h1, h2, h3, .display {
       <i class="ti ti-users"></i>
       <span data-i18n="tabAgents">ตัวแทน</span>
     </button>
+    <button class="tab-btn" id="tab-btn-subagents" data-tab="subagents" data-theme="agent" style="display: none;">
+      <i class="ti ti-users-group"></i>
+      <span data-i18n="tabSubAgents">ตัวแทนย่อย</span>
+    </button>
     <button class="tab-btn" data-tab="report" data-theme="rep">
       <i class="ti ti-chart-pie"></i>
       <span data-i18n="tabReport">รายงาน</span>
@@ -1161,6 +1168,39 @@ h1, h2, h3, .display {
           </span>
         </div>
         <div id="agent-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-subagents" class="tab-content" style="display: none;">
+    <div class="desktop-grid">
+      <div class="section-card agent-theme">
+        <div class="section-title">
+          <span style="display: flex; align-items: center;">
+            <span class="section-title-icon" style="background: var(--grad-pink); color: white;"><i class="ti ti-user-plus"></i></span>
+            <span data-i18n="addSubAgent">เพิ่มตัวแทนย่อย</span>
+          </span>
+        </div>
+
+        <label class="field-label"><i class="ti ti-user"></i> <span data-i18n="subAgentName">ชื่อตัวแทนย่อย</span></label>
+        <input type="text" id="subagent-name" data-i18n-placeholder="agentNamePlaceholder" placeholder="ชื่อ - นามสกุล" class="field">
+
+        <label class="field-label"><i class="ti ti-percentage"></i> <span data-i18n="commissionPct">เปอร์เซ็นต์ค่าคอม (%)</span></label>
+        <input type="number" inputmode="decimal" id="subagent-percent" min="0" max="100" step="0.1" placeholder="10" class="field">
+
+        <button id="add-subagent-btn" class="btn btn-pink">
+          <i class="ti ti-check"></i> <span data-i18n="addSubAgentBtn">เพิ่มตัวแทนย่อย</span>
+        </button>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title">
+          <span style="display: flex; align-items: center;">
+            <span class="section-title-icon" style="background: rgba(236, 72, 153, 0.15); color: var(--pink);"><i class="ti ti-users-group"></i></span>
+            <span><span data-i18n="subAgentList">รายชื่อตัวแทนย่อย</span> <span id="subagent-count-badge" class="chip" style="margin-left: 6px;">0</span></span>
+          </span>
+        </div>
+        <div id="subagent-list"></div>
       </div>
     </div>
   </div>
@@ -1582,10 +1622,81 @@ h1, h2, h3, .display {
   </div>
 </div>
 
+<div class="modal-overlay" id="sub-edit-agent-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-user-edit" style="color: var(--pink);"></i> <span data-i18n="edit_subagent">แก้ไขตัวแทนย่อย</span></div>
+      <button class="icon-action" data-close-sub-edit-agent aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label"><i class="ti ti-user"></i> <span data-i18n="subAgentName">ชื่อตัวแทนย่อย</span></label>
+      <input type="text" id="sub-edit-agent-name" placeholder="ชื่อ - นามสกุล" class="field">
+
+      <label class="field-label"><i class="ti ti-percentage"></i> <span data-i18n="commissionPct">เปอร์เซ็นต์ค่าคอม (%)</span></label>
+      <input type="number" inputmode="decimal" id="sub-edit-agent-percent" min="0" max="100" step="0.1" placeholder="10" class="field">
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
+        <button class="btn btn-secondary" data-close-sub-edit-agent data-i18n="cancel">ยกเลิก</button>
+        <button class="btn btn-pink" id="sub-save-edit-agent-btn"><i class="ti ti-check"></i> <span data-i18n="save">บันทึก</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="sub-edit-tx-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-edit" style="color: var(--primary);"></i> <span data-i18n="edit_record">แก้ไขรายการ</span></div>
+      <button class="icon-action" data-close-sub-edit-tx aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label"><i class="ti ti-tag"></i> <span data-i18n="type_label">ประเภท</span></label>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+        <button id="sub-edit-type-income-btn" class="type-pill active-income"><i class="ti ti-arrow-down-circle"></i> <span data-i18n="income_label">รายรับ</span></button>
+        <button id="sub-edit-type-expense-btn" class="type-pill inactive"><i class="ti ti-arrow-up-circle"></i> <span data-i18n="expense_label">รายจ่าย</span></button>
+      </div>
+      <input type="hidden" id="sub-edit-tx-type" value="income">
+
+      <label class="field-label"><i class="ti ti-calendar"></i> <span data-i18n="date">วันที่</span></label>
+      <input type="date" id="sub-edit-tx-date" class="field">
+
+      <label class="field-label"><i class="ti ti-pencil"></i> <span data-i18n="description">รายละเอียด</span></label>
+      <input type="text" id="sub-edit-tx-desc" placeholder="เช่น ขายสินค้า" class="field">
+
+      <label class="field-label"><i class="ti ti-currency-kip"></i> <span data-i18n="amount">จำนวนเงิน</span></label>
+      <input type="text" inputmode="decimal" id="sub-edit-tx-amount" placeholder="0.00" class="field" autocomplete="off">
+
+      <div id="sub-edit-income-pct-section">
+        <label class="field-label"><i class="ti ti-percentage"></i> <span data-i18n="bill_pct">ค่าคอมบิลนี้</span> <span style="font-size: 13px; color: var(--text-3); font-weight: normal;">(<span data-i18n="custom_pct">กำหนดเอง</span>)</span></label>
+        <input type="number" inputmode="decimal" id="sub-edit-tx-percent" min="0" max="100" step="0.1" placeholder="" class="field">
+      </div>
+
+      <div id="sub-edit-expense-kickback-section" style="display: none;">
+        <label class="field-label"><i class="ti ti-percentage"></i> <span data-i18n="kickbackPct">ค่าคอมที่ได้รับคืน (%)</span></label>
+        <input type="number" inputmode="decimal" id="sub-edit-tx-kickback" min="0" max="100" step="0.1" placeholder="0" class="field">
+      </div>
+
+      <label class="unpaid-toggle" style="margin: 4px 0 14px;">
+        <input type="checkbox" id="sub-edit-tx-unpaid" checked>
+        <span class="unpaid-check"></span>
+        <span class="unpaid-label-text">
+          <span class="label-state-unpaid"><i class="ti ti-clock-dollar"></i> <span data-i18n="not_paid_yet_expense">ยังไม่ได้รับ/จ่าย</span></span>
+          <span class="label-state-paid"><i class="ti ti-circle-check"></i> <span data-i18n="already_paid_expense">รับ/จ่ายแล้ว</span></span>
+        </span>
+      </label>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
+        <button class="btn btn-secondary" data-close-sub-edit-tx data-i18n="cancel">ยกเลิก</button>
+        <button class="btn btn-primary" id="sub-save-edit-tx-btn"><i class="ti ti-check"></i> <span data-i18n="save">บันทึก</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.24';
+const APP_VERSION = '1.99.25';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1595,6 +1706,8 @@ const AUTH_EMAIL_DOMAIN = 'phuaparuay.local';
 let supabaseClient = null;
 let currentUser = null;
 let viewingAsUser = null; // when admin is viewing another user's data
+let _subEditTxId = null;
+let _subEditAgentId = null;
 let cloudSaveTimer = null;
 // Helper: return the user whose data we're operating on (viewingAsUser if set, else currentUser)
 function activeUser() { return viewingAsUser || currentUser; }
@@ -1628,6 +1741,7 @@ const T = {
   lo: {
     appTitle: 'ຜົວພາລວຍ',
     tabDashboard: 'ໜ້າຫຼັກ', tabTransactions: 'ລາຍການ', tabAgents: 'ຕົວແທນ', tabReport: 'ລາຍງານ',
+    tabSubAgents: 'ຕົວແທນຍ່ອຍ',
     balance: 'ຍອດເຫຼືອ', income: 'ລາຍຮັບ', expense: 'ລາຍຈ່າຍ', commission: 'ຄ່າຄອມ',
     commTotal: 'ຄ່າຄອມລວມ', txCount: 'ຈຳນວນລາຍການ', agentsAll: 'ຕົວແທນທັງໝົດ', incomeInRange: 'ລາຍຮັບໃນຊ່ວງ',
     monthlyChart: 'ສະຖິຕິລາຍເດືອນ', recent: 'ລ່າສຸດ',
@@ -1636,6 +1750,10 @@ const T = {
     save: 'ບັນທຶກ', allItems: 'ລາຍການທັງໝົດ', filterAll: 'ທັງໝົດ', searchPlaceholder: 'ຄົ້ນຫາ...',
     addAgent: 'ເພີ່ມຕົວແທນໃໝ່', agentName: 'ຊື່ຕົວແທນ', agentNamePlaceholder: 'ຊື່ - ນາມສະກຸນ', commissionPct: 'ເປີເຊັນຄ່າຄອມ (%)',
     agentList: 'ລາຍຊື່ຕົວແທນ', salesAgent: 'ຕົວແທນຂາຍ',
+    addSubAgent: 'ເພີ່ມຕົວແທນຍ່ອຍ', subAgentName: 'ຊື່ຕົວແທນຍ່ອຍ', subAgentList: 'ລາຍຊື່ຕົວແທນຍ່ອຍ', addSubAgentBtn: 'ເພີ່ມຕົວແທນຍ່ອຍ',
+    noSubAgents: 'ຍັງບໍ່ມີຕົວແທນຍ່ອຍ', add_first_subagent: 'ເພີ່ມຕົວແທນຍ່ອຍຄົນທຳອິດ', subagent_added: 'ເພີ່ມຕົວແທນຍ່ອຍແລ້ວ', subagent_updated: 'ແກ້ໄຂຕົວແທນຍ່ອຍແລ້ວ', subagent_deleted: 'ລຶບຕົວແທນຍ່ອຍແລ້ວ',
+    edit_subagent: 'ແກ້ໄຂຕົວແທນຍ່ອຍ', del_subagent_confirm: 'ລຶບຕົວແທນຍ່ອຍ ແລະ ບິນທັງໝົດ?',
+    record_added: 'ເພີ່ມລາຍການແລ້ວ', delete_record_q: 'ລຶບລາຍການ?',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
     timeRange: 'ຊ່ວງເວລາ', all: 'ທັງໝົດ', today: 'ມື້ນີ້', yesterday: 'ມື້ວານ', last7days: '7 ມື້', thisMonth: 'ເດືອນນີ້', lastMonth: 'ເດືອນກ່ອນ', thisYear: 'ປີນີ້', custom: 'ເລືອກເອງ',
@@ -1980,6 +2098,7 @@ const T = {
   th: {
     appTitle: 'ผัวพารวย',
     tabDashboard: 'หน้าหลัก', tabTransactions: 'รายการ', tabAgents: 'ตัวแทน', tabReport: 'รายงาน',
+    tabSubAgents: 'ตัวแทนย่อย',
     balance: 'ยอดคงเหลือ', income: 'รายรับ', expense: 'รายจ่าย', commission: 'ค่าคอม',
     commTotal: 'คอมมิชชั่นรวม', txCount: 'จำนวนรายการ', agentsAll: 'ตัวแทนทั้งหมด', incomeInRange: 'รายรับในช่วง',
     monthlyChart: 'กราฟรายเดือน', recent: 'ล่าสุด',
@@ -1988,6 +2107,10 @@ const T = {
     save: 'บันทึก', allItems: 'รายการทั้งหมด', filterAll: 'ทั้งหมด', searchPlaceholder: 'ค้นหา...',
     addAgent: 'เพิ่มตัวแทนใหม่', agentName: 'ชื่อตัวแทน', agentNamePlaceholder: 'ชื่อ - นามสกุล', commissionPct: 'เปอร์เซ็นต์ค่าคอม (%)',
     agentList: 'รายชื่อตัวแทน', salesAgent: 'ตัวแทนขาย',
+    addSubAgent: 'เพิ่มตัวแทนย่อย', subAgentName: 'ชื่อตัวแทนย่อย', subAgentList: 'รายชื่อตัวแทนย่อย', addSubAgentBtn: 'เพิ่มตัวแทนย่อย',
+    noSubAgents: 'ยังไม่มีตัวแทนย่อย', add_first_subagent: 'เพิ่มตัวแทนย่อยคนแรก', subagent_added: 'เพิ่มตัวแทนย่อยแล้ว', subagent_updated: 'แก้ไขตัวแทนย่อยแล้ว', subagent_deleted: 'ลบตัวแทนย่อยแล้ว',
+    edit_subagent: 'แก้ไขตัวแทนย่อย', del_subagent_confirm: 'ลบตัวแทนย่อย และบิลทั้งหมด?',
+    record_added: 'เพิ่มรายการแล้ว', delete_record_q: 'ลบรายการ?',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
     timeRange: 'ช่วงเวลา', all: 'ทั้งหมด', today: 'วันนี้', yesterday: 'เมื่อวาน', last7days: '7 วัน', thisMonth: 'เดือนนี้', lastMonth: 'เดือนก่อน', thisYear: 'ปีนี้', custom: 'เลือกเอง',
@@ -2391,11 +2514,15 @@ const AGENT_GRADIENTS = [
 
 const STORE_KEYS = {
   tx: 'iet:transactions:v1',
-  agents: 'iet:agents:v1'
+  agents: 'iet:agents:v1',
+  subAgents: 'iet:subagents:v1',
+  subTx: 'iet:subtransactions:v1'
 };
 
 let transactions = [];
 let agents = [];
+let subAgents = [];
+let subTransactions = [];
 let chart = null;
 let confirmCallback = null;
 let dashRange = { preset: 'yesterday', from: null, to: null };
@@ -2448,6 +2575,12 @@ function loadState() {
   try {
     agents = JSON.parse(localStorage.getItem(STORE_KEYS.agents) || '[]');
   } catch (e) { agents = []; }
+  try {
+    subAgents = JSON.parse(localStorage.getItem(STORE_KEYS.subAgents) || '[]');
+  } catch (e) { subAgents = []; }
+  try {
+    subTransactions = JSON.parse(localStorage.getItem(STORE_KEYS.subTx) || '[]');
+  } catch (e) { subTransactions = []; }
 }
 function saveTx() {
   localStorage.setItem(STORE_KEYS.tx, JSON.stringify(transactions));
@@ -2455,6 +2588,14 @@ function saveTx() {
 }
 function saveAgents() {
   localStorage.setItem(STORE_KEYS.agents, JSON.stringify(agents));
+  scheduleCloudSave();
+}
+function saveSubAgents() {
+  localStorage.setItem(STORE_KEYS.subAgents, JSON.stringify(subAgents));
+  scheduleCloudSave();
+}
+function saveSubTx() {
+  localStorage.setItem(STORE_KEYS.subTx, JSON.stringify(subTransactions));
   scheduleCloudSave();
 }
 
@@ -2736,6 +2877,8 @@ async function pushCloudData() {
     data: {
       transactions,
       agents,
+      subAgents,
+      subTransactions,
       settings: { lang: currentLang, font: currentFont, theme: currentTheme }
     },
     updated_at: new Date().toISOString()
@@ -2834,8 +2977,12 @@ async function loadCloudData() {
       if (row.data) {
         transactions = Array.isArray(row.data.transactions) ? row.data.transactions : [];
         agents = Array.isArray(row.data.agents) ? row.data.agents : [];
+        subAgents = Array.isArray(row.data.subAgents) ? row.data.subAgents : [];
+        subTransactions = Array.isArray(row.data.subTransactions) ? row.data.subTransactions : [];
         localStorage.setItem(STORE_KEYS.tx, JSON.stringify(transactions));
         localStorage.setItem(STORE_KEYS.agents, JSON.stringify(agents));
+        localStorage.setItem(STORE_KEYS.subAgents, JSON.stringify(subAgents));
+        localStorage.setItem(STORE_KEYS.subTx, JSON.stringify(subTransactions));
         const s = row.data.settings || {};
         if (s.lang && T[s.lang]) currentLang = s.lang;
         if (s.theme) currentTheme = s.theme;
@@ -2845,6 +2992,8 @@ async function loadCloudData() {
       // New user — no cloud row yet. Start empty and create row.
       transactions = [];
       agents = [];
+      subAgents = [];
+      subTransactions = [];
       await pushCloudData();
     }
   } catch (e) { console.error('Cloud load failed:', e); }
@@ -5417,6 +5566,405 @@ function renderAgents() {
   });
 }
 
+// ============================================================
+// SUB-AGENTS MODULE (ตัวแทนย่อย) — user-only, no approval workflow.
+// Separate data (subAgents[], subTransactions[]); never touches main agents.
+// ============================================================
+const getSubAgent = id => subAgents.find(a => a.id === id);
+function subPctForTx(tx) {
+  if (typeof tx.percent === 'number') return tx.percent;
+  const sa = getSubAgent(tx.subAgentId);
+  return sa ? sa.percent : 0;
+}
+function subBillDue(tx) {
+  if (tx.type === 'expense') {
+    const kb = tx.kickback ? tx.amount * (tx.kickback / 100) : 0;
+    return tx.amount - kb;
+  }
+  return tx.amount * (1 - subPctForTx(tx) / 100);
+}
+function subBillRemaining(tx) {
+  return tx.unpaid ? Math.max(0, subBillDue(tx)) : 0;
+}
+function subBillIsUnpaid(tx) { return tx.unpaid && subBillDue(tx) > 0.01; }
+
+function renderSubAgents() {
+  const badge = document.getElementById('subagent-count-badge');
+  const el = document.getElementById('subagent-list');
+  if (!el) return;
+  if (badge) badge.textContent = subAgents.length;
+  if (subAgents.length === 0) {
+    el.innerHTML = `<div class="empty-state"><i class="ti ti-user-off"></i>${tt('noSubAgents')}<br><span style="font-size: 13px;">${tt('add_first_subagent')}</span></div>`;
+    return;
+  }
+  el.innerHTML = subAgents.map(a => {
+    const grad = agentGradient(a.name);
+    const incomeAsc = subTransactions.filter(t => t.subAgentId === a.id && t.type === 'income').sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
+    const expenseAsc = subTransactions.filter(t => t.subAgentId === a.id && t.type === 'expense').sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
+    const seqMap = {}; incomeAsc.forEach((t, i) => { seqMap[t.id] = i + 1; });
+    const expSeqMap = {}; expenseAsc.forEach((t, i) => { expSeqMap[t.id] = i + 1; });
+    const allForList = [...incomeAsc, ...expenseAsc].sort((x, y) => y.date.localeCompare(x.date) || y.id.localeCompare(x.id));
+    const total = incomeAsc.reduce((s, t) => s + t.amount, 0);
+    const comm = incomeAsc.reduce((s, t) => s + t.amount * (subPctForTx(t) / 100), 0);
+    const unpaidOwed = incomeAsc.filter(subBillIsUnpaid).reduce((s, t) => s + subBillRemaining(t), 0);
+    const weOwe = expenseAsc.filter(subBillIsUnpaid).reduce((s, t) => s + subBillRemaining(t), 0);
+    const billCount = incomeAsc.length + expenseAsc.length;
+    return `<div class="agent-card" style="background: ${grad};">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1;">
+        <div class="agent-avatar" style="--name-grad: ${grad};">${escapeHtml(a.name.slice(0, 2).toUpperCase())}</div>
+        <div style="flex: 1; min-width: 0;">
+          <div class="agent-name-gradient" style="--name-grad: ${grad}; font-weight: 700; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display);">${escapeHtml(a.name)}</div>
+          <div style="font-size: 13px; opacity: 0.9;"><i class="ti ti-receipt"></i> ${billCount} ${tt('bill_count_label')} · ${tt('agent_total')} ${fmtShort(total)} ₭</div>
+        </div>
+        <div style="display: flex; gap: 4px;">
+          <button data-edit-sa="${a.id}" class="icon-btn" aria-label="edit"><i class="ti ti-edit"></i></button>
+          <button data-del-sa="${a.id}" class="icon-btn" aria-label="delete"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      ${(unpaidOwed > 0 || weOwe > 0) ? (() => {
+        const net = unpaidOwed - weOwe;
+        const absNet = Math.abs(net);
+        const isOwes = net > 0.01, isWe = net < -0.01;
+        const settled = !isOwes && !isWe;
+        const cls = isOwes ? 'agent-owed-banner' : (isWe ? 'agent-we-owe-banner' : 'agent-settled-banner');
+        const lab = isOwes ? tt('owed_to_us') : (isWe ? tt('we_owe_to_agent') : tt('balance_settled'));
+        const icon = isOwes ? 'ti-arrow-bear-left' : (isWe ? 'ti-arrow-bear-right' : 'ti-equal');
+        return `<div class="${cls}"><div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.95; margin-bottom: 2px;"><i class="ti ${icon}"></i> ${lab}</div>
+          <div style="font-size: 24px; font-weight: 700; font-family: var(--font-display); line-height: 1.1;">${settled ? '0' : fmt(absNet)} ₭</div>
+        </div></div>`;
+      })() : ''}
+      <div class="percent-control" style="margin-bottom: 10px;">
+        <i class="ti ti-percentage" style="font-size: 22px;"></i>
+        <span style="font-size: 14px; flex: 1; opacity: 0.95;">${tt('commission')} ${fmtShort(comm)} ₭</span>
+        <input type="number" inputmode="decimal" min="0" max="100" step="0.1" value="${a.percent}" data-sub-percent-id="${a.id}" class="percent-input">
+        <span style="font-size: 17px; font-weight: 500;">%</span>
+      </div>
+
+      <div class="quick-bill" id="sub-quick-bill-${a.id}" style="display: none;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+          <div style="font-size: 14px; font-weight: 600; opacity: 0.95;"><i class="ti ti-list-details"></i> ${tt('billsNew')}</div>
+          <div style="font-size: 13px; opacity: 0.9;">${tt('commission')} ${a.percent}%</div>
+        </div>
+        <div class="expense-special-row bill-input-row" data-sub-bill-agent="${a.id}">
+          <div class="bill-row-field">
+            <label class="bill-row-label"><i class="ti ti-tag"></i> ${tt('type_label')}</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button type="button" class="sub-type-pill sub-type-income active" data-sub-type-btn="income" data-sa="${a.id}"><i class="ti ti-arrow-down-circle"></i> ${tt('income_label')}</button>
+              <button type="button" class="sub-type-pill sub-type-expense" data-sub-type-btn="expense" data-sa="${a.id}"><i class="ti ti-arrow-up-circle"></i> ${tt('expense_label')}</button>
+            </div>
+          </div>
+          <div class="bill-row-field">
+            <label class="bill-row-label"><i class="ti ti-calendar"></i> ${tt('date')}</label>
+            <input type="date" class="quick-field" data-sub-date value="${todayStr()}">
+          </div>
+          <div class="bill-row-field">
+            <label class="bill-row-label"><i class="ti ti-note"></i> ${tt('description')}</label>
+            <input type="text" class="quick-field" data-sub-desc placeholder="${tt('description')}" autocomplete="off">
+          </div>
+          <div class="bill-row-field">
+            <label class="bill-row-label"><i class="ti ti-cash"></i> ${tt('amount')}</label>
+            <input type="text" inputmode="decimal" class="quick-field bill-amount" data-sub-amount placeholder="0" autocomplete="off">
+          </div>
+          <div class="bill-row-field" data-sub-pct-wrap>
+            <label class="bill-row-label"><i class="ti ti-percentage"></i> ${tt('bill_pct')} (${tt('custom_pct')})</label>
+            <div class="pct-input-wrap">
+              <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-sub-pct placeholder="${a.percent}">
+              <span class="pct-suffix">%</span>
+            </div>
+          </div>
+          <div class="bill-row-field" data-sub-kb-wrap style="display: none;">
+            <label class="bill-row-label"><i class="ti ti-receipt-refund"></i> ${tt('sum_kb_label')}</label>
+            <div class="pct-input-wrap">
+              <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-sub-kb placeholder="0">
+              <span class="pct-suffix">%</span>
+            </div>
+          </div>
+          <div class="bill-row-field" style="border: none; padding-top: 4px;">
+            <label class="unpaid-toggle" style="margin: 0;">
+              <input type="checkbox" data-sub-unpaid checked>
+              <span class="unpaid-check"></span>
+              <span class="unpaid-label-text">
+                <span class="label-state-unpaid"><i class="ti ti-clock-dollar"></i> ${tt('not_paid_yet_expense')}</span>
+                <span class="label-state-paid"><i class="ti ti-circle-check"></i> ${tt('already_paid_expense')}</span>
+              </span>
+            </label>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px;">
+          <button class="quick-btn-secondary" data-sub-cancel-bill="${a.id}"><i class="ti ti-x"></i> ${tt('cancel')}</button>
+          <button class="quick-btn-primary" data-sub-save-bill="${a.id}"><i class="ti ti-check"></i> ${tt('save')}</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; position: relative; z-index: 1;">
+        <button class="agent-action" data-sub-add-bill="${a.id}"><i class="ti ti-circle-plus"></i> ${tt('addBill')}</button>
+        <button class="agent-action" data-sub-toggle-bills="${a.id}"><i class="ti ti-list"></i> ${tt('viewBills')} (${billCount})</button>
+      </div>
+
+      <div class="bill-list" id="sub-bill-list-${a.id}" style="display: none;">
+        ${renderSubBillList(a, allForList, seqMap, expSeqMap)}
+      </div>
+    </div>`;
+  }).join('');
+
+  wireSubAgentActions(el);
+}
+
+function renderSubBillList(agent, txs, seqMap, expSeqMap) {
+  if (txs.length === 0) {
+    return `<div style="padding: 12px; text-align: center; font-size: 14px; opacity: 0.85;">${tt('noBills')}</div>`;
+  }
+  const dateGroups = {};
+  txs.forEach(t => { (dateGroups[t.date] = dateGroups[t.date] || []).push(t); });
+  const sortedDates = Object.keys(dateGroups).sort((a, b) => b.localeCompare(a));
+
+  const renderRow = (t) => {
+    const badgeHtml = (() => {
+      if (!t.unpaid) return `<span class="paid-badge"><i class="ti ti-circle-check"></i> ${tt('all_settled')}</span>`;
+      const klass = t.type === 'income' ? 'unpaid-badge' : 'we-owe-badge';
+      return `<span class="${klass}"><i class="ti ti-clock-dollar"></i> ${fmtShort(subBillRemaining(t))} ₭</span>`;
+    })();
+    if (t.type === 'income') {
+      const pct = subPctForTx(t);
+      return `<div class="bill-row income-row">
+        <div class="bill-type-indicator income"><i class="ti ti-arrow-down"></i></div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+            ${t.desc ? escapeHtml(t.desc) : tt('new_bill_seq') + seqMap[t.id]}
+            <span class="bill-pct-badge ${typeof t.percent === 'number' && t.percent !== agent.percent ? 'custom' : ''}">${pct}%</span>
+            ${badgeHtml}
+          </div>
+        </div>
+        <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #d0ffe0;">+${fmtShort(t.amount)} ₭</div>
+        <button class="bill-del" data-sub-edit-bill="${t.id}" aria-label="edit" style="background: rgba(255,255,255,0.18);"><i class="ti ti-edit"></i></button>
+        <button class="bill-del" data-sub-del-bill="${t.id}" aria-label="delete"><i class="ti ti-x"></i></button>
+      </div>`;
+    } else {
+      const kbAmount = t.kickback ? t.amount * (t.kickback / 100) : 0;
+      return `<div class="bill-row expense-row">
+        <div class="bill-type-indicator expense"><i class="ti ti-arrow-up"></i></div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+            ${t.desc ? escapeHtml(t.desc) : tt('expense_purchase') + ' #' + (expSeqMap ? expSeqMap[t.id] : '')}
+            ${t.kickback ? `<span class="bill-pct-badge kickback-pct">${t.kickback}% ${tt('sum_kb_label')}</span>` : ''}
+            ${badgeHtml}
+          </div>
+          ${t.kickback ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 2px;"><i class="ti ti-receipt-refund"></i> ${tt('kb_from_him')}: +${fmtShort(kbAmount)} ₭</div>` : ''}
+        </div>
+        <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #ffd0a8;">-${fmtShort(t.amount)} ₭</div>
+        <button class="bill-del" data-sub-edit-bill="${t.id}" aria-label="edit" style="background: rgba(255,255,255,0.18);"><i class="ti ti-edit"></i></button>
+        <button class="bill-del" data-sub-del-bill="${t.id}" aria-label="delete"><i class="ti ti-x"></i></button>
+      </div>`;
+    }
+  };
+
+  return sortedDates.map(date => {
+    const dtxs = dateGroups[date];
+    const incomeTxs = dtxs.filter(t => t.type === 'income');
+    const expenseTxs = dtxs.filter(t => t.type === 'expense');
+    const incomeTotal = incomeTxs.reduce((s, t) => s + t.amount, 0);
+    const comm = incomeTxs.reduce((s, t) => s + t.amount * (subPctForTx(t) / 100), 0);
+    const expenseTotal = expenseTxs.reduce((s, t) => s + t.amount, 0);
+    const kb = expenseTxs.reduce((s, t) => s + (t.kickback ? t.amount * (t.kickback / 100) : 0), 0);
+    const dayNet = (incomeTotal - comm) - (expenseTotal - kb);
+    return `<div class="bill-day-group">
+      <div class="bill-day-header">
+        <div class="bill-day-date"><i class="ti ti-calendar"></i> ${formatThaiDate(date)}</div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div class="bill-day-count">${dtxs.length} ${tt('bill_count_label')}</div>
+          <button class="bill-day-toggle" data-sub-toggle-day="${date}" aria-label="toggle"><i class="ti ti-chevron-down"></i></button>
+        </div>
+      </div>
+      <div class="bill-day-summary">
+        ${incomeTxs.length > 0 ? `<div class="bill-day-cell"><div class="bill-day-cell-label">${tt('sum_inc_label')}</div><div class="bill-day-cell-value" style="color: #d0ffe0;">+${fmtShort(incomeTotal)} ₭</div></div>` : ''}
+        ${expenseTxs.length > 0 ? `<div class="bill-day-cell"><div class="bill-day-cell-label">${tt('sum_exp_label')}</div><div class="bill-day-cell-value" style="color: #ffd0a8;">-${fmtShort(expenseTotal)} ₭</div></div>` : ''}
+        <div class="bill-day-cell"><div class="bill-day-cell-label">${tt('sum_net')}</div><div class="bill-day-cell-value" style="color: ${dayNet >= 0 ? '#d0ffe0' : '#ffd0d0'}; font-weight: 700;">${dayNet >= 0 ? '+' : ''}${fmtShort(dayNet)} ₭</div></div>
+      </div>
+      <div class="bill-day-rows" data-sub-day-rows="${date}" style="display: none;">
+        ${dtxs.map(renderRow).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function wireSubAgentActions(el) {
+  // Percent change
+  el.querySelectorAll('[data-sub-percent-id]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const sa = getSubAgent(inp.dataset.subPercentId);
+      if (sa) {
+        sa.percent = Math.max(0, Math.min(100, parseFloat(inp.value) || 0));
+        saveSubAgents();
+        renderSubAgents();
+        showToast(tt('percent_updated'), 'success');
+      }
+    });
+  });
+  // Toggle add-bill form
+  el.querySelectorAll('[data-sub-add-bill]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.subAddBill;
+      const form = document.getElementById('sub-quick-bill-' + id);
+      if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+  });
+  el.querySelectorAll('[data-sub-cancel-bill]').forEach(b => {
+    b.addEventListener('click', () => {
+      const form = document.getElementById('sub-quick-bill-' + b.dataset.subCancelBill);
+      if (form) form.style.display = 'none';
+    });
+  });
+  // Type toggle inside add-bill form
+  el.querySelectorAll('[data-sub-type-btn]').forEach(b => {
+    b.addEventListener('click', () => {
+      const sa = b.dataset.sa;
+      const type = b.dataset.subTypeBtn;
+      const row = el.querySelector(`[data-sub-bill-agent="${sa}"]`);
+      if (!row) return;
+      row.querySelectorAll('[data-sub-type-btn]').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      row.dataset.curType = type;
+      const pctWrap = row.querySelector('[data-sub-pct-wrap]');
+      const kbWrap = row.querySelector('[data-sub-kb-wrap]');
+      if (pctWrap) pctWrap.style.display = type === 'income' ? 'block' : 'none';
+      if (kbWrap) kbWrap.style.display = type === 'expense' ? 'block' : 'none';
+    });
+  });
+  // Attach amount formatting
+  el.querySelectorAll('[data-sub-amount]').forEach(inp => attachAmountFormatter(inp));
+  // Save bill
+  el.querySelectorAll('[data-sub-save-bill]').forEach(b => {
+    b.addEventListener('click', () => {
+      const saId = b.dataset.subSaveBill;
+      const row = el.querySelector(`[data-sub-bill-agent="${saId}"]`);
+      if (!row) return;
+      const type = row.dataset.curType || 'income';
+      const date = row.querySelector('[data-sub-date]').value || todayStr();
+      const desc = row.querySelector('[data-sub-desc]').value.trim();
+      const amount = parseAmount(row.querySelector('[data-sub-amount]').value);
+      const unpaid = row.querySelector('[data-sub-unpaid]').checked;
+      if (!amount || amount <= 0 || isNaN(amount)) { showToast(tt('fill_amount'), 'error'); return; }
+      const tx = { id: uid(), subAgentId: saId, type, date, desc, amount, unpaid };
+      if (type === 'income') {
+        const pctRaw = row.querySelector('[data-sub-pct]').value.trim();
+        if (pctRaw !== '') {
+          const pv = parseFloat(pctRaw);
+          const sa = getSubAgent(saId);
+          if (!isNaN(pv) && pv >= 0 && pv <= 100 && (!sa || pv !== sa.percent)) tx.percent = pv;
+        }
+      } else {
+        const kbRaw = row.querySelector('[data-sub-kb]').value;
+        const kb = parseFloat(kbRaw);
+        if (!isNaN(kb) && kb > 0 && kb <= 100) tx.kickback = kb;
+      }
+      subTransactions.push(tx);
+      saveSubTx();
+      renderSubAgents();
+      showToast(tt('record_added') || tt('agent_added'), 'success');
+    });
+  });
+  // Toggle bills list
+  el.querySelectorAll('[data-sub-toggle-bills]').forEach(b => {
+    b.addEventListener('click', () => {
+      const list = document.getElementById('sub-bill-list-' + b.dataset.subToggleBills);
+      if (list) list.style.display = list.style.display === 'none' ? 'block' : 'none';
+    });
+  });
+  // Toggle day rows
+  el.querySelectorAll('[data-sub-toggle-day]').forEach(b => {
+    b.addEventListener('click', () => {
+      const rows = b.closest('.bill-day-group').querySelector('[data-sub-day-rows]');
+      const icon = b.querySelector('i');
+      if (rows) {
+        const show = rows.style.display === 'none';
+        rows.style.display = show ? 'block' : 'none';
+        if (icon) icon.className = show ? 'ti ti-chevron-up' : 'ti ti-chevron-down';
+      }
+    });
+  });
+  // Edit bill
+  el.querySelectorAll('[data-sub-edit-bill]').forEach(b => {
+    b.addEventListener('click', () => openSubEditBillModal(b.dataset.subEditBill));
+  });
+  // Delete bill
+  el.querySelectorAll('[data-sub-del-bill]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.subDelBill;
+      showConfirm(tt('delete_record_q') || 'ลบรายการ?', '', () => {
+        subTransactions = subTransactions.filter(t => t.id !== id);
+        saveSubTx();
+        renderSubAgents();
+        showToast(tt('deleted'), 'success');
+      });
+    });
+  });
+  // Edit sub-agent
+  el.querySelectorAll('[data-edit-sa]').forEach(b => {
+    b.addEventListener('click', () => openEditSubAgentModal(b.dataset.editSa));
+  });
+  // Delete sub-agent
+  el.querySelectorAll('[data-del-sa]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.delSa;
+      const sa = getSubAgent(id);
+      if (!sa) return;
+      const linked = subTransactions.filter(t => t.subAgentId === id).length;
+      const txt = linked > 0 ? `${linked} ${tt('records_unit')} ${tt('has_linked')}` : tt('no_linked');
+      showConfirm(`${tt('del_subagent_confirm')} "${sa.name}"`, txt, () => {
+        subAgents = subAgents.filter(a => a.id !== id);
+        subTransactions = subTransactions.filter(t => t.subAgentId !== id);
+        saveSubAgents();
+        saveSubTx();
+        renderSubAgents();
+        showToast(tt('subagent_deleted'), 'success');
+      });
+    });
+  });
+}
+
+function openSubEditBillModal(txId) {
+  const tx = subTransactions.find(t => t.id === txId);
+  if (!tx) return;
+  _subEditTxId = txId;
+  document.getElementById('sub-edit-tx-date').value = tx.date;
+  document.getElementById('sub-edit-tx-desc').value = tx.desc || '';
+  document.getElementById('sub-edit-tx-amount').value = fmt(tx.amount);
+  document.getElementById('sub-edit-tx-unpaid').checked = !!tx.unpaid;
+  setSubEditType(tx.type);
+  const pctInp = document.getElementById('sub-edit-tx-percent');
+  pctInp.value = typeof tx.percent === 'number' ? tx.percent : '';
+  const sa = getSubAgent(tx.subAgentId);
+  if (sa) pctInp.placeholder = String(sa.percent);
+  document.getElementById('sub-edit-tx-kickback').value = tx.kickback || '';
+  document.getElementById('sub-edit-tx-modal').classList.add('show');
+}
+function setSubEditType(type) {
+  document.getElementById('sub-edit-tx-type').value = type;
+  const inc = document.getElementById('sub-edit-type-income-btn');
+  const exp = document.getElementById('sub-edit-type-expense-btn');
+  if (type === 'income') { inc.className = 'type-pill active-income'; exp.className = 'type-pill inactive'; }
+  else { exp.className = 'type-pill active-expense'; inc.className = 'type-pill inactive'; }
+  document.getElementById('sub-edit-income-pct-section').style.display = type === 'income' ? 'block' : 'none';
+  document.getElementById('sub-edit-expense-kickback-section').style.display = type === 'expense' ? 'block' : 'none';
+}
+function closeSubEditBillModal() {
+  document.getElementById('sub-edit-tx-modal').classList.remove('show');
+  _subEditTxId = null;
+}
+
+function openEditSubAgentModal(id) {
+  const sa = getSubAgent(id);
+  if (!sa) return;
+  _subEditAgentId = id;
+  document.getElementById('sub-edit-agent-name').value = sa.name;
+  document.getElementById('sub-edit-agent-percent').value = sa.percent;
+  document.getElementById('sub-edit-agent-modal').classList.add('show');
+}
+function closeEditSubAgentModal() {
+  document.getElementById('sub-edit-agent-modal').classList.remove('show');
+  _subEditAgentId = null;
+}
 
 function getAgentPercentForTx(tx) {
   // Use per-bill override if defined, else fall back to agent's default
@@ -6473,6 +7021,7 @@ function renderAll() {
   renderDashboard();
   renderTransactions();
   renderAgents();
+  renderSubAgents();
   renderReport();
 }
 
@@ -7342,6 +7891,74 @@ document.getElementById('add-agent-btn').addEventListener('click', () => {
   });
 });
 
+// ===== Sub-agent add / edit handlers =====
+document.getElementById('add-subagent-btn').addEventListener('click', () => {
+  const name = document.getElementById('subagent-name').value.trim();
+  const percent = parseFloat(document.getElementById('subagent-percent').value);
+  if (!name) { showToast(tt('fill_agent_name'), 'error'); return; }
+  if (isNaN(percent) || percent < 0 || percent > 100) { showToast(tt('percent_range'), 'error'); return; }
+  subAgents.push({ id: uid(), name, percent });
+  saveSubAgents();
+  document.getElementById('subagent-name').value = '';
+  document.getElementById('subagent-percent').value = '';
+  renderSubAgents();
+  showToast(tt('subagent_added'), 'success');
+});
+
+// Sub-agent edit modal save
+document.getElementById('sub-save-edit-agent-btn').addEventListener('click', () => {
+  const sa = getSubAgent(_subEditAgentId);
+  if (!sa) return;
+  const name = document.getElementById('sub-edit-agent-name').value.trim();
+  const percent = parseFloat(document.getElementById('sub-edit-agent-percent').value);
+  if (!name) { showToast(tt('fill_agent_name'), 'error'); return; }
+  if (isNaN(percent) || percent < 0 || percent > 100) { showToast(tt('percent_range'), 'error'); return; }
+  sa.name = name; sa.percent = percent;
+  saveSubAgents();
+  closeEditSubAgentModal();
+  renderSubAgents();
+  showToast(tt('subagent_updated'), 'success');
+});
+document.querySelectorAll('[data-close-sub-edit-agent]').forEach(b => b.addEventListener('click', closeEditSubAgentModal));
+document.getElementById('sub-edit-agent-modal').addEventListener('click', (e) => { if (e.target.id === 'sub-edit-agent-modal') closeEditSubAgentModal(); });
+
+// Sub-agent bill edit modal
+document.getElementById('sub-edit-type-income-btn').addEventListener('click', () => setSubEditType('income'));
+document.getElementById('sub-edit-type-expense-btn').addEventListener('click', () => setSubEditType('expense'));
+attachAmountFormatter(document.getElementById('sub-edit-tx-amount'));
+document.querySelectorAll('[data-close-sub-edit-tx]').forEach(b => b.addEventListener('click', closeSubEditBillModal));
+document.getElementById('sub-edit-tx-modal').addEventListener('click', (e) => { if (e.target.id === 'sub-edit-tx-modal') closeSubEditBillModal(); });
+document.getElementById('sub-save-edit-tx-btn').addEventListener('click', () => {
+  const tx = subTransactions.find(t => t.id === _subEditTxId);
+  if (!tx) return;
+  const type = document.getElementById('sub-edit-tx-type').value;
+  const date = document.getElementById('sub-edit-tx-date').value || todayStr();
+  const desc = document.getElementById('sub-edit-tx-desc').value.trim();
+  const amount = parseAmount(document.getElementById('sub-edit-tx-amount').value);
+  const unpaid = document.getElementById('sub-edit-tx-unpaid').checked;
+  if (!amount || amount <= 0 || isNaN(amount)) { showToast(tt('fill_amount'), 'error'); return; }
+  tx.type = type; tx.date = date; tx.desc = desc; tx.amount = amount; tx.unpaid = unpaid;
+  if (type === 'income') {
+    delete tx.kickback;
+    const pctRaw = document.getElementById('sub-edit-tx-percent').value.trim();
+    const sa = getSubAgent(tx.subAgentId);
+    if (pctRaw !== '') {
+      const pv = parseFloat(pctRaw);
+      if (!isNaN(pv) && pv >= 0 && pv <= 100 && (!sa || pv !== sa.percent)) tx.percent = pv;
+      else delete tx.percent;
+    } else delete tx.percent;
+  } else {
+    delete tx.percent;
+    const kb = parseFloat(document.getElementById('sub-edit-tx-kickback').value);
+    if (!isNaN(kb) && kb > 0 && kb <= 100) tx.kickback = kb;
+    else delete tx.kickback;
+  }
+  saveSubTx();
+  closeSubEditBillModal();
+  renderSubAgents();
+  showToast(tt('record_edited'), 'success');
+});
+
 document.getElementById('filter-type').addEventListener('change', renderTransactions);
 document.getElementById('search-input').addEventListener('input', renderTransactions);
 
@@ -7850,8 +8467,12 @@ async function handleLogout() {
     currentUser = null;
     transactions = [];
     agents = [];
+    subAgents = [];
+    subTransactions = [];
     localStorage.removeItem(STORE_KEYS.tx);
     localStorage.removeItem(STORE_KEYS.agents);
+    localStorage.removeItem(STORE_KEYS.subAgents);
+    localStorage.removeItem(STORE_KEYS.subTx);
     try {
       const tokenKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
       localStorage.removeItem(tokenKey);
@@ -7976,15 +8597,25 @@ function updateAdminUiVisibility() {
   // Non-admin users: hide "รายการ" (transactions) tab — they add bills directly from agent card
   const isNonAdminCtx = currentUser && currentUser.role !== 'admin' && !viewingAsUser;
   const txTabBtn = document.getElementById('tab-btn-transactions');
+  const subTabBtn = document.getElementById('tab-btn-subagents');
   const tabBar = document.getElementById('tab-bar');
   const fab = document.getElementById('fab');
   if (txTabBtn) txTabBtn.style.display = isNonAdminCtx ? 'none' : '';
-  if (tabBar) tabBar.style.gridTemplateColumns = isNonAdminCtx ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)';
+  // Sub-agents tab: only for logged-in non-admin users (their personal tool)
+  if (subTabBtn) subTabBtn.style.display = isNonAdminCtx ? '' : 'none';
+  if (tabBar) tabBar.style.gridTemplateColumns = isNonAdminCtx ? 'repeat(4, 1fr)' : 'repeat(4, 1fr)';
   if (fab) fab.style.display = isNonAdminCtx ? 'none' : '';
   // If current tab is transactions and user is non-admin → switch to dashboard
   if (isNonAdminCtx) {
     const activeTab = document.querySelector('.tab-btn.active');
     if (activeTab && activeTab.dataset.tab === 'transactions') {
+      const dashBtn = document.querySelector('[data-tab="dashboard"]');
+      if (dashBtn) dashBtn.click();
+    }
+  } else {
+    // Admin/pre-login: if currently on subagents tab, switch away
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab && activeTab.dataset.tab === 'subagents') {
       const dashBtn = document.querySelector('[data-tab="dashboard"]');
       if (dashBtn) dashBtn.click();
     }
@@ -8344,6 +8975,8 @@ async function enterViewAsUser(userId, username) {
     const userData = userRow.data || {};
     transactions = Array.isArray(userData.transactions) ? userData.transactions : [];
     agents = Array.isArray(userData.agents) ? userData.agents : [];
+    subAgents = Array.isArray(userData.subAgents) ? userData.subAgents : [];
+    subTransactions = Array.isArray(userData.subTransactions) ? userData.subTransactions : [];
     // Don't persist to localStorage — keep admin's own cache intact
     updateViewAsBanner();
     renderAll();
@@ -8364,6 +8997,12 @@ function exitViewAsUser() {
   try {
     agents = JSON.parse(localStorage.getItem(STORE_KEYS.agents) || '[]');
   } catch (e) { agents = []; }
+  try {
+    subAgents = JSON.parse(localStorage.getItem(STORE_KEYS.subAgents) || '[]');
+  } catch (e) { subAgents = []; }
+  try {
+    subTransactions = JSON.parse(localStorage.getItem(STORE_KEYS.subTx) || '[]');
+  } catch (e) { subTransactions = []; }
   updateViewAsBanner();
   renderAll();
   // Re-sync from cloud in background
