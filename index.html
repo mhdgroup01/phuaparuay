@@ -1783,7 +1783,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.37';
+const APP_VERSION = '1.99.38';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -5730,7 +5730,7 @@ function renderAgents() {
       if (e.key === 'Enter') {
         e.preventDefault();
         // If calc mode + has operators → evaluate first, stay on field
-        if (amtInp.dataset.calcMode === '1' && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
+        if (amtInp.dataset.calcMode === '1' && !amtInp.value.includes('=') && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
           resolveCalcAmount(amtInp);
           recalcBillSum(agentId);
           return;
@@ -5749,7 +5749,7 @@ function renderAgents() {
     if (form) {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (amtInp.dataset.calcMode === '1' && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
+        if (amtInp.dataset.calcMode === '1' && !amtInp.value.includes('=') && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
           resolveCalcAmount(amtInp);
           recalcBillSum(agentId);
           return false;
@@ -5767,7 +5767,7 @@ function renderAgents() {
     const nextBtn = newRow.querySelector('[data-row-next]');
     if (nextBtn) {
       nextBtn.addEventListener('click', () => {
-        if (amtInp.dataset.calcMode === '1' && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
+        if (amtInp.dataset.calcMode === '1' && !amtInp.value.includes('=') && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
           resolveCalcAmount(amtInp);
           recalcBillSum(agentId);
           amtInp.focus();
@@ -6887,7 +6887,7 @@ function wireSubAgentActions(el) {
     amtInp.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (amtInp.dataset.calcMode === '1' && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
+        if (amtInp.dataset.calcMode === '1' && !amtInp.value.includes('=') && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
           resolveCalcAmount(amtInp);
           recalcSubBillSum(saId);
           return;
@@ -6901,7 +6901,7 @@ function wireSubAgentActions(el) {
     if (form) {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (amtInp.dataset.calcMode === '1' && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
+        if (amtInp.dataset.calcMode === '1' && !amtInp.value.includes('=') && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
           resolveCalcAmount(amtInp);
           recalcSubBillSum(saId);
           return false;
@@ -6915,7 +6915,7 @@ function wireSubAgentActions(el) {
     const nextBtn = newRow.querySelector('[data-sub-row-next]');
     if (nextBtn) {
       nextBtn.addEventListener('click', () => {
-        if (amtInp.dataset.calcMode === '1' && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
+        if (amtInp.dataset.calcMode === '1' && !amtInp.value.includes('=') && /[+\-]/.test(amtInp.value.replace(/^-/, ''))) {
           resolveCalcAmount(amtInp);
           recalcSubBillSum(saId);
           amtInp.focus();
