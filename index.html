@@ -515,6 +515,28 @@ h1, h2, h3, .display {
 .empty-state i { font-size: 50px; opacity: 0.4; display: block; margin-bottom: 12px; color: var(--primary-2); }
 
 .agent-card { border-radius: 20px; padding: 16px; margin-bottom: 12px; position: relative; overflow: hidden; color: white; box-shadow: var(--shadow); transition: transform 0.2s; }
+
+/* ===== Fullscreen agent card overlay ===== */
+.agent-card.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  margin: 0;
+  border-radius: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  animation: fullscreenIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes fullscreenIn {
+  from { opacity: 0.5; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+/* When fullscreen: limit inner content width on big screens so it doesn't sprawl */
+.agent-card.fullscreen > * { max-width: 720px; margin-left: auto; margin-right: auto; }
+.agent-card.fullscreen > div:first-child { position: sticky; top: 0; z-index: 5; background: inherit; padding: 8px 0; margin: -8px auto 14px; backdrop-filter: blur(8px); }
+/* Hide the per-page-scrollbar gradient bleed on fullscreen */
+body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .agent-group-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; margin: 14px 0 8px; background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 11px; font-weight: 600; font-size: 14px; color: var(--text); font-family: var(--font-display); }
 .agent-group-header:first-child { margin-top: 0; }
 .agent-group-header i { color: var(--pink); font-size: 17px; margin-right: 4px; }
@@ -1756,7 +1778,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.34';
+const APP_VERSION = '1.99.35';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1825,6 +1847,7 @@ const T = {
     fill_group_name: 'ກະລຸນາຕັ້ງຊື່ກຸ່ມ', group_name_dup: 'ຊື່ກຸ່ມນີ້ມີຢູ່ແລ້ວ',
     delete_group_q: 'ລຶບກຸ່ມ', delete_group_with_members: 'ກຸ່ມນີ້ມີ {n} ຕົວແທນ — ຕົວແທນຈະຍ້າຍໄປຢູ່ "ບໍ່ມີກຸ່ມ"',
     no_agents_in_group: 'ບໍ່ມີຕົວແທນໃນກຸ່ມນີ້',
+    expand_card: 'ຂະຫຍາຍເຕັມຈໍ', collapse_card: 'ຫຍໍ້ກັບ',
     close: 'ປິດ', delete: 'ລຶບ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
@@ -2194,6 +2217,7 @@ const T = {
     fill_group_name: 'กรุณาตั้งชื่อกลุ่ม', group_name_dup: 'ชื่อกลุ่มนี้มีอยู่แล้ว',
     delete_group_q: 'ลบกลุ่ม', delete_group_with_members: 'กลุ่มนี้มี {n} ตัวแทน — ตัวแทนจะย้ายไปอยู่ "ไม่มีกลุ่ม"',
     no_agents_in_group: 'ไม่มีตัวแทนในกลุ่มนี้',
+    expand_card: 'ขยายเต็มจอ', collapse_card: 'ย่อกลับ',
     close: 'ปิด', delete: 'ลบ',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
@@ -2608,6 +2632,7 @@ let transactions = [];
 let agents = [];
 let agentGroups = [];
 let groupFilter = 'ALL';  // 'ALL' | groupId | '__NONE__' (ungrouped)
+let _fullscreenAgentId = null;  // when set, that agent card is rendered fullscreen
 let subAgents = [];
 let subTransactions = [];
 let chart = null;
@@ -5244,6 +5269,7 @@ function renderAgents() {
           <div style="font-size: 13px; opacity: 0.9;"><i class="ti ti-receipt"></i> ${agentTxs.length + expenseTxsAsc.length} ${tt('bill_count_label')} · ${tt('agent_total')} ${fmtShort(agentTotal)} ₭</div>
         </div>
         <div style="display: flex; gap: 4px;">
+          <button data-fullscreen-ag="${a.id}" class="icon-btn" aria-label="fullscreen" title="${tt('expand_card') || 'ขยายเต็มจอ'}"><i class="ti ti-arrows-maximize"></i></button>
           ${(status === 'draft' || status === 'rejected' || isAdmin) ? `<button data-edit-ag="${a.id}" class="icon-btn" aria-label="edit"><i class="ti ti-edit"></i></button>` : ''}
           ${(status !== 'pending' && status !== 'approved') || isAdmin ? `<button data-del-ag="${a.id}" class="icon-btn" aria-label="delete"><i class="ti ti-trash"></i></button>` : ''}
         </div>
@@ -6082,7 +6108,65 @@ function renderAgents() {
       renderAgents();
     });
   });
+
+  // Fullscreen toggle
+  el.querySelectorAll('[data-fullscreen-ag]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.fullscreenAg;
+      setAgentFullscreen(id, _fullscreenAgentId !== id);
+    });
+  });
+
+  // Re-apply fullscreen state after DOM was rebuilt (e.g., bill saved → renderAll)
+  applyFullscreenState();
 }
+
+// ============================================================
+// AGENT FULLSCREEN — toggle a card to fullscreen overlay mode for easier bill entry/view
+// ============================================================
+function setAgentFullscreen(agentId, on) {
+  if (on) {
+    _fullscreenAgentId = agentId;
+    document.body.style.overflow = 'hidden';
+  } else {
+    _fullscreenAgentId = null;
+    document.body.style.overflow = '';
+  }
+  applyFullscreenState();
+}
+
+function applyFullscreenState() {
+  // Remove fullscreen from any cards no longer matching
+  document.querySelectorAll('.agent-card.fullscreen').forEach(c => {
+    const btn = c.querySelector('[data-fullscreen-ag]');
+    const id = btn ? btn.dataset.fullscreenAg : null;
+    if (id !== _fullscreenAgentId) {
+      c.classList.remove('fullscreen');
+      const ic = btn ? btn.querySelector('i') : null;
+      if (ic) ic.className = 'ti ti-arrows-maximize';
+    }
+  });
+  if (_fullscreenAgentId) {
+    const btn = document.querySelector(`[data-fullscreen-ag="${_fullscreenAgentId}"]`);
+    const card = btn ? btn.closest('.agent-card') : null;
+    if (card) {
+      card.classList.add('fullscreen');
+      const ic = btn.querySelector('i');
+      if (ic) ic.className = 'ti ti-arrows-minimize';
+    } else {
+      // Card no longer in DOM (deleted or filtered out) — clear state
+      _fullscreenAgentId = null;
+      document.body.style.overflow = '';
+    }
+  }
+}
+
+// ESC key closes fullscreen
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && _fullscreenAgentId) {
+    setAgentFullscreen(null, false);
+  }
+});
 
 // ============================================================
 // AGENT GROUPS — create / rename / delete groups, assign agents
