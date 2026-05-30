@@ -769,6 +769,11 @@ h1, h2, h3, .display {
 .payment-history-num { width: 24px; height: 24px; border-radius: 7px; background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); flex-shrink: 0; }
 .expense-special-section { background: rgba(217, 168, 168, 0.10); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; padding: 10px; }
 .expense-special-row { animation: slideDown 0.18s ease-out; }
+.exp-date-lock { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; opacity: 0.85; cursor: pointer; padding: 3px 8px; border-radius: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18); transition: all 0.2s; flex-shrink: 0; user-select: none; }
+.exp-date-lock:hover { background: rgba(255,255,255,0.2); opacity: 1; }
+.exp-date-lock input[type="checkbox"] { width: 13px; height: 13px; margin: 0; accent-color: white; }
+.exp-date-lock i { font-size: 13px; }
+.expense-special-row input[type="date"]:disabled { opacity: 0.6; cursor: not-allowed; background: rgba(255,255,255,0.05); }
 .row-num { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.95); color: #1e1b4b; font-weight: 700; font-size: 16px; font-family: var(--font-display); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .row-del-btn { background: rgba(255,255,255,0.22); border: none; color: white; width: 34px; height: 34px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; transition: all 0.15s; }
 .row-del-btn:hover { background: rgba(239, 68, 68, 0.55); }
@@ -1625,7 +1630,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.26';
+const APP_VERSION = '1.99.27';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1683,6 +1688,7 @@ const T = {
     noSubAgents: 'ຍັງບໍ່ມີຕົວແທນຍ່ອຍ', add_first_subagent: 'ເພີ່ມຕົວແທນຍ່ອຍຄົນທຳອິດ', subagent_added: 'ເພີ່ມຕົວແທນຍ່ອຍແລ້ວ', subagent_updated: 'ແກ້ໄຂຕົວແທນຍ່ອຍແລ້ວ', subagent_deleted: 'ລຶບຕົວແທນຍ່ອຍແລ້ວ',
     edit_subagent: 'ແກ້ໄຂຕົວແທນຍ່ອຍ', del_subagent_confirm: 'ລຶບຕົວແທນຍ່ອຍ ແລະ ບິນທັງໝົດ?',
     record_added: 'ເພີ່ມລາຍການແລ້ວ', delete_record_q: 'ລຶບລາຍການ?',
+    follow_income: 'ຕາມລາຍຮັບ', lock_to_income_date: 'ໃຊ້ວັນທີດຽວກັບລາຍຮັບ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
     timeRange: 'ຊ່ວງເວລາ', all: 'ທັງໝົດ', today: 'ມື້ນີ້', yesterday: 'ມື້ວານ', last7days: '7 ມື້', thisMonth: 'ເດືອນນີ້', lastMonth: 'ເດືອນກ່ອນ', thisYear: 'ປີນີ້', custom: 'ເລືອກເອງ',
@@ -2040,6 +2046,7 @@ const T = {
     noSubAgents: 'ยังไม่มีตัวแทนย่อย', add_first_subagent: 'เพิ่มตัวแทนย่อยคนแรก', subagent_added: 'เพิ่มตัวแทนย่อยแล้ว', subagent_updated: 'แก้ไขตัวแทนย่อยแล้ว', subagent_deleted: 'ลบตัวแทนย่อยแล้ว',
     edit_subagent: 'แก้ไขตัวแทนย่อย', del_subagent_confirm: 'ลบตัวแทนย่อย และบิลทั้งหมด?',
     record_added: 'เพิ่มรายการแล้ว', delete_record_q: 'ลบรายการ?',
+    follow_income: 'ตามรายรับ', lock_to_income_date: 'ใช้วันที่เดียวกับรายรับ',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
     timeRange: 'ช่วงเวลา', all: 'ทั้งหมด', today: 'วันนี้', yesterday: 'เมื่อวาน', last7days: '7 วัน', thisMonth: 'เดือนนี้', lastMonth: 'เดือนก่อน', thisYear: 'ปีนี้', custom: 'เลือกเอง',
@@ -2950,6 +2957,34 @@ function computeCommission(tx) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+}
+
+// Lock-follow helper for the special expense date in the quick-bill form.
+// When the lock checkbox is checked, the expense date mirrors the first income row's date.
+// Used by both main agent and sub-agent forms.
+function syncExpDateFollow(agentId, isSub) {
+  const rowsAttr = isSub ? 'data-sub-bill-rows' : 'data-bill-rows';
+  const rowDateAttr = isSub ? 'data-sub-row-date' : 'data-row-date';
+  const expAttr = isSub ? 'data-sub-expense-agent' : 'data-expense-agent';
+  const expDateAttr = isSub ? 'data-sub-exp-date' : 'data-exp-date';
+  const lockAttr = isSub ? 'data-sub-exp-date-lock' : 'data-exp-date-lock';
+
+  const rowsContainer = document.querySelector(`[${rowsAttr}="${agentId}"]`);
+  const expRow = document.querySelector(`[${expAttr}="${agentId}"]`);
+  if (!rowsContainer || !expRow) return;
+  const lockInp = expRow.querySelector(`[${lockAttr}]`);
+  const expDateInp = expRow.querySelector(`[${expDateAttr}]`);
+  if (!expDateInp) return;
+
+  if (lockInp && lockInp.checked) {
+    const firstRow = rowsContainer.firstElementChild;
+    const firstDateInp = firstRow ? firstRow.querySelector(`[${rowDateAttr}]`) : null;
+    const firstDate = firstDateInp ? firstDateInp.value : '';
+    if (firstDate) expDateInp.value = firstDate;
+    expDateInp.disabled = true;
+  } else {
+    expDateInp.disabled = false;
+  }
 }
 
 function agentGradient(name) {
@@ -4821,8 +4856,15 @@ function renderAgents() {
           <div style="font-size: 13px; opacity: 0.9; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;"><i class="ti ti-arrow-up-circle"></i> ${tt('specialExpense')}</div>
           <div class="expense-special-row bill-input-row" data-expense-agent="${a.id}">
             <div class="bill-row-field">
-              <label class="bill-row-label"><i class="ti ti-calendar"></i> ${tt('fromDate') || 'วันที่'}</label>
-              <input type="date" class="quick-field" data-exp-date value="${todayStr()}">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+                <span class="bill-row-label" style="margin: 0;"><i class="ti ti-calendar"></i> ${tt('fromDate') || 'วันที่'}</span>
+                <label class="exp-date-lock" title="${tt('lock_to_income_date') || 'ตามวันที่ของรายรับ'}">
+                  <input type="checkbox" data-exp-date-lock checked>
+                  <i class="ti ti-link"></i>
+                  <span>${tt('follow_income') || 'ตามรายรับ'}</span>
+                </label>
+              </div>
+              <input type="date" class="quick-field" data-exp-date value="${todayStr()}" disabled>
             </div>
             <div class="bill-row-field">
               <label class="bill-row-label"><i class="ti ti-note"></i> ${tt('description') || 'คำอธิบาย'}</label>
@@ -5203,7 +5245,10 @@ function renderAgents() {
         addBillRow(agentId);
       });
     }
-    newRow.querySelector('[data-row-date]').addEventListener('change', () => recalcBillSum(agentId));
+    newRow.querySelector('[data-row-date]').addEventListener('change', () => {
+      syncExpDateFollow(agentId, false);
+      recalcBillSum(agentId);
+    });
     const unpaidInp = newRow.querySelector('[data-row-unpaid]');
     if (unpaidInp) unpaidInp.addEventListener('change', () => recalcBillSum(agentId));
     const pctInp = newRow.querySelector('[data-row-pct]');
@@ -5226,6 +5271,7 @@ function renderAgents() {
         newRow.remove();
         renumberBillRows(agentId);
       }
+      syncExpDateFollow(agentId, false);
       recalcBillSum(agentId);
     });
     setTimeout(() => amtInp.focus(), 30);
@@ -5248,11 +5294,13 @@ function renderAgents() {
           const expKb = expRow.querySelector('[data-exp-kickback]');
           const expDate = expRow.querySelector('[data-exp-date]');
           const expUnpaid = expRow.querySelector('[data-exp-unpaid]');
+          const expLock = expRow.querySelector('[data-exp-date-lock]');
           const previewEl = expRow.querySelector('[data-exp-preview]');
           expAmt.value = '';
           expKb.value = '';
           expDate.value = todayStr();
           if (expUnpaid) expUnpaid.checked = true;
+          if (expLock) expLock.checked = true;
           previewEl.style.display = 'none';
           attachAmountFormatter(expAmt);
           const updateExpPreview = () => {
@@ -5272,6 +5320,14 @@ function renderAgents() {
           expKb.addEventListener('input', updateExpPreview);
           expDate.addEventListener('change', () => recalcBillSum(id));
           if (expUnpaid) expUnpaid.addEventListener('change', () => recalcBillSum(id));
+          if (expLock) {
+            expLock.addEventListener('change', () => {
+              syncExpDateFollow(id, false);
+              recalcBillSum(id);
+            });
+          }
+          // Initial sync — default state is locked
+          syncExpDateFollow(id, false);
         }
         recalcBillSum(id);
       }
@@ -5609,8 +5665,15 @@ function renderSubAgents() {
           <div style="font-size: 13px; opacity: 0.9; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;"><i class="ti ti-arrow-up-circle"></i> ${tt('specialExpense')}</div>
           <div class="expense-special-row bill-input-row" data-sub-expense-agent="${a.id}">
             <div class="bill-row-field">
-              <label class="bill-row-label"><i class="ti ti-calendar"></i> ${tt('fromDate') || 'วันที่'}</label>
-              <input type="date" class="quick-field" data-sub-exp-date value="${todayStr()}">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+                <span class="bill-row-label" style="margin: 0;"><i class="ti ti-calendar"></i> ${tt('fromDate') || 'วันที่'}</span>
+                <label class="exp-date-lock" title="${tt('lock_to_income_date') || 'ตามวันที่ของรายรับ'}">
+                  <input type="checkbox" data-sub-exp-date-lock checked>
+                  <i class="ti ti-link"></i>
+                  <span>${tt('follow_income') || 'ตามรายรับ'}</span>
+                </label>
+              </div>
+              <input type="date" class="quick-field" data-sub-exp-date value="${todayStr()}" disabled>
             </div>
             <div class="bill-row-field">
               <label class="bill-row-label"><i class="ti ti-note"></i> ${tt('description') || 'คำอธิบาย'}</label>
@@ -6038,7 +6101,10 @@ function wireSubAgentActions(el) {
         addSubBillRow(saId);
       });
     }
-    newRow.querySelector('[data-sub-row-date]').addEventListener('change', () => recalcSubBillSum(saId));
+    newRow.querySelector('[data-sub-row-date]').addEventListener('change', () => {
+      syncExpDateFollow(saId, true);
+      recalcSubBillSum(saId);
+    });
     const unpaidInp = newRow.querySelector('[data-sub-row-unpaid]');
     if (unpaidInp) unpaidInp.addEventListener('change', () => recalcSubBillSum(saId));
     const pctInp = newRow.querySelector('[data-sub-row-pct]');
@@ -6057,6 +6123,7 @@ function wireSubAgentActions(el) {
         newRow.remove();
         renumberSubBillRows(saId);
       }
+      syncExpDateFollow(saId, true);
       recalcSubBillSum(saId);
     });
     setTimeout(() => amtInp.focus(), 30);
@@ -6094,9 +6161,11 @@ function wireSubAgentActions(el) {
           const expKb = expRow.querySelector('[data-sub-exp-kickback]');
           const expDate = expRow.querySelector('[data-sub-exp-date]');
           const expUnpaid = expRow.querySelector('[data-sub-exp-unpaid]');
+          const expLock = expRow.querySelector('[data-sub-exp-date-lock]');
           const previewEl = expRow.querySelector('[data-sub-exp-preview]');
           expAmt.value = ''; expKb.value = ''; expDate.value = todayStr();
           if (expUnpaid) expUnpaid.checked = true;
+          if (expLock) expLock.checked = true;
           previewEl.style.display = 'none';
           attachAmountFormatter(expAmt);
           const updateExpPreview = () => {
@@ -6116,6 +6185,14 @@ function wireSubAgentActions(el) {
           expKb.addEventListener('input', updateExpPreview);
           expDate.addEventListener('change', () => recalcSubBillSum(id));
           if (expUnpaid) expUnpaid.addEventListener('change', () => recalcSubBillSum(id));
+          if (expLock) {
+            expLock.addEventListener('change', () => {
+              syncExpDateFollow(id, true);
+              recalcSubBillSum(id);
+            });
+          }
+          // Initial sync — default state is locked
+          syncExpDateFollow(id, true);
         }
         recalcSubBillSum(id);
       }
