@@ -1630,7 +1630,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.27';
+const APP_VERSION = '1.99.28';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -8410,15 +8410,7 @@ document.getElementById('add-tx-btn').addEventListener('click', () => {
 });
 
 document.getElementById('add-agent-btn').addEventListener('click', () => {
-  // For non-admin users: limit 1 active agent (draft/pending/approved)
   const isAdmin = currentUser && currentUser.role === 'admin' && !viewingAsUser;
-  if (!isAdmin) {
-    const activeAgents = agents.filter(a => !a.status || a.status === 'draft' || a.status === 'pending' || a.status === 'approved');
-    if (activeAgents.length >= 1) {
-      showToast(tt('agent_limit_one'), 'error');
-      return;
-    }
-  }
   const name = document.getElementById('agent-name').value.trim();
   const percent = parseFloat(document.getElementById('agent-percent').value);
   if (!name) { showToast(tt('fill_agent_name'), 'error'); return; }
