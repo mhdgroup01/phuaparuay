@@ -839,6 +839,13 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .bill-row-inline .brf-k input:checked + .k-box { background: #fef3c7; border-color: #f59e0b; color: #d97706; }
 .bill-row-inline .brf-amount .k-suffix { display: none; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 6px; background: #fef3c7; color: #d97706; margin-left: 6px; flex-shrink: 0; font-family: var(--font-display); letter-spacing: -0.01em; }
 .bill-row-inline .brf-amount[data-k-mode="1"] .k-suffix { display: inline-flex; align-items: center; }
+/* Expense row K-checkbox layout */
+.exp-amount-row { display: flex; align-items: center; gap: 8px; }
+.exp-amount-row > input { flex: 1; min-width: 0; }
+.exp-amount-row .brf-k { display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; }
+.exp-amount-row .brf-k input { display: none; }
+.exp-amount-row .brf-k .k-box { width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.10); background: #f3f4f6; color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 14px; font-weight: 800; font-family: var(--font-display); }
+.exp-amount-row .brf-k input:checked + .k-box { background: #fef3c7; border-color: #f59e0b; color: #d97706; }
 .bill-row-inline .row-del-btn { width: 28px; height: 28px; padding: 0; border-radius: 7px; background: rgba(239, 68, 68, 0.12); border: none; color: #ef4444; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
 .bill-row-inline .row-del-btn:hover { background: rgba(239, 68, 68, 0.25); }
 .bill-row-inline .row-next-btn { width: 38px; height: 40px; padding: 0; border-radius: 8px; background: var(--grad-hero); border: none; color: white; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
@@ -1789,7 +1796,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.40';
+const APP_VERSION = '1.99.41';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -5391,7 +5398,13 @@ function renderAgents() {
             </div>
             <div class="bill-row-field">
               <label class="bill-row-label"><i class="ti ti-cash"></i> ${tt('expenseAmount')}</label>
-              <input type="text" inputmode="decimal" class="quick-field bill-amount" data-exp-amount placeholder="${tt('expenseAmount')}" autocomplete="off">
+              <div class="exp-amount-row">
+                <input type="text" inputmode="decimal" class="quick-field bill-amount" data-exp-amount placeholder="${tt('expenseAmount')}" autocomplete="off">
+                <label class="brf-k" title="${tt('k_mode_hint') || 'โหมด × 1,000'}">
+                  <input type="checkbox" data-exp-k checked>
+                  <span class="k-box">K</span>
+                </label>
+              </div>
             </div>
             <div class="bill-row-field">
               <label class="bill-row-label"><i class="ti ti-receipt-refund"></i> ${tt('sum_kb_label') || 'ค่าคอม'}</label>
@@ -5532,7 +5545,7 @@ function renderAgents() {
     let currentExpenseUnpaidNet = 0;  // net amount we'd owe if expense is unpaid
     if (expRow) {
       const expDate = expRow.querySelector('[data-exp-date]').value || todayStr();
-      const expAmt = parseAmount(expRow.querySelector('[data-exp-amount]').value);
+      const expAmt = readBillAmount(expRow.querySelector('[data-exp-amount]'));
       const expKb = parseFloat(expRow.querySelector('[data-exp-kickback]').value);
       const expUnpaidEl = expRow.querySelector('[data-exp-unpaid]');
       const expIsUnpaid = expUnpaidEl && expUnpaidEl.checked;
@@ -5865,16 +5878,21 @@ function renderAgents() {
           const expDate = expRow.querySelector('[data-exp-date]');
           const expUnpaid = expRow.querySelector('[data-exp-unpaid]');
           const expLock = expRow.querySelector('[data-exp-date-lock]');
+          const expK = expRow.querySelector('[data-exp-k]');
           const previewEl = expRow.querySelector('[data-exp-preview]');
           expAmt.value = '';
           expKb.value = '';
           expDate.value = todayStr();
           if (expUnpaid) expUnpaid.checked = true;
           if (expLock) expLock.checked = true;
+          if (expK) expK.checked = true;
           previewEl.style.display = 'none';
           attachAmountFormatter(expAmt);
+          // Sync K mode onto the expense amount input
+          const syncExpK = () => { expAmt.dataset.kMode = (expK && expK.checked) ? '1' : ''; };
+          syncExpK();
           const updateExpPreview = () => {
-            const amt = parseAmount(expAmt.value);
+            const amt = readBillAmount(expAmt);
             const kb = parseFloat(expKb.value);
             if (!amt || isNaN(amt) || amt <= 0 || !kb || isNaN(kb) || kb <= 0) {
               previewEl.style.display = 'none';
@@ -5886,6 +5904,7 @@ function renderAgents() {
             previewEl.innerHTML = `<div style="display: flex; justify-content: space-between;"><span style="opacity: 0.9;">${tt('expense_label')} ${fmt(amt)} ₭ × ${kb}%</span><span style="font-weight: 700; font-family: var(--font-display);">+${fmt(earned)} ₭</span></div>`;
             recalcBillSum(id);
           };
+          if (expK) expK.addEventListener('change', () => { syncExpK(); updateExpPreview(); });
           expAmt.addEventListener('input', updateExpPreview);
           expKb.addEventListener('input', updateExpPreview);
           expDate.addEventListener('change', () => recalcBillSum(id));
@@ -5953,7 +5972,7 @@ function renderAgents() {
       let expAdded = 0;
       if (expRow) {
         const expDate = expRow.querySelector('[data-exp-date]').value || todayStr();
-        const expAmt = parseAmount(expRow.querySelector('[data-exp-amount]').value);
+        const expAmt = readBillAmount(expRow.querySelector('[data-exp-amount]'));
         const expKb = parseFloat(expRow.querySelector('[data-exp-kickback]').value);
         const expUnpaidEl = expRow.querySelector('[data-exp-unpaid]');
         const expIsUnpaid = expUnpaidEl && expUnpaidEl.checked;
@@ -6510,7 +6529,13 @@ function renderSubAgents() {
             </div>
             <div class="bill-row-field">
               <label class="bill-row-label"><i class="ti ti-cash"></i> ${tt('expenseAmount')}</label>
-              <input type="text" inputmode="decimal" class="quick-field bill-amount" data-sub-exp-amount placeholder="${tt('expenseAmount')}" autocomplete="off">
+              <div class="exp-amount-row">
+                <input type="text" inputmode="decimal" class="quick-field bill-amount" data-sub-exp-amount placeholder="${tt('expenseAmount')}" autocomplete="off">
+                <label class="brf-k" title="${tt('k_mode_hint') || 'โหมด × 1,000'}">
+                  <input type="checkbox" data-sub-exp-k checked>
+                  <span class="k-box">K</span>
+                </label>
+              </div>
             </div>
             <div class="bill-row-field">
               <label class="bill-row-label"><i class="ti ti-receipt-refund"></i> ${tt('sum_kb_label') || 'ค่าคอม'}</label>
@@ -6782,7 +6807,7 @@ function wireSubAgentActions(el) {
     let currentExpenseUnpaidNet = 0;
     if (expRow) {
       const expDate = expRow.querySelector('[data-sub-exp-date]').value || todayStr();
-      const expAmt = parseAmount(expRow.querySelector('[data-sub-exp-amount]').value);
+      const expAmt = readBillAmount(expRow.querySelector('[data-sub-exp-amount]'));
       const expKb = parseFloat(expRow.querySelector('[data-sub-exp-kickback]').value);
       const expUnpaidEl = expRow.querySelector('[data-sub-exp-unpaid]');
       const expIsUnpaid = expUnpaidEl && expUnpaidEl.checked;
@@ -7044,14 +7069,18 @@ function wireSubAgentActions(el) {
           const expDate = expRow.querySelector('[data-sub-exp-date]');
           const expUnpaid = expRow.querySelector('[data-sub-exp-unpaid]');
           const expLock = expRow.querySelector('[data-sub-exp-date-lock]');
+          const expK = expRow.querySelector('[data-sub-exp-k]');
           const previewEl = expRow.querySelector('[data-sub-exp-preview]');
           expAmt.value = ''; expKb.value = ''; expDate.value = todayStr();
           if (expUnpaid) expUnpaid.checked = true;
           if (expLock) expLock.checked = true;
+          if (expK) expK.checked = true;
           previewEl.style.display = 'none';
           attachAmountFormatter(expAmt);
+          const syncExpK = () => { expAmt.dataset.kMode = (expK && expK.checked) ? '1' : ''; };
+          syncExpK();
           const updateExpPreview = () => {
-            const amt = parseAmount(expAmt.value);
+            const amt = readBillAmount(expAmt);
             const kb = parseFloat(expKb.value);
             if (!amt || isNaN(amt) || amt <= 0 || !kb || isNaN(kb) || kb <= 0) {
               previewEl.style.display = 'none';
@@ -7065,6 +7094,7 @@ function wireSubAgentActions(el) {
           };
           expAmt.addEventListener('input', updateExpPreview);
           expKb.addEventListener('input', updateExpPreview);
+          if (expK) expK.addEventListener('change', () => { syncExpK(); updateExpPreview(); });
           expDate.addEventListener('change', () => recalcSubBillSum(id));
           if (expUnpaid) expUnpaid.addEventListener('change', () => recalcSubBillSum(id));
           if (expLock) {
@@ -7125,7 +7155,7 @@ function wireSubAgentActions(el) {
       let expAdded = 0;
       if (expRow) {
         const expDate = expRow.querySelector('[data-sub-exp-date]').value || todayStr();
-        const expAmt = parseAmount(expRow.querySelector('[data-sub-exp-amount]').value);
+        const expAmt = readBillAmount(expRow.querySelector('[data-sub-exp-amount]'));
         const expKb = parseFloat(expRow.querySelector('[data-sub-exp-kickback]').value);
         const expUnpaidEl = expRow.querySelector('[data-sub-exp-unpaid]');
         const expIsUnpaid = expUnpaidEl && expUnpaidEl.checked;
