@@ -598,13 +598,47 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .bill-list .bill-del { background: var(--surface-2) !important; color: var(--text-2) !important; border: 1px solid var(--border) !important; }
 .bill-list .bill-del:hover { background: var(--surface) !important; color: var(--text) !important; }
 .bill-list .sync-badge { /* keep their colors but ensure readability */ filter: saturate(1.1); }
-/* Override inline pastel colors (designed for dark gradient) to darker variants on gray bg */
-.bill-list [style*="color: #d0ffe0"],
-.bill-list [style*="color:#d0ffe0"] { color: var(--green) !important; }
-.bill-list [style*="color: #ffd0a8"],
-.bill-list [style*="color:#ffd0a8"] { color: var(--orange) !important; }
-.bill-list [style*="color: #ffd0d0"],
-.bill-list [style*="color:#ffd0d0"] { color: var(--red) !important; }
+/* Stronger vivid pastel overrides inside gray bill panels. Use high specificity (:root .panel) to win
+   over the global dark-mode `[style*="color: #..."]` overrides. */
+:root .bill-list [style*="color: #d0ffe0"],
+:root .bill-list [style*="color:#d0ffe0"],
+:root .quick-bill [style*="color: #d0ffe0"],
+:root .quick-bill [style*="color:#d0ffe0"] { color: #16a34a !important; font-weight: 700; }
+:root .bill-list [style*="color: #ffd0a8"],
+:root .bill-list [style*="color:#ffd0a8"],
+:root .quick-bill [style*="color: #ffd0a8"],
+:root .quick-bill [style*="color:#ffd0a8"] { color: #ea580c !important; font-weight: 700; }
+:root .bill-list [style*="color: #ffd0d0"],
+:root .bill-list [style*="color:#ffd0d0"],
+:root .quick-bill [style*="color: #ffd0d0"],
+:root .quick-bill [style*="color:#ffd0d0"] { color: #dc2626 !important; font-weight: 700; }
+/* Dark-mode variants — bright saturated tones on dark gray panel */
+:root[data-theme="dark"] .bill-list [style*="color: #d0ffe0"],
+:root[data-theme="dark"] .bill-list [style*="color:#d0ffe0"],
+:root[data-theme="dark"] .quick-bill [style*="color: #d0ffe0"],
+:root[data-theme="dark"] .quick-bill [style*="color:#d0ffe0"] { color: #4ade80 !important; }
+:root[data-theme="dark"] .bill-list [style*="color: #ffd0a8"],
+:root[data-theme="dark"] .bill-list [style*="color:#ffd0a8"],
+:root[data-theme="dark"] .quick-bill [style*="color: #ffd0a8"],
+:root[data-theme="dark"] .quick-bill [style*="color:#ffd0a8"] { color: #fb923c !important; }
+:root[data-theme="dark"] .bill-list [style*="color: #ffd0d0"],
+:root[data-theme="dark"] .bill-list [style*="color:#ffd0d0"],
+:root[data-theme="dark"] .quick-bill [style*="color: #ffd0d0"],
+:root[data-theme="dark"] .quick-bill [style*="color:#ffd0d0"] { color: #f87171 !important; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .bill-list [style*="color: #d0ffe0"],
+  :root:not([data-theme="light"]) .bill-list [style*="color:#d0ffe0"],
+  :root:not([data-theme="light"]) .quick-bill [style*="color: #d0ffe0"],
+  :root:not([data-theme="light"]) .quick-bill [style*="color:#d0ffe0"] { color: #4ade80 !important; }
+  :root:not([data-theme="light"]) .bill-list [style*="color: #ffd0a8"],
+  :root:not([data-theme="light"]) .bill-list [style*="color:#ffd0a8"],
+  :root:not([data-theme="light"]) .quick-bill [style*="color: #ffd0a8"],
+  :root:not([data-theme="light"]) .quick-bill [style*="color:#ffd0a8"] { color: #fb923c !important; }
+  :root:not([data-theme="light"]) .bill-list [style*="color: #ffd0d0"],
+  :root:not([data-theme="light"]) .bill-list [style*="color:#ffd0d0"],
+  :root:not([data-theme="light"]) .quick-bill [style*="color: #ffd0d0"],
+  :root:not([data-theme="light"]) .quick-bill [style*="color:#ffd0d0"] { color: #f87171 !important; }
+}
 .agent-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .agent-card::before { content: ''; position: absolute; top: -40px; right: -40px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.15); }
 .agent-card::after { content: ''; position: absolute; bottom: -60px; left: -30px; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.08); }
@@ -755,13 +789,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .agent-action i { font-size: 19px; }
 
 .quick-bill { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-bottom: 10px; position: relative; z-index: 1; color: var(--text); animation: slideDown 0.2s ease-out; }
-/* Override light pastel colors (designed for dark agent-card gradient) to darker variants on gray */
-.quick-bill [style*="color: #d0ffe0"],
-.quick-bill [style*="color:#d0ffe0"] { color: var(--green) !important; }
-.quick-bill [style*="color: #ffd0a8"],
-.quick-bill [style*="color:#ffd0a8"] { color: var(--orange) !important; }
-.quick-bill [style*="color: #ffd0d0"],
-.quick-bill [style*="color:#ffd0d0"] { color: var(--red) !important; }
+/* Note: pastel color overrides for .quick-bill are co-located with .bill-list above, with vivid colors and dark-mode variants */
 .quick-bill .quick-field { background: var(--surface); border: 1px solid var(--border-2); color: var(--text); }
 .quick-bill .quick-field:focus { background: var(--surface); border-color: var(--primary); }
 .quick-bill .quick-field::placeholder { color: var(--text-3); }
@@ -1824,7 +1852,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.42';
+const APP_VERSION = '1.99.43';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
