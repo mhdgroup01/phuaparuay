@@ -533,6 +533,56 @@ h1, h2, h3, .display {
 .pick-group-option.current { background: rgba(236, 72, 153, 0.10); border-color: var(--pink); }
 .pick-group-option i { color: var(--pink); font-size: 17px; flex-shrink: 0; }
 .pick-group-option .selected-mark { margin-left: auto; color: var(--pink); }
+
+/* ===== Group filter pills (top of agent list) ===== */
+.group-filter-row { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+.group-filter-row::-webkit-scrollbar { height: 4px; }
+.group-filter-row::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+.group-filter-pill { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: inherit; transition: all 0.15s; }
+.group-filter-pill:hover { background: var(--surface); color: var(--text); }
+.group-filter-pill.active { background: var(--grad-pink); color: white; border-color: transparent; font-weight: 600; box-shadow: 0 2px 8px rgba(217, 135, 173, 0.25); }
+.group-filter-pill i { font-size: 14px; }
+
+/* ===== Gray-themed bill list (easier number reading) ===== */
+.bill-list { background: var(--surface-2); color: var(--text); border-radius: 14px; padding: 10px; margin-top: 12px; border: 1px solid var(--border); }
+.bill-list .bill-day-group { background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 8px; margin-bottom: 8px; }
+.bill-list .bill-day-group:last-child { margin-bottom: 0; }
+.bill-list .bill-day-header { background: transparent; color: var(--text); border-bottom: 1px solid var(--border); padding: 4px 4px 8px; margin-bottom: 6px; }
+.bill-list .bill-day-date { color: var(--text); font-weight: 600; }
+.bill-list .bill-day-count { color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); }
+.bill-list .bill-day-toggle { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.bill-list .bill-day-toggle:hover { background: var(--surface); color: var(--text); }
+.bill-list .bill-day-summary { background: var(--surface-2); border: 1px solid var(--border); padding: 8px; border-radius: 9px; margin-bottom: 6px; }
+.bill-list .bill-day-cell-label { color: var(--text-3); }
+.bill-list .bill-row { background: var(--surface); color: var(--text); border-bottom: 1px solid var(--border); border-radius: 0; padding: 9px 8px; }
+.bill-list .bill-row:last-child { border-bottom: none; }
+.bill-list .bill-pct-badge { background: rgba(99, 102, 241, 0.12); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.25); }
+.bill-list .bill-pct-badge.custom { background: rgba(217, 135, 173, 0.15); color: var(--pink); border-color: rgba(217, 135, 173, 0.3); }
+.bill-list .bill-pct-badge.kickback-pct { background: rgba(91, 168, 132, 0.15); color: var(--green); border-color: rgba(91, 168, 132, 0.3); }
+.bill-list .paid-badge { background: rgba(91, 168, 132, 0.16); color: var(--green); border: 1px solid rgba(91, 168, 132, 0.30); }
+.bill-list .unpaid-badge { background: rgba(224, 168, 117, 0.16); color: var(--orange); border: 1px solid rgba(224, 168, 117, 0.30); }
+.bill-list .we-owe-badge { background: rgba(217, 122, 122, 0.16); color: var(--red); border: 1px solid rgba(217, 122, 122, 0.30); }
+.bill-list .bill-type-indicator.income { background: rgba(91, 168, 132, 0.16); color: var(--green); }
+.bill-list .bill-type-indicator.expense { background: rgba(217, 122, 122, 0.16); color: var(--red); }
+.bill-list .batch-group { background: transparent; border: none; padding: 0; margin: 0; border-radius: 0; }
+.bill-list .batch-header { background: var(--surface-2); border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; padding: 5px 9px; margin: 0; }
+.bill-list .batch-header + .bill-row { border-radius: 0; }
+.bill-list .batch-label { color: var(--text-2); }
+.bill-list .batch-pay-btn { background: var(--surface); color: var(--text); border: 1px solid var(--border-2); }
+.bill-list .batch-pay-btn:hover { background: var(--surface-2); }
+.bill-list .batch-copy-btn { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
+.bill-list .batch-copy-btn:hover { background: var(--surface-2); color: var(--text); }
+.bill-list .batch-settled-tag { background: rgba(91, 168, 132, 0.15); color: var(--green); border: 1px solid rgba(91, 168, 132, 0.30); }
+.bill-list .bill-del { background: var(--surface-2) !important; color: var(--text-2) !important; border: 1px solid var(--border) !important; }
+.bill-list .bill-del:hover { background: var(--surface) !important; color: var(--text) !important; }
+.bill-list .sync-badge { /* keep their colors but ensure readability */ filter: saturate(1.1); }
+/* Override inline pastel colors (designed for dark gradient) to darker variants on gray bg */
+.bill-list [style*="color: #d0ffe0"],
+.bill-list [style*="color:#d0ffe0"] { color: var(--green) !important; }
+.bill-list [style*="color: #ffd0a8"],
+.bill-list [style*="color:#ffd0a8"] { color: var(--orange) !important; }
+.bill-list [style*="color: #ffd0d0"],
+.bill-list [style*="color:#ffd0d0"] { color: var(--red) !important; }
 .agent-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .agent-card::before { content: ''; position: absolute; top: -40px; right: -40px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.15); }
 .agent-card::after { content: ''; position: absolute; bottom: -60px; left: -30px; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.08); }
@@ -1706,7 +1756,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.33';
+const APP_VERSION = '1.99.34';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1774,6 +1824,7 @@ const T = {
     group_added: 'ເພີ່ມກຸ່ມແລ້ວ', group_renamed: 'ປ່ຽນຊື່ກຸ່ມແລ້ວ', group_deleted: 'ລຶບກຸ່ມແລ້ວ', group_changed: 'ປ່ຽນກຸ່ມແລ້ວ',
     fill_group_name: 'ກະລຸນາຕັ້ງຊື່ກຸ່ມ', group_name_dup: 'ຊື່ກຸ່ມນີ້ມີຢູ່ແລ້ວ',
     delete_group_q: 'ລຶບກຸ່ມ', delete_group_with_members: 'ກຸ່ມນີ້ມີ {n} ຕົວແທນ — ຕົວແທນຈະຍ້າຍໄປຢູ່ "ບໍ່ມີກຸ່ມ"',
+    no_agents_in_group: 'ບໍ່ມີຕົວແທນໃນກຸ່ມນີ້',
     close: 'ປິດ', delete: 'ລຶບ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
@@ -2142,6 +2193,7 @@ const T = {
     group_added: 'เพิ่มกลุ่มแล้ว', group_renamed: 'เปลี่ยนชื่อกลุ่มแล้ว', group_deleted: 'ลบกลุ่มแล้ว', group_changed: 'เปลี่ยนกลุ่มแล้ว',
     fill_group_name: 'กรุณาตั้งชื่อกลุ่ม', group_name_dup: 'ชื่อกลุ่มนี้มีอยู่แล้ว',
     delete_group_q: 'ลบกลุ่ม', delete_group_with_members: 'กลุ่มนี้มี {n} ตัวแทน — ตัวแทนจะย้ายไปอยู่ "ไม่มีกลุ่ม"',
+    no_agents_in_group: 'ไม่มีตัวแทนในกลุ่มนี้',
     close: 'ปิด', delete: 'ลบ',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
@@ -2555,6 +2607,7 @@ const STORE_KEYS = {
 let transactions = [];
 let agents = [];
 let agentGroups = [];
+let groupFilter = 'ALL';  // 'ALL' | groupId | '__NONE__' (ungrouped)
 let subAgents = [];
 let subTransactions = [];
 let chart = null;
@@ -5093,15 +5146,55 @@ function renderAgents() {
     return (groupOrderMap[ag] || 0) - (groupOrderMap[bg] || 0);
   });
 
+  // ---- Build group filter pills (show only when there are groups) ----
+  // Reset the filter if the selected group was deleted
+  if (groupFilter !== 'ALL' && groupFilter !== '__NONE__' && !agentGroups.find(g => g.id === groupFilter)) {
+    groupFilter = 'ALL';
+  }
+  let filterHtml = '';
+  if (agentGroups.length > 0) {
+    const ungroupedCount = agents.filter(a => !a.groupId || !agentGroups.find(g => g.id === a.groupId)).length;
+    const pills = [];
+    pills.push(`<button class="group-filter-pill ${groupFilter === 'ALL' ? 'active' : ''}" data-group-filter="ALL"><i class="ti ti-layout-grid"></i> ${tt('all') || 'ทั้งหมด'} (${agents.length})</button>`);
+    agentGroups.slice().sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(g => {
+      const cnt = agents.filter(a => a.groupId === g.id).length;
+      if (cnt === 0) return;
+      pills.push(`<button class="group-filter-pill ${groupFilter === g.id ? 'active' : ''}" data-group-filter="${g.id}"><i class="ti ti-folder"></i> ${escapeHtml(g.name)} (${cnt})</button>`);
+    });
+    if (ungroupedCount > 0) {
+      pills.push(`<button class="group-filter-pill ${groupFilter === '__NONE__' ? 'active' : ''}" data-group-filter="__NONE__"><i class="ti ti-folder-off"></i> ${tt('no_group')} (${ungroupedCount})</button>`);
+    }
+    filterHtml = `<div class="group-filter-row">${pills.join('')}</div>`;
+  }
+
+  // ---- Apply filter ----
+  const filteredAgents = groupFilter === 'ALL'
+    ? sortedAgents
+    : groupFilter === '__NONE__'
+      ? sortedAgents.filter(a => !a.groupId || !agentGroups.find(g => g.id === a.groupId))
+      : sortedAgents.filter(a => a.groupId === groupFilter);
+
+  if (filteredAgents.length === 0) {
+    el.innerHTML = filterHtml + `<div class="empty-state"><i class="ti ti-folder-off"></i>${tt('no_agents_in_group') || 'ไม่มีตัวแทนในกลุ่มนี้'}</div>`;
+    // wire filter pills
+    el.querySelectorAll('[data-group-filter]').forEach(b => {
+      b.addEventListener('click', () => {
+        groupFilter = b.dataset.groupFilter;
+        renderAgents();
+      });
+    });
+    return;
+  }
+
   let lastGroupKey = '__INIT__';
-  el.innerHTML = sortedAgents.map(a => {
-    // Group header injection
+  el.innerHTML = filterHtml + filteredAgents.map(a => {
+    // Group header injection — only show when ALL filter is active (otherwise the filter pill already identifies the group)
     const aGroupId = (a.groupId && agentGroups.find(g => g.id === a.groupId)) ? a.groupId : '';
     const currentKey = aGroupId || '__UNGROUPED__';
     let groupHeaderHtml = '';
-    if (currentKey !== lastGroupKey) {
+    if (groupFilter === 'ALL' && currentKey !== lastGroupKey) {
       const g = aGroupId ? agentGroups.find(gx => gx.id === aGroupId) : null;
-      const memberCount = sortedAgents.filter(x => {
+      const memberCount = filteredAgents.filter(x => {
         const xg = (x.groupId && agentGroups.find(gg => gg.id === x.groupId)) ? x.groupId : '';
         return xg === aGroupId;
       }).length;
@@ -5980,6 +6073,14 @@ function renderAgents() {
   // Pick group for agent
   el.querySelectorAll('[data-pick-group]').forEach(b => {
     b.addEventListener('click', () => openPickGroupModal(b.dataset.pickGroup));
+  });
+
+  // Group filter pills
+  el.querySelectorAll('[data-group-filter]').forEach(b => {
+    b.addEventListener('click', () => {
+      groupFilter = b.dataset.groupFilter;
+      renderAgents();
+    });
   });
 }
 
