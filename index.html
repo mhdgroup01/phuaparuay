@@ -1783,7 +1783,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.36';
+const APP_VERSION = '1.99.37';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -5500,7 +5500,7 @@ function renderAgents() {
     let totalCommByRow = 0;
     rowsContainer.querySelectorAll('.bill-input-row').forEach(r => {
       const date = r.querySelector('[data-row-date]').value || todayStr();
-      const v = parseAmount(r.querySelector('[data-row-amount]').value);
+      const v = readBillAmount(r.querySelector('[data-row-amount]'));
       const unpaidEl = r.querySelector('[data-row-unpaid]');
       const isUnpaid = unpaidEl && unpaidEl.checked;
       const pctEl = r.querySelector('[data-row-pct]');
@@ -5735,7 +5735,7 @@ function renderAgents() {
           recalcBillSum(agentId);
           return;
         }
-        const val = parseAmount(e.target.value);
+        const val = readBillAmount(e.target);
         if (!val || val <= 0 || isNaN(val)) {
           showToast(tt('enter_amount_first'), 'error');
           return;
@@ -5754,7 +5754,7 @@ function renderAgents() {
           recalcBillSum(agentId);
           return false;
         }
-        const val = parseAmount(amtInp.value);
+        const val = readBillAmount(amtInp);
         if (!val || val <= 0 || isNaN(val)) {
           showToast(tt('enter_amount_first'), 'error');
           return false;
@@ -5773,7 +5773,7 @@ function renderAgents() {
           amtInp.focus();
           return;
         }
-        const val = parseAmount(amtInp.value);
+        const val = readBillAmount(amtInp);
         if (!val || val <= 0 || isNaN(val)) {
           showToast(tt('enter_amount_first'), 'error');
           amtInp.focus();
@@ -5897,7 +5897,7 @@ function renderAgents() {
       const batchId = uid();  // shared batch ID for all bills saved together
       rows.forEach(r => {
         const date = r.querySelector('[data-row-date]').value || todayStr();
-        const amount = parseAmount(r.querySelector('[data-row-amount]').value);
+        const amount = readBillAmount(r.querySelector('[data-row-amount]'));
         if (!amount || amount <= 0 || isNaN(amount)) { skipped++; return; }
         const unpaidEl = r.querySelector('[data-row-unpaid]');
         const isUnpaid = unpaidEl && unpaidEl.checked;
@@ -6726,7 +6726,7 @@ function wireSubAgentActions(el) {
     let unpaidNet = 0;
     rowsContainer.querySelectorAll('.bill-input-row').forEach(r => {
       const date = r.querySelector('[data-sub-row-date]').value || todayStr();
-      const v = parseAmount(r.querySelector('[data-sub-row-amount]').value);
+      const v = readBillAmount(r.querySelector('[data-sub-row-amount]'));
       const unpaidEl = r.querySelector('[data-sub-row-unpaid]');
       const isUnpaid = unpaidEl && unpaidEl.checked;
       const pctEl = r.querySelector('[data-sub-row-pct]');
@@ -6892,7 +6892,7 @@ function wireSubAgentActions(el) {
           recalcSubBillSum(saId);
           return;
         }
-        const val = parseAmount(e.target.value);
+        const val = readBillAmount(e.target);
         if (!val || val <= 0 || isNaN(val)) { showToast(tt('enter_amount_first'), 'error'); return; }
         addSubBillRow(saId);
       }
@@ -6906,7 +6906,7 @@ function wireSubAgentActions(el) {
           recalcSubBillSum(saId);
           return false;
         }
-        const val = parseAmount(amtInp.value);
+        const val = readBillAmount(amtInp);
         if (!val || val <= 0 || isNaN(val)) { showToast(tt('enter_amount_first'), 'error'); return false; }
         addSubBillRow(saId);
         return false;
@@ -6921,7 +6921,7 @@ function wireSubAgentActions(el) {
           amtInp.focus();
           return;
         }
-        const val = parseAmount(amtInp.value);
+        const val = readBillAmount(amtInp);
         if (!val || val <= 0 || isNaN(val)) { showToast(tt('enter_amount_first'), 'error'); amtInp.focus(); return; }
         addSubBillRow(saId);
       });
@@ -7048,7 +7048,7 @@ function wireSubAgentActions(el) {
       const batchId = uid();
       rows.forEach(r => {
         const date = r.querySelector('[data-sub-row-date]').value || todayStr();
-        const amount = parseAmount(r.querySelector('[data-sub-row-amount]').value);
+        const amount = readBillAmount(r.querySelector('[data-sub-row-amount]'));
         if (!amount || amount <= 0 || isNaN(amount)) { skipped++; return; }
         const unpaidEl = r.querySelector('[data-sub-row-unpaid]');
         const isUnpaid = unpaidEl && unpaidEl.checked;
@@ -8426,35 +8426,51 @@ function evalExpression(expr) {
   return tokens.reduce((sum, t) => sum + parseFloat(t), 0);
 }
 
-// Calc-aware input handler for bill amount fields. When the input's
-// data-calc-mode="1" attribute is set and the user types operators (+, -, =),
-// the value is treated as an expression. Pressing "=" evaluates immediately.
-// Otherwise it falls through to standard thousand-separator formatting.
+// Calc-aware input handler. When data-calc-mode="1":
+// - Typing "=" evaluates the expression and shows "expr=result" (keeps history visible).
+// - Other typing with operators is allowed (live preview via readBillAmount).
+// - Without operators, falls back to standard thousand-separator formatting.
 function handleCalcAmountInput(e, onAfter) {
   const inp = e.target;
-  let val = inp.value;
   const isCalc = inp.dataset.calcMode === '1';
   if (isCalc) {
-    if (val.includes('=')) {
-      const result = evalExpression(val.replace(/=/g, ''));
+    const justTypedEquals = e.inputType === 'insertText' && e.data === '=';
+    if (justTypedEquals) {
+      // Trim the trailing '=' the user just typed, then evaluate
+      let val = inp.value;
+      const exprPart = val.replace(/=$/, '');
+      // If chaining (e.g., "1+2=3+4="), only evaluate the latest segment after the previous '='
+      const prevEq = exprPart.lastIndexOf('=');
+      const exprToEval = prevEq >= 0 ? exprPart.slice(prevEq + 1) : exprPart;
+      const result = evalExpression(exprToEval);
       if (!isNaN(result)) {
-        inp.value = formatAmountInput(String(Math.round(result * 100) / 100));
+        const rounded = Math.round(result * 100) / 100;
+        inp.value = exprToEval + '=' + formatAmountInput(String(rounded));
+        inp.dataset.calcResult = String(rounded);
       } else {
-        inp.value = val.replace(/=/g, '');
+        // Invalid — just drop the '=' the user typed
+        inp.value = exprToEval;
+        inp.dataset.calcResult = '';
       }
+      // Move caret to end so further typing appends
+      try { const pos = inp.value.length; inp.setSelectionRange(pos, pos); } catch (err) {}
       if (typeof onAfter === 'function') onAfter();
       return;
     }
-    if (/[+\-]/.test(val)) {
-      // Keep operators + digits + dots; strip everything else
-      const cleaned = val.replace(/[^\d+\-.]/g, '');
+    // Otherwise: allow editing of the expression freely (keep operators, '.', digits, '=')
+    const val = inp.value;
+    if (val.includes('=') || /[+\-]/.test(val.replace(/^-/, ''))) {
+      const cleaned = val.replace(/[^\d+\-.=]/g, '');
       if (cleaned !== val) inp.value = cleaned;
+      // User edited after evaluation — invalidate stored result; will be re-derived on blur/save
+      inp.dataset.calcResult = '';
       if (typeof onAfter === 'function') onAfter();
       return;
     }
   }
-  // Standard thousand-separator formatting
-  const before = val;
+  // Standard thousand-separator formatting (no calc operators in play)
+  inp.dataset.calcResult = '';
+  const before = inp.value;
   const caretEnd = inp.selectionStart;
   const commasBefore = (before.slice(0, caretEnd).match(/,/g) || []).length;
   const formatted = formatAmountInput(before);
@@ -8465,14 +8481,47 @@ function handleCalcAmountInput(e, onAfter) {
   if (typeof onAfter === 'function') onAfter();
 }
 
-// Resolve any pending expression in a calc-mode field to a number value.
-// Called on blur and before save so unresolved "1+2" auto-becomes "3".
+// Make sure the calc field is in a savable state: either a clean number, or
+// "expr=result" (so the user can still see the math). Called on blur and before save.
 function resolveCalcAmount(inp) {
   if (!inp || inp.dataset.calcMode !== '1') return;
   const val = inp.value || '';
-  if (!/[+\-]/.test(val.replace(/^-/, ''))) return;  // no operators (negative-only ok)
-  const result = evalExpression(val);
-  if (!isNaN(result)) inp.value = formatAmountInput(String(Math.round(result * 100) / 100));
+  if (val.includes('=')) {
+    // Already in "expr=result" form — just cache the numeric result
+    const idx = val.lastIndexOf('=');
+    const r = parseAmount(val.slice(idx + 1));
+    if (!isNaN(r)) inp.dataset.calcResult = String(r);
+    return;
+  }
+  // No '=' yet — if there are operators, evaluate and rewrite to "expr=result"
+  if (/[+\-]/.test(val.replace(/^-/, ''))) {
+    const result = evalExpression(val);
+    if (!isNaN(result)) {
+      const rounded = Math.round(result * 100) / 100;
+      inp.value = val + '=' + formatAmountInput(String(rounded));
+      inp.dataset.calcResult = String(rounded);
+    }
+  }
+}
+
+// Read the numeric amount from a bill-row amount input.
+// Works for calc-mode "expr=result", pure expressions "1+2", and standard "1,234".
+function readBillAmount(inp) {
+  if (!inp) return NaN;
+  // Stored calc-result wins (most accurate, set right after evaluation)
+  if (inp.dataset.calcResult) {
+    const r = parseFloat(inp.dataset.calcResult);
+    if (!isNaN(r)) return r;
+  }
+  const val = inp.value || '';
+  if (val.includes('=')) {
+    return parseAmount(val.slice(val.lastIndexOf('=') + 1));
+  }
+  if (/[+\-]/.test(val.replace(/^-/, ''))) {
+    const r = evalExpression(val);
+    return isNaN(r) ? NaN : r;
+  }
+  return parseAmount(val);
 }
 
 function formatAmountInput(str) {
