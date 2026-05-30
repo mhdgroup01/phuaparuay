@@ -1789,7 +1789,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.39';
+const APP_VERSION = '1.99.40';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -5462,10 +5462,6 @@ function renderAgents() {
             <input type="checkbox" data-row-calc checked>
             <span class="calc-box"><i class="ti ti-calculator"></i></span>
           </label>
-          <label class="brf-k" title="${tt('k_mode_hint') || 'โหมด × 1,000'}">
-            <input type="checkbox" data-row-k checked>
-            <span class="k-box">K</span>
-          </label>
           <div class="brf-pct">
             <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
             <span>%</span>
@@ -5478,6 +5474,10 @@ function renderAgents() {
         </div>
         <div class="bottom-row">
           <div class="row-num" data-row-num>${idx + 1}</div>
+          <label class="brf-k" title="${tt('k_mode_hint') || 'โหมด × 1,000'}">
+            <input type="checkbox" data-row-k checked>
+            <span class="k-box">K</span>
+          </label>
           <form class="brf-amount-form" data-row-form action="#" onsubmit="return false;">
             <div class="brf-amount">
               <i class="ti ti-cash"></i>
@@ -6714,10 +6714,6 @@ function wireSubAgentActions(el) {
             <input type="checkbox" data-sub-row-calc checked>
             <span class="calc-box"><i class="ti ti-calculator"></i></span>
           </label>
-          <label class="brf-k" title="${tt('k_mode_hint') || 'โหมด × 1,000'}">
-            <input type="checkbox" data-sub-row-k checked>
-            <span class="k-box">K</span>
-          </label>
           <div class="brf-pct">
             <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-sub-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
             <span>%</span>
@@ -6730,6 +6726,10 @@ function wireSubAgentActions(el) {
         </div>
         <div class="bottom-row">
           <div class="row-num" data-sub-row-num>${idx + 1}</div>
+          <label class="brf-k" title="${tt('k_mode_hint') || 'โหมด × 1,000'}">
+            <input type="checkbox" data-sub-row-k checked>
+            <span class="k-box">K</span>
+          </label>
           <form class="brf-amount-form" data-sub-row-form action="#" onsubmit="return false;">
             <div class="brf-amount">
               <i class="ti ti-cash"></i>
