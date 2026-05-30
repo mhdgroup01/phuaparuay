@@ -1622,81 +1622,10 @@ h1, h2, h3, .display {
   </div>
 </div>
 
-<div class="modal-overlay" id="sub-edit-agent-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title"><i class="ti ti-user-edit" style="color: var(--pink);"></i> <span data-i18n="edit_subagent">แก้ไขตัวแทนย่อย</span></div>
-      <button class="icon-action" data-close-sub-edit-agent aria-label="ปิด"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <label class="field-label"><i class="ti ti-user"></i> <span data-i18n="subAgentName">ชื่อตัวแทนย่อย</span></label>
-      <input type="text" id="sub-edit-agent-name" placeholder="ชื่อ - นามสกุล" class="field">
-
-      <label class="field-label"><i class="ti ti-percentage"></i> <span data-i18n="commissionPct">เปอร์เซ็นต์ค่าคอม (%)</span></label>
-      <input type="number" inputmode="decimal" id="sub-edit-agent-percent" min="0" max="100" step="0.1" placeholder="10" class="field">
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
-        <button class="btn btn-secondary" data-close-sub-edit-agent data-i18n="cancel">ยกเลิก</button>
-        <button class="btn btn-pink" id="sub-save-edit-agent-btn"><i class="ti ti-check"></i> <span data-i18n="save">บันทึก</span></button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="sub-edit-tx-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title"><i class="ti ti-edit" style="color: var(--primary);"></i> <span data-i18n="edit_record">แก้ไขรายการ</span></div>
-      <button class="icon-action" data-close-sub-edit-tx aria-label="ปิด"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <label class="field-label"><i class="ti ti-tag"></i> <span data-i18n="type_label">ประเภท</span></label>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
-        <button id="sub-edit-type-income-btn" class="type-pill active-income"><i class="ti ti-arrow-down-circle"></i> <span data-i18n="income_label">รายรับ</span></button>
-        <button id="sub-edit-type-expense-btn" class="type-pill inactive"><i class="ti ti-arrow-up-circle"></i> <span data-i18n="expense_label">รายจ่าย</span></button>
-      </div>
-      <input type="hidden" id="sub-edit-tx-type" value="income">
-
-      <label class="field-label"><i class="ti ti-calendar"></i> <span data-i18n="date">วันที่</span></label>
-      <input type="date" id="sub-edit-tx-date" class="field">
-
-      <label class="field-label"><i class="ti ti-pencil"></i> <span data-i18n="description">รายละเอียด</span></label>
-      <input type="text" id="sub-edit-tx-desc" placeholder="เช่น ขายสินค้า" class="field">
-
-      <label class="field-label"><i class="ti ti-currency-kip"></i> <span data-i18n="amount">จำนวนเงิน</span></label>
-      <input type="text" inputmode="decimal" id="sub-edit-tx-amount" placeholder="0.00" class="field" autocomplete="off">
-
-      <div id="sub-edit-income-pct-section">
-        <label class="field-label"><i class="ti ti-percentage"></i> <span data-i18n="bill_pct">ค่าคอมบิลนี้</span> <span style="font-size: 13px; color: var(--text-3); font-weight: normal;">(<span data-i18n="custom_pct">กำหนดเอง</span>)</span></label>
-        <input type="number" inputmode="decimal" id="sub-edit-tx-percent" min="0" max="100" step="0.1" placeholder="" class="field">
-      </div>
-
-      <div id="sub-edit-expense-kickback-section" style="display: none;">
-        <label class="field-label"><i class="ti ti-percentage"></i> <span data-i18n="kickbackPct">ค่าคอมที่ได้รับคืน (%)</span></label>
-        <input type="number" inputmode="decimal" id="sub-edit-tx-kickback" min="0" max="100" step="0.1" placeholder="0" class="field">
-      </div>
-
-      <label class="unpaid-toggle" style="margin: 4px 0 14px;">
-        <input type="checkbox" id="sub-edit-tx-unpaid" checked>
-        <span class="unpaid-check"></span>
-        <span class="unpaid-label-text">
-          <span class="label-state-unpaid"><i class="ti ti-clock-dollar"></i> <span data-i18n="not_paid_yet_expense">ยังไม่ได้รับ/จ่าย</span></span>
-          <span class="label-state-paid"><i class="ti ti-circle-check"></i> <span data-i18n="already_paid_expense">รับ/จ่ายแล้ว</span></span>
-        </span>
-      </label>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
-        <button class="btn btn-secondary" data-close-sub-edit-tx data-i18n="cancel">ยกเลิก</button>
-        <button class="btn btn-primary" id="sub-save-edit-tx-btn"><i class="ti ti-check"></i> <span data-i18n="save">บันทึก</span></button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.25';
+const APP_VERSION = '1.99.26';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1706,8 +1635,8 @@ const AUTH_EMAIL_DOMAIN = 'phuaparuay.local';
 let supabaseClient = null;
 let currentUser = null;
 let viewingAsUser = null; // when admin is viewing another user's data
-let _subEditTxId = null;
-let _subEditAgentId = null;
+let _editingSubAgentId = null;  // when set, edit-agent-modal save routes to sub-agent
+let _exportIsSub = false;       // when true, export modal operates on subTransactions
 let cloudSaveTimer = null;
 // Helper: return the user whose data we're operating on (viewingAsUser if set, else currentUser)
 function activeUser() { return viewingAsUser || currentUser; }
@@ -3518,10 +3447,14 @@ function exportAgentBillsXlsx(agentId) {
   openExportModal(agentId);
 }
 
-function openExportModal(agentId) {
-  const agent = getAgent(agentId);
+function openExportModal(agentId, isSub) {
+  _exportIsSub = !!isSub;
+  const agent = isSub ? getSubAgent(agentId) : getAgent(agentId);
   if (!agent) return;
-  const agentTxs = transactions.filter(t => t.agentId === agentId).sort((a, b) => b.date.localeCompare(a.date));
+  const allTxs = isSub
+    ? subTransactions.filter(t => t.subAgentId === agentId)
+    : transactions.filter(t => t.agentId === agentId);
+  const agentTxs = allTxs.sort((a, b) => b.date.localeCompare(a.date));
   if (agentTxs.length === 0) {
     showToast(tt('noBills') || 'ไม่มีบิล', 'error');
     return;
@@ -3538,14 +3471,19 @@ function openExportModal(agentId) {
     _exportByBatch[bkey].push(t);
   }
 
-  document.getElementById('export-agent-name').innerHTML = `ตัวแทน: <strong>${escapeHtml(agent.name)}</strong> (${agent.percent}%)`;
+  document.getElementById('export-agent-name').innerHTML = `${isSub ? 'ตัวแทนย่อย' : 'ตัวแทน'}: <strong>${escapeHtml(agent.name)}</strong> (${agent.percent}%)`;
   _exportMode = 'date';
   renderExportList();
   document.getElementById('export-modal').classList.add('show');
 }
 
+// Helper used by export functions to fetch the active agent regardless of mode
+function _getExportAgent() {
+  return _exportIsSub ? getSubAgent(_exportAgentId) : agents.find(a => a.id === _exportAgentId);
+}
+
 function renderExportList() {
-  const agent = getAgent(_exportAgentId);
+  const agent = _getExportAgent();
   if (!agent) return;
   const list = document.getElementById('export-list');
   const unitEl = document.getElementById('export-unit');
@@ -3660,7 +3598,7 @@ function renderExportList() {
 }
 
 function getSelectedTxs() {
-  const agent = getAgent(_exportAgentId);
+  const agent = _getExportAgent();
   if (!agent) return [];
   const checkedKeys = Array.from(document.querySelectorAll('.export-check:checked')).map(c => c.dataset.key);
   const out = [];
@@ -3673,7 +3611,7 @@ function getSelectedTxs() {
 }
 
 function updateExportSummary() {
-  const agent = getAgent(_exportAgentId);
+  const agent = _getExportAgent();
   if (!agent) return;
   const checkedKeys = Array.from(document.querySelectorAll('.export-check:checked')).map(c => c.dataset.key);
   const txs = getSelectedTxs();
@@ -3718,7 +3656,7 @@ function updateExportSummary() {
 }
 
 async function doExportXlsx() {
-  const agent = getAgent(_exportAgentId);
+  const agent = _getExportAgent();
   if (!agent) return;
   const selectedTxs = getSelectedTxs();
   if (selectedTxs.length === 0) return;
@@ -4028,7 +3966,7 @@ async function loadPdfLib() {
   return _pdfLib;
 }
 async function doExportPdf() {
-  const agent = getAgent(_exportAgentId);
+  const agent = _getExportAgent();
   if (!agent) return;
   const selectedTxs = getSelectedTxs();
   if (selectedTxs.length === 0) return;
@@ -4308,7 +4246,7 @@ async function doExportPdf() {
 
 // ====== PNG export (canvas, no dependency) ======
 async function doExportPng() {
-  const agent = getAgent(_exportAgentId);
+  const agent = _getExportAgent();
   if (!agent) return;
   const selectedTxs = getSelectedTxs();
   if (selectedTxs.length === 0) return;
@@ -5567,8 +5505,10 @@ function renderAgents() {
 }
 
 // ============================================================
-// SUB-AGENTS MODULE (ตัวแทนย่อย) — user-only, no approval workflow.
-// Separate data (subAgents[], subTransactions[]); never touches main agents.
+// SUB-AGENTS MODULE (ตัวแทนย่อย)
+// Full mirror of the main agent system, MINUS admin/sync workflow.
+// Operates on subAgents[] + subTransactions[] (separate from main data).
+// Bill add UX matches main agent exactly: multi-row income + special expense + live preview.
 // ============================================================
 const getSubAgent = id => subAgents.find(a => a.id === id);
 function subPctForTx(tx) {
@@ -5583,10 +5523,15 @@ function subBillDue(tx) {
   }
   return tx.amount * (1 - subPctForTx(tx) / 100);
 }
-function subBillRemaining(tx) {
-  return tx.unpaid ? Math.max(0, subBillDue(tx)) : 0;
+function subBillPaid(tx) {
+  if (!tx.payments || !tx.payments.length) return 0;
+  return tx.payments.reduce((s, p) => s + p.amount, 0);
 }
-function subBillIsUnpaid(tx) { return tx.unpaid && subBillDue(tx) > 0.01; }
+function subBillRemaining(tx) {
+  return Math.max(0, subBillDue(tx) - subBillPaid(tx));
+}
+function subBillIsUnpaid(tx) { return tx.unpaid && subBillRemaining(tx) > 0.01; }
+function subBillIsFullyPaid(tx) { if (!tx.unpaid) return false; return subBillRemaining(tx) <= 0.01; }
 
 function renderSubAgents() {
   const badge = document.getElementById('subagent-count-badge');
@@ -5626,12 +5571,21 @@ function renderSubAgents() {
         const absNet = Math.abs(net);
         const isOwes = net > 0.01, isWe = net < -0.01;
         const settled = !isOwes && !isWe;
+        const hasOffset = unpaidOwed > 0.01 && weOwe > 0.01;
+        const offsetAmount = Math.min(unpaidOwed, weOwe);
         const cls = isOwes ? 'agent-owed-banner' : (isWe ? 'agent-we-owe-banner' : 'agent-settled-banner');
         const lab = isOwes ? tt('owed_to_us') : (isWe ? tt('we_owe_to_agent') : tt('balance_settled'));
         const icon = isOwes ? 'ti-arrow-bear-left' : (isWe ? 'ti-arrow-bear-right' : 'ti-equal');
         return `<div class="${cls}"><div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.95; margin-bottom: 2px;"><i class="ti ${icon}"></i> ${lab}</div>
           <div style="font-size: 24px; font-weight: 700; font-family: var(--font-display); line-height: 1.1;">${settled ? '0' : fmt(absNet)} ₭</div>
+          ${hasOffset ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 4px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+            <span><i class="ti ti-arrow-bear-left"></i> ${fmtShort(unpaidOwed)}</span>
+            <span style="opacity: 0.6;">−</span>
+            <span><i class="ti ti-arrow-bear-right"></i> ${fmtShort(weOwe)}</span>
+            <span style="opacity: 0.6;">·</span>
+            <span style="opacity: 0.75;">${tt('offset_amount')}: ${fmtShort(offsetAmount)} ₭</span>
+          </div>` : ''}
         </div></div>`;
       })() : ''}
       <div class="percent-control" style="margin-bottom: 10px;">
@@ -5646,64 +5600,62 @@ function renderSubAgents() {
           <div style="font-size: 14px; font-weight: 600; opacity: 0.95;"><i class="ti ti-list-details"></i> ${tt('billsNew')}</div>
           <div style="font-size: 13px; opacity: 0.9;">${tt('commission')} ${a.percent}%</div>
         </div>
-        <div class="expense-special-row bill-input-row" data-sub-bill-agent="${a.id}">
-          <div class="bill-row-field">
-            <label class="bill-row-label"><i class="ti ti-tag"></i> ${tt('type_label')}</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-              <button type="button" class="sub-type-pill sub-type-income active" data-sub-type-btn="income" data-sa="${a.id}"><i class="ti ti-arrow-down-circle"></i> ${tt('income_label')}</button>
-              <button type="button" class="sub-type-pill sub-type-expense" data-sub-type-btn="expense" data-sa="${a.id}"><i class="ti ti-arrow-up-circle"></i> ${tt('expense_label')}</button>
+        <div class="bill-summary" data-sub-bill-summary="${a.id}"></div>
+
+        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;"><i class="ti ti-arrow-down-circle"></i> ${tt('incomeBills')}</div>
+        <div class="bill-rows" data-sub-bill-rows="${a.id}"></div>
+
+        <div class="expense-special-section" style="margin-top: 12px;">
+          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;"><i class="ti ti-arrow-up-circle"></i> ${tt('specialExpense')}</div>
+          <div class="expense-special-row bill-input-row" data-sub-expense-agent="${a.id}">
+            <div class="bill-row-field">
+              <label class="bill-row-label"><i class="ti ti-calendar"></i> ${tt('fromDate') || 'วันที่'}</label>
+              <input type="date" class="quick-field" data-sub-exp-date value="${todayStr()}">
             </div>
-          </div>
-          <div class="bill-row-field">
-            <label class="bill-row-label"><i class="ti ti-calendar"></i> ${tt('date')}</label>
-            <input type="date" class="quick-field" data-sub-date value="${todayStr()}">
-          </div>
-          <div class="bill-row-field">
-            <label class="bill-row-label"><i class="ti ti-note"></i> ${tt('description')}</label>
-            <input type="text" class="quick-field" data-sub-desc placeholder="${tt('description')}" autocomplete="off">
-          </div>
-          <div class="bill-row-field">
-            <label class="bill-row-label"><i class="ti ti-cash"></i> ${tt('amount')}</label>
-            <input type="text" inputmode="decimal" class="quick-field bill-amount" data-sub-amount placeholder="0" autocomplete="off">
-          </div>
-          <div class="bill-row-field" data-sub-pct-wrap>
-            <label class="bill-row-label"><i class="ti ti-percentage"></i> ${tt('bill_pct')} (${tt('custom_pct')})</label>
-            <div class="pct-input-wrap">
-              <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-sub-pct placeholder="${a.percent}">
-              <span class="pct-suffix">%</span>
+            <div class="bill-row-field">
+              <label class="bill-row-label"><i class="ti ti-note"></i> ${tt('description') || 'คำอธิบาย'}</label>
+              <input type="text" class="quick-field" data-sub-exp-desc placeholder="${tt('description') || 'คำอธิบาย'}" autocomplete="off">
             </div>
-          </div>
-          <div class="bill-row-field" data-sub-kb-wrap style="display: none;">
-            <label class="bill-row-label"><i class="ti ti-receipt-refund"></i> ${tt('sum_kb_label')}</label>
-            <div class="pct-input-wrap">
-              <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-sub-kb placeholder="0">
-              <span class="pct-suffix">%</span>
+            <div class="bill-row-field">
+              <label class="bill-row-label"><i class="ti ti-cash"></i> ${tt('expenseAmount')}</label>
+              <input type="text" inputmode="decimal" class="quick-field bill-amount" data-sub-exp-amount placeholder="${tt('expenseAmount')}" autocomplete="off">
             </div>
-          </div>
-          <div class="bill-row-field" style="border: none; padding-top: 4px;">
-            <label class="unpaid-toggle" style="margin: 0;">
-              <input type="checkbox" data-sub-unpaid checked>
-              <span class="unpaid-check"></span>
-              <span class="unpaid-label-text">
-                <span class="label-state-unpaid"><i class="ti ti-clock-dollar"></i> ${tt('not_paid_yet_expense')}</span>
-                <span class="label-state-paid"><i class="ti ti-circle-check"></i> ${tt('already_paid_expense')}</span>
-              </span>
-            </label>
+            <div class="bill-row-field">
+              <label class="bill-row-label"><i class="ti ti-receipt-refund"></i> ${tt('sum_kb_label') || 'ค่าคอม'}</label>
+              <div class="pct-input-wrap">
+                <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-sub-exp-kickback placeholder="0">
+                <span class="pct-suffix">%</span>
+              </div>
+            </div>
+            <div class="bill-row-field" style="border: none; padding-top: 4px;">
+              <label class="unpaid-toggle" style="margin: 0;">
+                <input type="checkbox" data-sub-exp-unpaid checked>
+                <span class="unpaid-check"></span>
+                <span class="unpaid-label-text">
+                  <span class="label-state-unpaid"><i class="ti ti-clock-dollar"></i> ${tt('not_paid_yet_expense')}</span>
+                  <span class="label-state-paid"><i class="ti ti-circle-check"></i> ${tt('already_paid_expense')}</span>
+                </span>
+              </label>
+            </div>
+            <div data-sub-exp-preview style="display: none; font-size: 13px; padding: 8px 10px; background: rgba(91, 168, 132, 0.14); border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); margin-top: 6px;"></div>
           </div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px;">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 12px;">
           <button class="quick-btn-secondary" data-sub-cancel-bill="${a.id}"><i class="ti ti-x"></i> ${tt('cancel')}</button>
+          <button class="quick-btn-secondary" data-sub-add-row="${a.id}"><i class="ti ti-plus"></i> ${tt('addRow')}</button>
           <button class="quick-btn-primary" data-sub-save-bill="${a.id}"><i class="ti ti-check"></i> ${tt('save')}</button>
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; position: relative; z-index: 1;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; position: relative; z-index: 1;">
         <button class="agent-action" data-sub-add-bill="${a.id}"><i class="ti ti-circle-plus"></i> ${tt('addBill')}</button>
         <button class="agent-action" data-sub-toggle-bills="${a.id}"><i class="ti ti-list"></i> ${tt('viewBills')} (${billCount})</button>
+        <button class="agent-action" data-sub-export-bills="${a.id}" aria-label="ดาวน์โหลด" title="ดาวน์โหลด" style="padding: 8px 14px; flex-shrink: 0;"><i class="ti ti-file-spreadsheet"></i></button>
       </div>
 
       <div class="bill-list" id="sub-bill-list-${a.id}" style="display: none;">
-        ${renderSubBillList(a, allForList, seqMap, expSeqMap)}
+        ${renderSubBillListByDate(a, allForList, seqMap, expSeqMap, unpaidOwed, weOwe)}
       </div>
     </div>`;
   }).join('');
@@ -5711,17 +5663,19 @@ function renderSubAgents() {
   wireSubAgentActions(el);
 }
 
-function renderSubBillList(agent, txs, seqMap, expSeqMap) {
-  if (txs.length === 0) {
+function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, weOweAmount) {
+  if (agentTxs.length === 0) {
     return `<div style="padding: 12px; text-align: center; font-size: 14px; opacity: 0.85;">${tt('noBills')}</div>`;
   }
   const dateGroups = {};
-  txs.forEach(t => { (dateGroups[t.date] = dateGroups[t.date] || []).push(t); });
+  agentTxs.forEach(t => { (dateGroups[t.date] = dateGroups[t.date] || []).push(t); });
   const sortedDates = Object.keys(dateGroups).sort((a, b) => b.localeCompare(a));
 
-  const renderRow = (t) => {
+  const renderRow = (t, batchSettled) => {
     const badgeHtml = (() => {
       if (!t.unpaid) return `<span class="paid-badge"><i class="ti ti-circle-check"></i> ${tt('all_settled')}</span>`;
+      if (batchSettled) return `<span class="paid-badge"><i class="ti ti-circle-check"></i> ${tt('all_settled')}</span>`;
+      if (subBillIsFullyPaid(t)) return `<span class="paid-badge"><i class="ti ti-check"></i> ${tt('fully_paid')}</span>`;
       const klass = t.type === 'income' ? 'unpaid-badge' : 'we-owe-badge';
       return `<span class="${klass}"><i class="ti ti-clock-dollar"></i> ${fmtShort(subBillRemaining(t))} ₭</span>`;
     })();
@@ -5732,11 +5686,12 @@ function renderSubBillList(agent, txs, seqMap, expSeqMap) {
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
             ${t.desc ? escapeHtml(t.desc) : tt('new_bill_seq') + seqMap[t.id]}
-            <span class="bill-pct-badge ${typeof t.percent === 'number' && t.percent !== agent.percent ? 'custom' : ''}">${pct}%</span>
+            <span class="bill-pct-badge ${typeof t.percent === 'number' && t.percent !== agent.percent ? 'custom' : ''}" data-sub-edit-pct="${t.id}" style="cursor: pointer;" title="แตะเพื่อแก้ %">${pct}%</span>
             ${badgeHtml}
           </div>
         </div>
         <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #d0ffe0;">+${fmtShort(t.amount)} ₭</div>
+        ${!t.unpaid ? `<button class="bill-del" data-sub-mark-unpaid="${t.id}" aria-label="mark unpaid" title="${tt('mark_unpaid')}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-clock-dollar"></i></button>` : ''}
         <button class="bill-del" data-sub-edit-bill="${t.id}" aria-label="edit" style="background: rgba(255,255,255,0.18);"><i class="ti ti-edit"></i></button>
         <button class="bill-del" data-sub-del-bill="${t.id}" aria-label="delete"><i class="ti ti-x"></i></button>
       </div>`;
@@ -5753,6 +5708,7 @@ function renderSubBillList(agent, txs, seqMap, expSeqMap) {
           ${t.kickback ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 2px;"><i class="ti ti-receipt-refund"></i> ${tt('kb_from_him')}: +${fmtShort(kbAmount)} ₭</div>` : ''}
         </div>
         <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #ffd0a8;">-${fmtShort(t.amount)} ₭</div>
+        ${!t.unpaid ? `<button class="bill-del" data-sub-mark-unpaid="${t.id}" aria-label="mark unpaid" title="${tt('mark_unpaid')}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-clock-dollar"></i></button>` : ''}
         <button class="bill-del" data-sub-edit-bill="${t.id}" aria-label="edit" style="background: rgba(255,255,255,0.18);"><i class="ti ti-edit"></i></button>
         <button class="bill-del" data-sub-del-bill="${t.id}" aria-label="delete"><i class="ti ti-x"></i></button>
       </div>`;
@@ -5760,20 +5716,73 @@ function renderSubBillList(agent, txs, seqMap, expSeqMap) {
   };
 
   return sortedDates.map(date => {
-    const dtxs = dateGroups[date];
-    const incomeTxs = dtxs.filter(t => t.type === 'income');
-    const expenseTxs = dtxs.filter(t => t.type === 'expense');
+    const txs = dateGroups[date];
+    const incomeTxs = txs.filter(t => t.type === 'income');
+    const expenseTxs = txs.filter(t => t.type === 'expense');
     const incomeTotal = incomeTxs.reduce((s, t) => s + t.amount, 0);
     const comm = incomeTxs.reduce((s, t) => s + t.amount * (subPctForTx(t) / 100), 0);
     const expenseTotal = expenseTxs.reduce((s, t) => s + t.amount, 0);
-    const kb = expenseTxs.reduce((s, t) => s + (t.kickback ? t.amount * (t.kickback / 100) : 0), 0);
-    const dayNet = (incomeTotal - comm) - (expenseTotal - kb);
-    return `<div class="bill-day-group">
+    const kickback = expenseTxs.reduce((s, t) => s + (t.kickback ? t.amount * (t.kickback / 100) : 0), 0);
+    const dayNet = (incomeTotal - comm) - (expenseTotal - kickback);
+
+    // Group by batch within date
+    const batchGroups = {};
+    txs.forEach(t => {
+      const key = t.batchId || `solo-${t.id}`;
+      (batchGroups[key] = batchGroups[key] || []).push(t);
+    });
+    const sortedBatchKeys = Object.keys(batchGroups).sort((a, b) => {
+      const minA = batchGroups[a].map(t => t.id).sort()[0];
+      const minB = batchGroups[b].map(t => t.id).sort()[0];
+      return minB.localeCompare(minA);
+    });
+
+    const batchesHtml = sortedBatchKeys.map((batchKey) => {
+      const batchTxs = batchGroups[batchKey];
+      const batchIncomeBills = batchTxs.filter(t => t.type === 'income' && t.unpaid);
+      const batchExpenseBills = batchTxs.filter(t => t.type === 'expense' && t.unpaid);
+      const incomeRemaining = batchIncomeBills.reduce((s, t) => s + subBillRemaining(t), 0);
+      const expenseRemaining = batchExpenseBills.reduce((s, t) => s + subBillRemaining(t), 0);
+      const netRemaining = incomeRemaining - expenseRemaining;
+      const absNet = Math.abs(netRemaining);
+      const hasAnyUnpaid = (incomeRemaining > 0.01) || (expenseRemaining > 0.01);
+      const fullyDone = batchTxs.every(t => !t.unpaid || subBillIsFullyPaid(t));
+      const isAgentOwes = netRemaining > 0.01;
+      const isWeOwe = netRemaining < -0.01;
+      const isOffset = hasAnyUnpaid && absNet < 0.01;
+      const batchSettled = fullyDone || isOffset;
+      const billsHtml = batchTxs.map(t => renderRow(t, batchSettled)).join('');
+
+      let netPayBtn = '';
+      if (hasAnyUnpaid && absNet > 0.01) {
+        const owesLabel = isAgentOwes ? tt('he_still_owes') : tt('we_still_owe');
+        netPayBtn = `<button class="batch-pay-btn batch-pay-net" data-sub-pay-batch="${batchKey}" data-sub-pay-agent="${agent.id}" title="${tt('pay_net')}">
+          <i class="ti ti-wallet"></i>
+          <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1;">
+            <span style="font-size: 11px; opacity: 0.85; font-weight: 500;">${owesLabel}</span>
+            <span>${fmtShort(absNet)} ₭</span>
+          </span>
+        </button>`;
+      } else if (isOffset || fullyDone) {
+        netPayBtn = `<span class="batch-settled-tag"><i class="ti ti-circle-check"></i> ${tt('all_settled_done')}</span>`;
+      }
+
+      const showBatchHeader = batchTxs.length > 1 || hasAnyUnpaid || isOffset;
+      return `<div class="batch-group" data-batch="${batchKey}">
+        ${showBatchHeader ? `<div class="batch-header">
+          <div class="batch-label"><i class="ti ti-layers-intersect"></i> ${batchTxs.length} ${tt('bill_count_label')}</div>
+          <div class="batch-actions">${netPayBtn}</div>
+        </div>` : ''}
+        ${billsHtml}
+      </div>`;
+    }).join('');
+
+    return `<div class="bill-day-group" data-day-group="${date}">
       <div class="bill-day-header">
         <div class="bill-day-date"><i class="ti ti-calendar"></i> ${formatThaiDate(date)}</div>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <div class="bill-day-count">${dtxs.length} ${tt('bill_count_label')}</div>
-          <button class="bill-day-toggle" data-sub-toggle-day="${date}" aria-label="toggle"><i class="ti ti-chevron-down"></i></button>
+          <div class="bill-day-count">${txs.length} ${tt('bill_count_label')}</div>
+          <button class="bill-day-toggle" data-sub-toggle-day="${date}" aria-label="toggle bills"><i class="ti ti-chevron-down"></i></button>
         </div>
       </div>
       <div class="bill-day-summary">
@@ -5782,14 +5791,279 @@ function renderSubBillList(agent, txs, seqMap, expSeqMap) {
         <div class="bill-day-cell"><div class="bill-day-cell-label">${tt('sum_net')}</div><div class="bill-day-cell-value" style="color: ${dayNet >= 0 ? '#d0ffe0' : '#ffd0d0'}; font-weight: 700;">${dayNet >= 0 ? '+' : ''}${fmtShort(dayNet)} ₭</div></div>
       </div>
       <div class="bill-day-rows" data-sub-day-rows="${date}" style="display: none;">
-        ${dtxs.map(renderRow).join('')}
+        ${batchesHtml}
       </div>
     </div>`;
   }).join('');
 }
 
 function wireSubAgentActions(el) {
-  // Percent change
+  // ---- Multi-row bill input helpers (parallel to renderAgents) ----
+  function buildSubBillRow(saId, idx) {
+    const sa = getSubAgent(saId);
+    const defaultPct = sa ? sa.percent : 0;
+    return `<div class="bill-input-row" data-sub-row-idx="${idx}" style="padding: 0; background: none; border: none;">
+      <div class="bill-row-inline">
+        <div class="top-row">
+          <div class="brf-date">
+            <input type="date" data-sub-row-date value="${todayStr()}" aria-label="${tt('fromDate') || 'วันที่'}">
+          </div>
+          <div class="brf-desc">
+            <i class="ti ti-note"></i>
+            <input type="text" data-sub-row-desc placeholder="${tt('description') || 'คำอธิบาย'}" autocomplete="off" enterkeyhint="next">
+          </div>
+          <div class="brf-pct">
+            <input type="number" inputmode="decimal" min="0" max="100" step="0.1" data-sub-row-pct data-default-pct="${defaultPct}" value="${defaultPct}" aria-label="${tt('bill_pct')}">
+            <span>%</span>
+          </div>
+          <label class="brf-check" data-sub-row-unpaid-label aria-label="${tt('not_paid_yet')}">
+            <input type="checkbox" data-sub-row-unpaid checked>
+            <span class="check-box"></span>
+          </label>
+          <button class="row-del-btn" data-sub-row-del aria-label="delete row"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="bottom-row">
+          <div class="row-num" data-sub-row-num>${idx + 1}</div>
+          <form class="brf-amount-form" data-sub-row-form action="#" onsubmit="return false;">
+            <div class="brf-amount">
+              <i class="ti ti-cash"></i>
+              <input type="text" inputmode="decimal" enterkeyhint="next" class="bill-amount" data-sub-row-amount data-sub-agent-id="${saId}" placeholder="${tt('amount')}" autocomplete="off">
+            </div>
+          </form>
+          <button class="row-next-btn" data-sub-row-next aria-label="เพิ่มบรรทัดถัดไป" title="เพิ่มบรรทัดถัดไป"><i class="ti ti-arrow-right"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renumberSubBillRows(saId) {
+    const rowsContainer = document.querySelector(`[data-sub-bill-rows="${saId}"]`);
+    if (!rowsContainer) return;
+    rowsContainer.querySelectorAll('.bill-input-row').forEach((r, i) => {
+      const numEl = r.querySelector('[data-sub-row-num]');
+      if (numEl) numEl.textContent = i + 1;
+    });
+  }
+
+  function recalcSubBillSum(saId) {
+    const rowsContainer = document.querySelector(`[data-sub-bill-rows="${saId}"]`);
+    const summaryEl = document.querySelector(`[data-sub-bill-summary="${saId}"]`);
+    if (!rowsContainer || !summaryEl) return;
+    const sa = getSubAgent(saId);
+    if (!sa) return;
+    const percent = sa.percent / 100;
+
+    const byDate = {};
+    let unpaidNet = 0;
+    rowsContainer.querySelectorAll('.bill-input-row').forEach(r => {
+      const date = r.querySelector('[data-sub-row-date]').value || todayStr();
+      const v = parseAmount(r.querySelector('[data-sub-row-amount]').value);
+      const unpaidEl = r.querySelector('[data-sub-row-unpaid]');
+      const isUnpaid = unpaidEl && unpaidEl.checked;
+      const pctEl = r.querySelector('[data-sub-row-pct]');
+      const rowPctRaw = pctEl ? parseFloat(pctEl.value) : NaN;
+      const rowPct = (!isNaN(rowPctRaw) && rowPctRaw >= 0 && rowPctRaw <= 100) ? (rowPctRaw / 100) : percent;
+      if (!isNaN(v) && v > 0) {
+        if (!byDate[date]) byDate[date] = { income: 0, expense: 0, kickback: 0, comm: 0 };
+        byDate[date].income += v;
+        byDate[date].comm += v * rowPct;
+        if (isUnpaid) unpaidNet += v * (1 - rowPct);
+      }
+    });
+
+    const expRow = document.querySelector(`[data-sub-expense-agent="${saId}"]`);
+    let currentExpenseUnpaidNet = 0;
+    if (expRow) {
+      const expDate = expRow.querySelector('[data-sub-exp-date]').value || todayStr();
+      const expAmt = parseAmount(expRow.querySelector('[data-sub-exp-amount]').value);
+      const expKb = parseFloat(expRow.querySelector('[data-sub-exp-kickback]').value);
+      const expUnpaidEl = expRow.querySelector('[data-sub-exp-unpaid]');
+      const expIsUnpaid = expUnpaidEl && expUnpaidEl.checked;
+      if (!isNaN(expAmt) && expAmt > 0) {
+        if (!byDate[expDate]) byDate[expDate] = { income: 0, expense: 0, kickback: 0, comm: 0 };
+        byDate[expDate].expense += expAmt;
+        const kbAmt = (!isNaN(expKb) && expKb > 0) ? expAmt * (expKb / 100) : 0;
+        if (kbAmt > 0) byDate[expDate].kickback += kbAmt;
+        if (expIsUnpaid) currentExpenseUnpaidNet = expAmt - kbAmt;
+      }
+    }
+
+    const dates = Object.keys(byDate).sort();
+    let grandIncome = 0, grandComm = 0, grandExpense = 0, grandKickback = 0;
+    dates.forEach(d => {
+      grandIncome += byDate[d].income;
+      grandComm += byDate[d].comm || 0;
+      grandExpense += byDate[d].expense;
+      grandKickback += byDate[d].kickback;
+    });
+    const grandNet = (grandIncome - grandComm) + grandKickback - grandExpense;
+
+    if (dates.length === 0) {
+      summaryEl.innerHTML = `<div class="summary-empty">${tt('summary_start')}</div>`;
+      return;
+    }
+
+    const dateRows = dates.map(d => {
+      const inc = byDate[d].income;
+      const comm = byDate[d].comm || 0;
+      const exp = byDate[d].expense;
+      const kb = byDate[d].kickback;
+      const net = (inc - comm) + kb - exp;
+      return `<div class="summary-date-row">
+        <div class="summary-date">${d}</div>
+        <div class="summary-nums">
+          <div class="summary-cell"><div class="summary-cell-label">${tt('sum_inc_label')}</div><div class="summary-cell-value">${fmt(inc)}</div></div>
+          <div class="summary-cell"><div class="summary-cell-label">${tt('sum_comm_label')}</div><div class="summary-cell-value" style="color: #ffd0d0;">-${fmt(comm)}</div></div>
+          <div class="summary-cell"><div class="summary-cell-label">${tt('sum_net')}</div><div class="summary-cell-value" style="color: #d0ffe0; font-weight: 600;">${fmt(net)}</div></div>
+        </div>
+        ${(exp > 0 || kb > 0) ? `<div class="summary-nums" style="margin-top: 4px;">
+          <div class="summary-cell"><div class="summary-cell-label">${tt('sum_exp_label')}</div><div class="summary-cell-value" style="color: #ffd0d0;">-${fmt(exp)}</div></div>
+          <div class="summary-cell"><div class="summary-cell-label">${tt('sum_kb_label')}</div><div class="summary-cell-value" style="color: #d0ffe0;">+${fmt(kb)}</div></div>
+          <div class="summary-cell" style="visibility: hidden;"><div class="summary-cell-label">-</div><div class="summary-cell-value">-</div></div>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+
+    const existingOwed = subTransactions
+      .filter(t => t.subAgentId === saId && t.type === 'income' && subBillIsUnpaid(t))
+      .reduce((s, t) => s + subBillRemaining(t), 0);
+    const existingWeOwe = subTransactions
+      .filter(t => t.subAgentId === saId && t.type === 'expense' && subBillIsUnpaid(t))
+      .reduce((s, t) => s + subBillRemaining(t), 0);
+
+    let currentBillsOwedToUs = unpaidNet;
+    let currentExpenseDue = 0;
+    Object.values(byDate).forEach(d => { currentExpenseDue += d.expense - d.kickback; });
+
+    const finalBalance = (existingOwed + currentBillsOwedToUs) - (existingWeOwe + currentExpenseDue);
+    const absBalance = Math.abs(finalBalance);
+
+    function renderBalanceCard(wrapStandalone) {
+      if (absBalance < 0.01 && existingOwed < 0.01 && currentBillsOwedToUs < 0.01 && currentExpenseDue < 0.01 && existingWeOwe < 0.01) return '';
+      const isPositive = finalBalance > 0.01;
+      const isNegative = finalBalance < -0.01;
+      const settled = !isPositive && !isNegative;
+      const bgColor = isPositive ? 'rgba(224, 168, 117, 0.30)' : isNegative ? 'rgba(217, 122, 122, 0.30)' : 'rgba(91, 168, 132, 0.30)';
+      const borderColor = isPositive ? 'rgba(224, 168, 117, 0.60)' : isNegative ? 'rgba(217, 122, 122, 0.60)' : 'rgba(91, 168, 132, 0.60)';
+      const icon = isPositive ? 'ti-arrow-bear-left' : isNegative ? 'ti-arrow-bear-right' : 'ti-equal';
+      const label = isPositive ? tt('he_owes_us') : isNegative ? tt('we_owe_him') : tt('balance_settled');
+      const amountColor = isPositive ? '#ffd0a8' : isNegative ? '#ffd0d0' : '#d0ffe0';
+      const parts = [];
+      if (existingOwed > 0.01) parts.push(`${tt('owed_to_us')}: ${fmtShort(existingOwed)} ₭`);
+      if (currentBillsOwedToUs > 0.01) parts.push(`+ ${fmtShort(currentBillsOwedToUs)} ₭ (${tt('credit_short')})`);
+      if (existingWeOwe > 0.01) parts.push(`− ${fmtShort(existingWeOwe)} ₭ (${tt('we_owe_to_agent')})`);
+      if (currentExpenseDue > 0.01) parts.push(`− ${fmtShort(currentExpenseDue)} ₭ (${tt('expense_short')})`);
+      const balanceHtml = `<div style="margin-top: 10px; padding: 10px 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600;"><i class="ti ${icon}"></i> ${label}</span>
+          <span style="font-weight: 700; font-size: 20px; font-family: var(--font-display); color: ${amountColor};">${settled ? '0' : fmt(absBalance)} ₭</span>
+        </div>
+        ${parts.length > 0 ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 4px; line-height: 1.4;">${parts.join(' ')}</div>` : ''}
+      </div>`;
+      return wrapStandalone ? `<div class="summary-grand">${balanceHtml}</div>` : balanceHtml;
+    }
+
+    const showGrand = dates.length > 1 || grandExpense > 0;
+    const totalRow = showGrand ? `<div class="summary-grand">
+      <div class="summary-grand-label"><i class="ti ti-sigma"></i> ${tt('sum_all')}</div>
+      <div class="summary-nums">
+        <div class="summary-cell"><div class="summary-cell-label">${tt('sum_inc')}</div><div class="summary-cell-value">${fmt(grandIncome)}</div></div>
+        <div class="summary-cell"><div class="summary-cell-label">${tt('sum_pay')}</div><div class="summary-cell-value" style="color: #ffd0d0;">-${fmt(grandComm + grandExpense)}</div></div>
+        <div class="summary-cell"><div class="summary-cell-label">${tt('sum_net')}</div><div class="summary-cell-value" style="color: #d0ffe0; font-weight: 700;">${fmt(grandNet)}</div></div>
+      </div>
+      ${grandKickback > 0 ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 4px; text-align: center;">${tt('kb_in_net')} ${fmt(grandKickback)} ₭ ${tt('included_in_net')}</div>` : ''}
+      ${renderBalanceCard(false)}
+    </div>` : renderBalanceCard(true);
+
+    summaryEl.innerHTML = dateRows + totalRow;
+  }
+
+  function addSubBillRow(saId) {
+    const rowsContainer = document.querySelector(`[data-sub-bill-rows="${saId}"]`);
+    if (!rowsContainer) return;
+    const idx = rowsContainer.children.length;
+    rowsContainer.insertAdjacentHTML('beforeend', buildSubBillRow(saId, idx));
+    const newRow = rowsContainer.lastElementChild;
+
+    // Inherit % and date from first row; desc from previous row
+    if (idx > 0) {
+      const firstRow = rowsContainer.firstElementChild;
+      const firstPctInp = firstRow ? firstRow.querySelector('[data-sub-row-pct]') : null;
+      const newPctInp = newRow.querySelector('[data-sub-row-pct]');
+      if (firstPctInp && newPctInp && firstPctInp.value !== '') newPctInp.value = firstPctInp.value;
+      const firstDateInp = firstRow ? firstRow.querySelector('[data-sub-row-date]') : null;
+      const newDateInp = newRow.querySelector('[data-sub-row-date]');
+      if (firstDateInp && newDateInp && firstDateInp.value !== '') newDateInp.value = firstDateInp.value;
+      const prevRow = rowsContainer.children[idx - 1];
+      const prevDescInp = prevRow ? prevRow.querySelector('[data-sub-row-desc]') : null;
+      const newDescInp = newRow.querySelector('[data-sub-row-desc]');
+      if (prevDescInp && newDescInp && prevDescInp.value !== '') newDescInp.value = prevDescInp.value;
+    }
+
+    const amtInp = newRow.querySelector('[data-sub-row-amount]');
+    amtInp.addEventListener('input', (e) => {
+      const before = e.target.value;
+      const caretEnd = e.target.selectionStart;
+      const commasBefore = (before.slice(0, caretEnd).match(/,/g) || []).length;
+      const formatted = formatAmountInput(before);
+      e.target.value = formatted;
+      const commasAfter = (formatted.slice(0, caretEnd).match(/,/g) || []).length;
+      const newCaret = Math.max(0, caretEnd + (commasAfter - commasBefore));
+      try { e.target.setSelectionRange(newCaret, newCaret); } catch (err) {}
+      recalcSubBillSum(saId);
+    });
+    amtInp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = parseAmount(e.target.value);
+        if (!val || val <= 0 || isNaN(val)) { showToast(tt('enter_amount_first'), 'error'); return; }
+        addSubBillRow(saId);
+      }
+    });
+    const form = newRow.querySelector('[data-sub-row-form]');
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const val = parseAmount(amtInp.value);
+        if (!val || val <= 0 || isNaN(val)) { showToast(tt('enter_amount_first'), 'error'); return false; }
+        addSubBillRow(saId);
+        return false;
+      });
+    }
+    const nextBtn = newRow.querySelector('[data-sub-row-next]');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        const val = parseAmount(amtInp.value);
+        if (!val || val <= 0 || isNaN(val)) { showToast(tt('enter_amount_first'), 'error'); amtInp.focus(); return; }
+        addSubBillRow(saId);
+      });
+    }
+    newRow.querySelector('[data-sub-row-date]').addEventListener('change', () => recalcSubBillSum(saId));
+    const unpaidInp = newRow.querySelector('[data-sub-row-unpaid]');
+    if (unpaidInp) unpaidInp.addEventListener('change', () => recalcSubBillSum(saId));
+    const pctInp = newRow.querySelector('[data-sub-row-pct]');
+    if (pctInp) pctInp.addEventListener('input', () => recalcSubBillSum(saId));
+    const descInp = newRow.querySelector('[data-sub-row-desc]');
+    if (descInp) {
+      descInp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); amtInp.focus(); }
+      });
+    }
+    newRow.querySelector('[data-sub-row-del]').addEventListener('click', () => {
+      const total = rowsContainer.children.length;
+      if (total <= 1) {
+        newRow.querySelector('[data-sub-row-amount]').value = '';
+      } else {
+        newRow.remove();
+        renumberSubBillRows(saId);
+      }
+      recalcSubBillSum(saId);
+    });
+    setTimeout(() => amtInp.focus(), 30);
+  }
+
+  // ---- Wire all the buttons ----
+  // Percent change at sub-agent level
   el.querySelectorAll('[data-sub-percent-id]').forEach(inp => {
     inp.addEventListener('change', () => {
       const sa = getSubAgent(inp.dataset.subPercentId);
@@ -5801,76 +6075,123 @@ function wireSubAgentActions(el) {
       }
     });
   });
-  // Toggle add-bill form
+
+  // Open/close add-bill panel
   el.querySelectorAll('[data-sub-add-bill]').forEach(b => {
     b.addEventListener('click', () => {
       const id = b.dataset.subAddBill;
-      const form = document.getElementById('sub-quick-bill-' + id);
-      if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+      const panel = document.getElementById('sub-quick-bill-' + id);
+      const isOpen = panel.style.display === 'block';
+      el.querySelectorAll('.quick-bill').forEach(p => p.style.display = 'none');
+      panel.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) {
+        const rowsContainer = panel.querySelector('[data-sub-bill-rows]');
+        rowsContainer.innerHTML = '';
+        addSubBillRow(id);
+        const expRow = panel.querySelector('[data-sub-expense-agent]');
+        if (expRow) {
+          const expAmt = expRow.querySelector('[data-sub-exp-amount]');
+          const expKb = expRow.querySelector('[data-sub-exp-kickback]');
+          const expDate = expRow.querySelector('[data-sub-exp-date]');
+          const expUnpaid = expRow.querySelector('[data-sub-exp-unpaid]');
+          const previewEl = expRow.querySelector('[data-sub-exp-preview]');
+          expAmt.value = ''; expKb.value = ''; expDate.value = todayStr();
+          if (expUnpaid) expUnpaid.checked = true;
+          previewEl.style.display = 'none';
+          attachAmountFormatter(expAmt);
+          const updateExpPreview = () => {
+            const amt = parseAmount(expAmt.value);
+            const kb = parseFloat(expKb.value);
+            if (!amt || isNaN(amt) || amt <= 0 || !kb || isNaN(kb) || kb <= 0) {
+              previewEl.style.display = 'none';
+              recalcSubBillSum(id);
+              return;
+            }
+            const earned = amt * (kb / 100);
+            previewEl.style.display = 'block';
+            previewEl.innerHTML = `<div style="display: flex; justify-content: space-between;"><span style="opacity: 0.9;">${tt('expense_label')} ${fmt(amt)} ₭ × ${kb}%</span><span style="font-weight: 700; font-family: var(--font-display);">+${fmt(earned)} ₭</span></div>`;
+            recalcSubBillSum(id);
+          };
+          expAmt.addEventListener('input', updateExpPreview);
+          expKb.addEventListener('input', updateExpPreview);
+          expDate.addEventListener('change', () => recalcSubBillSum(id));
+          if (expUnpaid) expUnpaid.addEventListener('change', () => recalcSubBillSum(id));
+        }
+        recalcSubBillSum(id);
+      }
     });
   });
+
+  el.querySelectorAll('[data-sub-add-row]').forEach(b => {
+    b.addEventListener('click', () => addSubBillRow(b.dataset.subAddRow));
+  });
+
   el.querySelectorAll('[data-sub-cancel-bill]').forEach(b => {
     b.addEventListener('click', () => {
-      const form = document.getElementById('sub-quick-bill-' + b.dataset.subCancelBill);
-      if (form) form.style.display = 'none';
+      document.getElementById('sub-quick-bill-' + b.dataset.subCancelBill).style.display = 'none';
     });
   });
-  // Type toggle inside add-bill form
-  el.querySelectorAll('[data-sub-type-btn]').forEach(b => {
-    b.addEventListener('click', () => {
-      const sa = b.dataset.sa;
-      const type = b.dataset.subTypeBtn;
-      const row = el.querySelector(`[data-sub-bill-agent="${sa}"]`);
-      if (!row) return;
-      row.querySelectorAll('[data-sub-type-btn]').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      row.dataset.curType = type;
-      const pctWrap = row.querySelector('[data-sub-pct-wrap]');
-      const kbWrap = row.querySelector('[data-sub-kb-wrap]');
-      if (pctWrap) pctWrap.style.display = type === 'income' ? 'block' : 'none';
-      if (kbWrap) kbWrap.style.display = type === 'expense' ? 'block' : 'none';
-    });
-  });
-  // Attach amount formatting
-  el.querySelectorAll('[data-sub-amount]').forEach(inp => attachAmountFormatter(inp));
-  // Save bill
+
+  // Save bill — collect all rows + special expense, show confirmation
   el.querySelectorAll('[data-sub-save-bill]').forEach(b => {
     b.addEventListener('click', () => {
-      const saId = b.dataset.subSaveBill;
-      const row = el.querySelector(`[data-sub-bill-agent="${saId}"]`);
-      if (!row) return;
-      const type = row.dataset.curType || 'income';
-      const date = row.querySelector('[data-sub-date]').value || todayStr();
-      const desc = row.querySelector('[data-sub-desc]').value.trim();
-      const amount = parseAmount(row.querySelector('[data-sub-amount]').value);
-      const unpaid = row.querySelector('[data-sub-unpaid]').checked;
-      if (!amount || amount <= 0 || isNaN(amount)) { showToast(tt('fill_amount'), 'error'); return; }
-      const tx = { id: uid(), subAgentId: saId, type, date, desc, amount, unpaid };
-      if (type === 'income') {
-        const pctRaw = row.querySelector('[data-sub-pct]').value.trim();
-        if (pctRaw !== '') {
-          const pv = parseFloat(pctRaw);
-          const sa = getSubAgent(saId);
-          if (!isNaN(pv) && pv >= 0 && pv <= 100 && (!sa || pv !== sa.percent)) tx.percent = pv;
+      const id = b.dataset.subSaveBill;
+      const sa = getSubAgent(id);
+      const rowsContainer = document.querySelector(`[data-sub-bill-rows="${id}"]`);
+      const rows = rowsContainer.querySelectorAll('.bill-input-row');
+      const newTxs = [];
+      let skipped = 0;
+      const batchId = uid();
+      rows.forEach(r => {
+        const date = r.querySelector('[data-sub-row-date]').value || todayStr();
+        const amount = parseAmount(r.querySelector('[data-sub-row-amount]').value);
+        if (!amount || amount <= 0 || isNaN(amount)) { skipped++; return; }
+        const unpaidEl = r.querySelector('[data-sub-row-unpaid]');
+        const isUnpaid = unpaidEl && unpaidEl.checked;
+        const pctEl = r.querySelector('[data-sub-row-pct]');
+        const rowPctRaw = pctEl ? parseFloat(pctEl.value) : NaN;
+        const descEl = r.querySelector('[data-sub-row-desc]');
+        const desc = descEl ? (descEl.value || '').trim() : '';
+        const tx = { id: uid(), type: 'income', date, desc, amount, subAgentId: id, batchId };
+        if (!isNaN(rowPctRaw) && rowPctRaw >= 0 && rowPctRaw <= 100) {
+          if (!sa || rowPctRaw !== sa.percent) tx.percent = rowPctRaw;
         }
-      } else {
-        const kbRaw = row.querySelector('[data-sub-kb]').value;
-        const kb = parseFloat(kbRaw);
-        if (!isNaN(kb) && kb > 0 && kb <= 100) tx.kickback = kb;
+        if (isUnpaid) tx.unpaid = true;
+        newTxs.push(tx);
+      });
+
+      const expRow = document.querySelector(`[data-sub-expense-agent="${id}"]`);
+      let expAdded = 0;
+      if (expRow) {
+        const expDate = expRow.querySelector('[data-sub-exp-date]').value || todayStr();
+        const expAmt = parseAmount(expRow.querySelector('[data-sub-exp-amount]').value);
+        const expKb = parseFloat(expRow.querySelector('[data-sub-exp-kickback]').value);
+        const expUnpaidEl = expRow.querySelector('[data-sub-exp-unpaid]');
+        const expIsUnpaid = expUnpaidEl && expUnpaidEl.checked;
+        const expDescEl = expRow.querySelector('[data-sub-exp-desc]');
+        const expDesc = expDescEl ? (expDescEl.value || '').trim() : '';
+        if (!isNaN(expAmt) && expAmt > 0) {
+          const tx = { id: uid(), type: 'expense', date: expDate, desc: expDesc, amount: expAmt, subAgentId: id, batchId };
+          if (!isNaN(expKb) && expKb > 0 && expKb <= 100) tx.kickback = expKb;
+          if (expIsUnpaid) tx.unpaid = true;
+          newTxs.push(tx);
+          expAdded = 1;
+        }
       }
-      subTransactions.push(tx);
-      saveSubTx();
-      renderSubAgents();
-      showToast(tt('record_added') || tt('agent_added'), 'success');
+
+      if (newTxs.length === 0) { showToast(tt('enter_at_least_one'), 'error'); return; }
+      showSubSaveConfirmation(newTxs, sa, skipped, expAdded);
     });
   });
+
   // Toggle bills list
   el.querySelectorAll('[data-sub-toggle-bills]').forEach(b => {
     b.addEventListener('click', () => {
-      const list = document.getElementById('sub-bill-list-' + b.dataset.subToggleBills);
-      if (list) list.style.display = list.style.display === 'none' ? 'block' : 'none';
+      const panel = document.getElementById('sub-bill-list-' + b.dataset.subToggleBills);
+      panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
     });
   });
+
   // Toggle day rows
   el.querySelectorAll('[data-sub-toggle-day]').forEach(b => {
     b.addEventListener('click', () => {
@@ -5883,15 +6204,19 @@ function wireSubAgentActions(el) {
       }
     });
   });
-  // Edit bill
-  el.querySelectorAll('[data-sub-edit-bill]').forEach(b => {
-    b.addEventListener('click', () => openSubEditBillModal(b.dataset.subEditBill));
+
+  // Export (Excel/PDF/PNG) — reuse main modal with sub flag
+  el.querySelectorAll('[data-sub-export-bills]').forEach(b => {
+    b.addEventListener('click', () => openExportModal(b.dataset.subExportBills, true));
   });
+
   // Delete bill
   el.querySelectorAll('[data-sub-del-bill]').forEach(b => {
     b.addEventListener('click', () => {
       const id = b.dataset.subDelBill;
-      showConfirm(tt('delete_record_q') || 'ลบรายการ?', '', () => {
+      const tx = subTransactions.find(t => t.id === id);
+      if (!tx) return;
+      showConfirm(tt('delete_bill'), `${tx.desc || tt('not_specified')} · ${fmt(tx.amount)} ₭`, () => {
         subTransactions = subTransactions.filter(t => t.id !== id);
         saveSubTx();
         renderSubAgents();
@@ -5899,10 +6224,75 @@ function wireSubAgentActions(el) {
       });
     });
   });
+
+  // Edit bill — reuse main edit-tx-modal with sub flag
+  el.querySelectorAll('[data-sub-edit-bill]').forEach(b => {
+    b.addEventListener('click', () => openEditTxModal(b.dataset.subEditBill, true));
+  });
+
+  // Mark unpaid (toggle paid→unpaid)
+  el.querySelectorAll('[data-sub-mark-unpaid]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.subMarkUnpaid;
+      const tx = subTransactions.find(t => t.id === id);
+      if (!tx) return;
+      tx.unpaid = true;
+      saveSubTx();
+      renderSubAgents();
+      showToast(tt('marked_unpaid') || 'อัพเดตแล้ว', 'success');
+    });
+  });
+
+  // Per-bill % edit popup
+  el.querySelectorAll('[data-sub-edit-pct]').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = b.dataset.subEditPct;
+      const tx = subTransactions.find(t => t.id === id);
+      if (!tx) return;
+      const sa = getSubAgent(tx.subAgentId);
+      if (!sa) return;
+      const currentPct = typeof tx.percent === 'number' ? tx.percent : sa.percent;
+      const input = prompt(`ค่าคอมบิลนี้ (%)\n\nบิล: ${tx.desc || '—'}\nค่าเริ่มต้นจากตัวแทนย่อย: ${sa.percent}%\n\nใส่ค่าใหม่ (0-100) หรือเว้นว่างเพื่อใช้ค่าตัวแทน:`, currentPct);
+      if (input === null) return;
+      const trimmed = input.trim();
+      if (trimmed === '') {
+        delete tx.percent;
+      } else {
+        const v = parseFloat(trimmed);
+        if (isNaN(v) || v < 0 || v > 100) { showToast('ค่าต้องอยู่ระหว่าง 0-100', 'error'); return; }
+        if (v === sa.percent) delete tx.percent; else tx.percent = v;
+      }
+      saveSubTx();
+      renderSubAgents();
+      showToast(tt('percent_updated'), 'success');
+    });
+  });
+
+  // Batch pay — mark all bills in batch as paid (settled)
+  el.querySelectorAll('[data-sub-pay-batch]').forEach(b => {
+    b.addEventListener('click', () => {
+      const batchKey = b.dataset.subPayBatch;
+      const saId = b.dataset.subPayAgent;
+      const isSolo = batchKey.startsWith('solo-');
+      const batchTxs = isSolo
+        ? subTransactions.filter(t => t.id === batchKey.slice(5) && t.subAgentId === saId)
+        : subTransactions.filter(t => t.batchId === batchKey && t.subAgentId === saId);
+      if (batchTxs.length === 0) return;
+      showConfirm(tt('confirm_settle_batch') || 'ยืนยันเคลียร์บิล?', `${batchTxs.length} ${tt('bill_count_label')}`, () => {
+        batchTxs.forEach(t => { t.unpaid = false; });
+        saveSubTx();
+        renderSubAgents();
+        showToast(tt('all_settled_done') || 'เคลียร์แล้ว', 'success');
+      }, false);
+    });
+  });
+
   // Edit sub-agent
   el.querySelectorAll('[data-edit-sa]').forEach(b => {
     b.addEventListener('click', () => openEditSubAgentModal(b.dataset.editSa));
   });
+
   // Delete sub-agent
   el.querySelectorAll('[data-del-sa]').forEach(b => {
     b.addEventListener('click', () => {
@@ -5923,52 +6313,110 @@ function wireSubAgentActions(el) {
   });
 }
 
-function openSubEditBillModal(txId) {
-  const tx = subTransactions.find(t => t.id === txId);
-  if (!tx) return;
-  _subEditTxId = txId;
-  document.getElementById('sub-edit-tx-date').value = tx.date;
-  document.getElementById('sub-edit-tx-desc').value = tx.desc || '';
-  document.getElementById('sub-edit-tx-amount').value = fmt(tx.amount);
-  document.getElementById('sub-edit-tx-unpaid').checked = !!tx.unpaid;
-  setSubEditType(tx.type);
-  const pctInp = document.getElementById('sub-edit-tx-percent');
-  pctInp.value = typeof tx.percent === 'number' ? tx.percent : '';
-  const sa = getSubAgent(tx.subAgentId);
-  if (sa) pctInp.placeholder = String(sa.percent);
-  document.getElementById('sub-edit-tx-kickback').value = tx.kickback || '';
-  document.getElementById('sub-edit-tx-modal').classList.add('show');
-}
-function setSubEditType(type) {
-  document.getElementById('sub-edit-tx-type').value = type;
-  const inc = document.getElementById('sub-edit-type-income-btn');
-  const exp = document.getElementById('sub-edit-type-expense-btn');
-  if (type === 'income') { inc.className = 'type-pill active-income'; exp.className = 'type-pill inactive'; }
-  else { exp.className = 'type-pill active-expense'; inc.className = 'type-pill inactive'; }
-  document.getElementById('sub-edit-income-pct-section').style.display = type === 'income' ? 'block' : 'none';
-  document.getElementById('sub-edit-expense-kickback-section').style.display = type === 'expense' ? 'block' : 'none';
-}
-function closeSubEditBillModal() {
-  document.getElementById('sub-edit-tx-modal').classList.remove('show');
-  _subEditTxId = null;
+// Mirror of showSaveConfirmation but for sub-agent transactions
+function showSubSaveConfirmation(newTxs, agent, skipped, expAdded) {
+  const incomeTxs = newTxs.filter(t => t.type === 'income');
+  const expenseTxs = newTxs.filter(t => t.type === 'expense');
+  const totalIncome = incomeTxs.reduce((s, t) => s + t.amount, 0);
+  const totalExpense = expenseTxs.reduce((s, t) => s + t.amount, 0);
+  const totalCommission = incomeTxs.reduce((s, t) => s + t.amount * (subPctForTx(t) / 100), 0);
+  const totalKickback = expenseTxs.reduce((s, t) => s + (t.kickback ? t.amount * (t.kickback / 100) : 0), 0);
+
+  const grad = agent ? agentGradient(agent.name) : 'var(--grad-hero)';
+  const agentBlock = agent ? `
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border);">
+      <div class="kickback-avatar" style="background: ${grad}; --name-grad: ${grad};">${escapeHtml(agent.name.slice(0, 2).toUpperCase())}</div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 15px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(agent.name)}</div>
+        <div style="font-size: 12px; color: var(--text-2);">${tt('commission')} ${agent.percent}%</div>
+      </div>
+    </div>` : '';
+
+  const billRowsHtml = newTxs.map(t => {
+    const isIncome = t.type === 'income';
+    const iconCls = isIncome ? 'ti-arrow-down' : 'ti-arrow-up';
+    const iconBg = isIncome ? 'rgba(91, 168, 132, 0.18)' : 'rgba(217, 122, 122, 0.18)';
+    const iconColor = isIncome ? 'var(--green)' : 'var(--red)';
+    const amountColor = isIncome ? 'var(--green)' : 'var(--red)';
+    const sign = isIncome ? '+' : '-';
+    const pctLabel = isIncome
+      ? `${subPctForTx(t)}% ${tt('commission')}`
+      : (t.kickback ? `${t.kickback}% ${tt('sum_kb_label') || 'ค่าคอม'}` : '');
+    const unpaidBadge = t.unpaid
+      ? `<span style="font-size: 11px; padding: 2px 6px; border-radius: 6px; background: rgba(224, 168, 117, 0.25); color: var(--orange); font-weight: 600;"><i class="ti ti-clock-dollar"></i> ${tt('not_paid_yet')}</span>`
+      : `<span style="font-size: 11px; padding: 2px 6px; border-radius: 6px; background: rgba(91, 168, 132, 0.25); color: var(--green); font-weight: 600;"><i class="ti ti-circle-check"></i> ${isIncome ? tt('already_paid_income') : tt('already_paid_expense')}</span>`;
+    return `<div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface-2); border-radius: 11px; border: 1px solid var(--border); margin-bottom: 6px;">
+      <div style="width: 32px; height: 32px; border-radius: 9px; background: ${iconBg}; color: ${iconColor}; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;"><i class="ti ${iconCls}"></i></div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text);">${formatThaiDate(t.date)}</div>
+        <div style="font-size: 11px; color: var(--text-3); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px;">
+          ${pctLabel ? `<span>${pctLabel}</span>` : ''}
+          ${unpaidBadge}
+        </div>
+      </div>
+      <div style="text-align: right; flex-shrink: 0;">
+        <div style="font-size: 16px; font-weight: 700; color: ${amountColor}; font-family: var(--font-display); white-space: nowrap;">${sign}${fmt(t.amount)} ₭</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const totalsHtml = `<div style="padding: 12px; background: linear-gradient(135deg, rgba(124, 122, 217, 0.10) 0%, rgba(164, 140, 208, 0.10) 100%); border-radius: 12px; border: 1px solid var(--border-2); margin-top: 8px;">
+    <div style="font-size: 12px; color: var(--text-2); font-weight: 600; margin-bottom: 6px;"><i class="ti ti-calculator"></i> ${tt('confirm_save_summary')}</div>
+    ${incomeTxs.length > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;"><span style="color: var(--text-2);">${tt('income_label')} (${incomeTxs.length})</span><span style="font-weight: 600; color: var(--green); font-family: var(--font-display);">+${fmt(totalIncome)} ₭</span></div>` : ''}
+    ${totalCommission > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;"><span style="color: var(--text-2);">${tt('commission')}</span><span style="font-weight: 600; color: var(--pink); font-family: var(--font-display);">-${fmt(totalCommission)} ₭</span></div>` : ''}
+    ${expenseTxs.length > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;"><span style="color: var(--text-2);">${tt('expense_label')} (${expenseTxs.length})</span><span style="font-weight: 600; color: var(--red); font-family: var(--font-display);">-${fmt(totalExpense)} ₭</span></div>` : ''}
+    ${totalKickback > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--text-2);">${tt('kb_from_him')}</span><span style="font-weight: 600; color: var(--primary); font-family: var(--font-display);">+${fmt(totalKickback)} ₭</span></div>` : ''}
+  </div>`;
+
+  showSaveConfirm(agentBlock + billRowsHtml + totalsHtml, () => {
+    subTransactions.push(...newTxs);
+    saveSubTx();
+    renderSubAgents();
+    const incomeCount = newTxs.length - expAdded;
+    let msg = `${tt('bills_saved')}: ${incomeCount} ${tt('sales_count')}`;
+    if (expAdded) msg += `, 1 ${tt('expense_label')}`;
+    if (skipped > 0) msg += ` (${tt('skipped')} ${skipped})`;
+    showToast(msg, 'success');
+  });
 }
 
 function openEditSubAgentModal(id) {
+  // Reuse the main edit-agent-modal but route save to sub-agent
   const sa = getSubAgent(id);
   if (!sa) return;
-  _subEditAgentId = id;
-  document.getElementById('sub-edit-agent-name').value = sa.name;
-  document.getElementById('sub-edit-agent-percent').value = sa.percent;
-  document.getElementById('sub-edit-agent-modal').classList.add('show');
+  _editingSubAgentId = id;
+  document.getElementById('edit-agent-id').value = '__SUB__:' + id;  // marker
+  document.getElementById('edit-agent-name').value = sa.name;
+  document.getElementById('edit-agent-percent').value = sa.percent;
+  // Build stats from subTransactions
+  const txs = subTransactions.filter(t => t.subAgentId === sa.id && t.type === 'income');
+  const total = txs.reduce((s, t) => s + t.amount, 0);
+  const commTotal = total * (sa.percent / 100);
+  document.getElementById('edit-agent-stats').innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+      <span><i class="ti ti-receipt"></i> ${tt('agent_bills')}</span>
+      <span style="font-weight: 600; color: var(--text);">${txs.length} ${tt('records_unit')}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+      <span><i class="ti ti-cash"></i> ${tt('agent_total')}</span>
+      <span style="font-weight: 600; color: var(--green);">${fmt(total)} ₭</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span><i class="ti ti-coin"></i> ${tt('current_comm')}</span>
+      <span style="font-weight: 600; color: var(--pink);">${fmt(commTotal)} ₭</span>
+    </div>
+  `;
+  document.getElementById('edit-agent-modal').classList.add('show');
 }
-function closeEditSubAgentModal() {
-  document.getElementById('sub-edit-agent-modal').classList.remove('show');
-  _subEditAgentId = null;
-}
+
 
 function getAgentPercentForTx(tx) {
   // Use per-bill override if defined, else fall back to agent's default
   if (typeof tx.percent === 'number') return tx.percent;
+  if (tx.subAgentId) {
+    const sa = subAgents.find(a => a.id === tx.subAgentId);
+    return sa ? sa.percent : 0;
+  }
   if (!tx.agentId) return 0;
   const ag = agents.find(a => a.id === tx.agentId);
   return ag ? ag.percent : 0;
@@ -7653,9 +8101,12 @@ function applySettlement(agentId, amount) {
   return billsAffected;
 }
 
-function openEditTxModal(txId) {
-  const tx = transactions.find(t => t.id === txId);
+function openEditTxModal(txId, isSub) {
+  const source = isSub ? subTransactions : transactions;
+  const tx = source.find(t => t.id === txId);
   if (!tx) return;
+  // Tag the modal as sub-mode or main-mode so the save handler can route correctly
+  document.getElementById('edit-tx-modal').dataset.subMode = isSub ? '1' : '';
   document.getElementById('edit-tx-id').value = tx.id;
   document.getElementById('edit-tx-date').value = tx.date;
   document.getElementById('edit-tx-desc').value = tx.desc || '';
@@ -7664,13 +8115,18 @@ function openEditTxModal(txId) {
   const pctInp = document.getElementById('edit-tx-percent');
   pctInp.value = typeof tx.percent === 'number' ? tx.percent : '';
   const sel = document.getElementById('edit-tx-agent');
-  const isAdminEdit = currentUser && currentUser.role === 'admin' && !viewingAsUser;
-  const usableEdit = isAdminEdit ? agents : agents.filter(a => !a.status || a.status === 'approved' || a.id === tx.agentId);
-  sel.innerHTML = `<option value="">${tt('agentNone')}</option>` + usableEdit.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${a.percent}%)</option>`).join('');
-  sel.value = tx.agentId || '';
+  if (isSub) {
+    // Sub-agent edit: agent dropdown shows sub-agents only, selected by subAgentId
+    sel.innerHTML = `<option value="">${tt('agentNone')}</option>` + subAgents.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${a.percent}%)</option>`).join('');
+    sel.value = tx.subAgentId || '';
+  } else {
+    const isAdminEdit = currentUser && currentUser.role === 'admin' && !viewingAsUser;
+    const usableEdit = isAdminEdit ? agents : agents.filter(a => !a.status || a.status === 'approved' || a.id === tx.agentId);
+    sel.innerHTML = `<option value="">${tt('agentNone')}</option>` + usableEdit.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${a.percent}%)</option>`).join('');
+    sel.value = tx.agentId || '';
+  }
   setEditTxType(tx.type);
   updateEditTxPctHint();
-  // Update placeholder/hint when agent changes
   sel.onchange = updateEditTxPctHint;
   document.getElementById('edit-tx-modal').classList.add('show');
 }
@@ -7686,7 +8142,8 @@ function updateEditTxPctHint() {
     pctSec.style.display = 'none';
     return;
   }
-  const ag = agents.find(a => a.id === agentId);
+  const isSub = document.getElementById('edit-tx-modal').dataset.subMode === '1';
+  const ag = isSub ? getSubAgent(agentId) : agents.find(a => a.id === agentId);
   if (!ag) {
     pctSec.style.display = 'none';
     return;
@@ -7743,7 +8200,9 @@ document.getElementById('edit-agent-modal').addEventListener('click', (e) => { i
 
 document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
   const id = document.getElementById('edit-tx-id').value;
-  const tx = transactions.find(t => t.id === id);
+  const isSub = document.getElementById('edit-tx-modal').dataset.subMode === '1';
+  const source = isSub ? subTransactions : transactions;
+  const tx = source.find(t => t.id === id);
   if (!tx) return;
   const type = document.getElementById('edit-tx-type').value;
   const date = document.getElementById('edit-tx-date').value || todayStr();
@@ -7753,7 +8212,8 @@ document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
   if (!amount || amount <= 0 || isNaN(amount)) { showToast(tt('fill_amount'), 'error'); return; }
 
   // Capture intended new values without mutating tx yet
-  const newValues = { type, date, desc, amount, agentId };
+  const newValues = { type, date, desc, amount };
+  if (isSub) newValues.subAgentId = agentId; else newValues.agentId = agentId;
   if (type === 'expense') {
     const kb = parseFloat(document.getElementById('edit-tx-kickback').value);
     if (!isNaN(kb) && kb > 0 && kb <= 100) newValues.kickback = kb;
@@ -7762,7 +8222,7 @@ document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
     if (pctRaw !== '') {
       const pctVal = parseFloat(pctRaw);
       if (!isNaN(pctVal) && pctVal >= 0 && pctVal <= 100) {
-        const ag = agents.find(a => a.id === agentId);
+        const ag = isSub ? getSubAgent(agentId) : agents.find(a => a.id === agentId);
         if (!agentId || !ag || pctVal !== ag.percent) {
           newValues.percent = pctVal;
         }
@@ -7776,7 +8236,7 @@ document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
   if (type === 'expense') delete previewTx.percent;
   if (!newValues.kickback) delete previewTx.kickback;
   if (newValues.percent === undefined && type === 'income') delete previewTx.percent;
-  const ag = agentId ? getAgent(agentId) : null;
+  const ag = agentId ? (isSub ? getSubAgent(agentId) : getAgent(agentId)) : null;
   const summary = buildTxConfirmSummary(previewTx, ag);
 
   showSaveConfirm(summary, () => {
@@ -7784,7 +8244,8 @@ document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
     tx.date = date;
     tx.desc = desc;
     tx.amount = amount;
-    tx.agentId = agentId;
+    if (isSub) { tx.subAgentId = agentId; delete tx.agentId; }
+    else { tx.agentId = agentId; delete tx.subAgentId; }
     if (type === 'expense') {
       if (newValues.kickback) tx.kickback = newValues.kickback;
       else delete tx.kickback;
@@ -7794,17 +8255,24 @@ document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
       if (newValues.percent !== undefined) tx.percent = newValues.percent;
       else delete tx.percent;
     }
-    tagEditedTx(tx);
-    saveTx();
-    renderAll();
+    if (isSub) {
+      saveSubTx();
+      renderSubAgents();
+    } else {
+      tagEditedTx(tx);
+      saveTx();
+      renderAll();
+    }
     closeEditTxModal();
     showToast(tt('record_edited'), 'success');
   });
 });
 
 document.getElementById('save-edit-agent-btn').addEventListener('click', () => {
-  const id = document.getElementById('edit-agent-id').value;
-  const ag = getAgent(id);
+  const idRaw = document.getElementById('edit-agent-id').value;
+  const isSub = idRaw.startsWith('__SUB__:');
+  const id = isSub ? idRaw.slice(8) : idRaw;
+  const ag = isSub ? getSubAgent(id) : getAgent(id);
   if (!ag) return;
   const name = document.getElementById('edit-agent-name').value.trim();
   const percent = parseFloat(document.getElementById('edit-agent-percent').value);
@@ -7814,10 +8282,17 @@ document.getElementById('save-edit-agent-btn').addEventListener('click', () => {
   showSaveConfirm(summary, () => {
     ag.name = name;
     ag.percent = percent;
-    saveAgents();
-    renderAll();
+    if (isSub) {
+      saveSubAgents();
+      renderSubAgents();
+      showToast(tt('subagent_updated'), 'success');
+    } else {
+      saveAgents();
+      renderAll();
+      showToast(tt('agent_updated'), 'success');
+    }
     closeEditAgentModal();
-    showToast(tt('agent_updated'), 'success');
+    _editingSubAgentId = null;
   });
 });
 
@@ -7903,60 +8378,6 @@ document.getElementById('add-subagent-btn').addEventListener('click', () => {
   document.getElementById('subagent-percent').value = '';
   renderSubAgents();
   showToast(tt('subagent_added'), 'success');
-});
-
-// Sub-agent edit modal save
-document.getElementById('sub-save-edit-agent-btn').addEventListener('click', () => {
-  const sa = getSubAgent(_subEditAgentId);
-  if (!sa) return;
-  const name = document.getElementById('sub-edit-agent-name').value.trim();
-  const percent = parseFloat(document.getElementById('sub-edit-agent-percent').value);
-  if (!name) { showToast(tt('fill_agent_name'), 'error'); return; }
-  if (isNaN(percent) || percent < 0 || percent > 100) { showToast(tt('percent_range'), 'error'); return; }
-  sa.name = name; sa.percent = percent;
-  saveSubAgents();
-  closeEditSubAgentModal();
-  renderSubAgents();
-  showToast(tt('subagent_updated'), 'success');
-});
-document.querySelectorAll('[data-close-sub-edit-agent]').forEach(b => b.addEventListener('click', closeEditSubAgentModal));
-document.getElementById('sub-edit-agent-modal').addEventListener('click', (e) => { if (e.target.id === 'sub-edit-agent-modal') closeEditSubAgentModal(); });
-
-// Sub-agent bill edit modal
-document.getElementById('sub-edit-type-income-btn').addEventListener('click', () => setSubEditType('income'));
-document.getElementById('sub-edit-type-expense-btn').addEventListener('click', () => setSubEditType('expense'));
-attachAmountFormatter(document.getElementById('sub-edit-tx-amount'));
-document.querySelectorAll('[data-close-sub-edit-tx]').forEach(b => b.addEventListener('click', closeSubEditBillModal));
-document.getElementById('sub-edit-tx-modal').addEventListener('click', (e) => { if (e.target.id === 'sub-edit-tx-modal') closeSubEditBillModal(); });
-document.getElementById('sub-save-edit-tx-btn').addEventListener('click', () => {
-  const tx = subTransactions.find(t => t.id === _subEditTxId);
-  if (!tx) return;
-  const type = document.getElementById('sub-edit-tx-type').value;
-  const date = document.getElementById('sub-edit-tx-date').value || todayStr();
-  const desc = document.getElementById('sub-edit-tx-desc').value.trim();
-  const amount = parseAmount(document.getElementById('sub-edit-tx-amount').value);
-  const unpaid = document.getElementById('sub-edit-tx-unpaid').checked;
-  if (!amount || amount <= 0 || isNaN(amount)) { showToast(tt('fill_amount'), 'error'); return; }
-  tx.type = type; tx.date = date; tx.desc = desc; tx.amount = amount; tx.unpaid = unpaid;
-  if (type === 'income') {
-    delete tx.kickback;
-    const pctRaw = document.getElementById('sub-edit-tx-percent').value.trim();
-    const sa = getSubAgent(tx.subAgentId);
-    if (pctRaw !== '') {
-      const pv = parseFloat(pctRaw);
-      if (!isNaN(pv) && pv >= 0 && pv <= 100 && (!sa || pv !== sa.percent)) tx.percent = pv;
-      else delete tx.percent;
-    } else delete tx.percent;
-  } else {
-    delete tx.percent;
-    const kb = parseFloat(document.getElementById('sub-edit-tx-kickback').value);
-    if (!isNaN(kb) && kb > 0 && kb <= 100) tx.kickback = kb;
-    else delete tx.kickback;
-  }
-  saveSubTx();
-  closeSubEditBillModal();
-  renderSubAgents();
-  showToast(tt('record_edited'), 'success');
 });
 
 document.getElementById('filter-type').addEventListener('change', renderTransactions);
