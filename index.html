@@ -1652,7 +1652,7 @@ h1, h2, h3, .display {
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.31';
+const APP_VERSION = '1.99.32';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1712,6 +1712,9 @@ const T = {
     record_added: 'ເພີ່ມລາຍການແລ້ວ', delete_record_q: 'ລຶບລາຍການ?',
     follow_income: 'ຕາມລາຍຮັບ', lock_to_income_date: 'ໃຊ້ວັນທີດຽວກັບລາຍຮັບ',
     copy_bills_title: 'ສຳເນົາບິນໄປຫາ...', copied_to: 'ສຳເນົາໄປຫາ', same_agent: 'ຕົວເອງ',
+    session_expired_save: 'ເຊດຊັນໝົດອາຍຸ — ຂໍ້ມູນຍັງຢູ່ໃນເຄື່ອງ. ກະລຸນາລົງຊື່ເຂົ້າໃຊ້ໃໝ່ເພື່ອບັນທຶກໄປຄລາວ',
+    cloud_save_failed: 'ບັນທຶກໄປຄລາວບໍ່ສຳເລັດ — ຂໍ້ມູນຍັງຢູ່ໃນເຄື່ອງ',
+    cloud_load_failed: 'ໂຫລດຂໍ້ມູນຈາກຄລາວບໍ່ສຳເລັດ — ໃຊ້ຂໍ້ມູນທີ່ບັນທຶກໄວ້ໃນເຄື່ອງ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
     timeRange: 'ຊ່ວງເວລາ', all: 'ທັງໝົດ', today: 'ມື້ນີ້', yesterday: 'ມື້ວານ', last7days: '7 ມື້', thisMonth: 'ເດືອນນີ້', lastMonth: 'ເດືອນກ່ອນ', thisYear: 'ປີນີ້', custom: 'ເລືອກເອງ',
@@ -2071,6 +2074,9 @@ const T = {
     record_added: 'เพิ่มรายการแล้ว', delete_record_q: 'ลบรายการ?',
     follow_income: 'ตามรายรับ', lock_to_income_date: 'ใช้วันที่เดียวกับรายรับ',
     copy_bills_title: 'คัดลอกบิลไปยัง...', copied_to: 'คัดลอกไปที่', same_agent: 'ตัวเอง',
+    session_expired_save: 'เซสชั่นหมดอายุ — ข้อมูลยังอยู่ในเครื่อง กรุณาลงชื่อเข้าใช้ใหม่เพื่อบันทึกขึ้นคลาวด์',
+    cloud_save_failed: 'บันทึกขึ้นคลาวด์ไม่สำเร็จ — ข้อมูลยังอยู่ในเครื่อง',
+    cloud_load_failed: 'โหลดข้อมูลจากคลาวด์ไม่สำเร็จ — ใช้ข้อมูลที่บันทึกไว้ในเครื่อง',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
     timeRange: 'ช่วงเวลา', all: 'ทั้งหมด', today: 'วันนี้', yesterday: 'เมื่อวาน', last7days: '7 วัน', thisMonth: 'เดือนนี้', lastMonth: 'เดือนก่อน', thisYear: 'ปีนี้', custom: 'เลือกเอง',
@@ -2824,6 +2830,57 @@ function updateSyncCount() {
 })();
 
 // Debounced cloud save — batches rapid changes into one network call
+// ============ TOKEN REFRESH ============
+// Supabase access tokens expire after ~1 hour. We MUST refresh proactively
+// using the saved refresh_token, otherwise saves silently 401 and data is
+// lost on next reload (cloud overwrites local with stale data).
+async function refreshSessionIfNeeded(force) {
+  if (!currentUser) return false;
+  const tokenKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
+  let session = null;
+  try {
+    const raw = localStorage.getItem(tokenKey);
+    if (raw) session = JSON.parse(raw);
+  } catch (e) {}
+  if (!session || !session.refresh_token) return false;
+
+  const now = Math.floor(Date.now() / 1000);
+  // Skip refresh if token has > 5 minutes left and not forced
+  if (!force && session.expires_at && session.expires_at > now + 300) {
+    // Token still healthy — make sure currentUser is in sync
+    if (currentUser._token !== session.access_token) currentUser._token = session.access_token;
+    return true;
+  }
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ refresh_token: session.refresh_token })
+    });
+    if (!resp.ok) {
+      console.warn('Token refresh failed:', resp.status);
+      return false;
+    }
+    const data = await resp.json();
+    if (!data.access_token) return false;
+    session.access_token = data.access_token;
+    if (data.refresh_token) session.refresh_token = data.refresh_token;
+    session.expires_in = data.expires_in;
+    session.expires_at = Math.floor(Date.now() / 1000) + (data.expires_in || 3600);
+    if (data.user) session.user = data.user;
+    try { localStorage.setItem(tokenKey, JSON.stringify(session)); } catch (e) {}
+    currentUser._token = data.access_token;
+    return true;
+  } catch (e) {
+    console.warn('Token refresh error:', e.message);
+    return false;
+  }
+}
+
 function scheduleCloudSave() {
   if (!currentUser) return;
   if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
@@ -2833,6 +2890,8 @@ function scheduleCloudSave() {
 async function pushCloudData() {
   const target = activeUser();
   if (!target) return;
+  // Refresh token if it's expired or close to expiring — prevents silent 401
+  if (currentUser && !viewingAsUser) await refreshSessionIfNeeded(false);
   const payload = {
     data: {
       transactions,
@@ -2852,9 +2911,9 @@ async function pushCloudData() {
     return;
   }
 
-  try {
+  // Inner helper: do the PATCH/upsert with current token. Returns true on success.
+  async function doSave() {
     const token = currentUser._token || SUPABASE_ANON_KEY;
-    // Try PATCH first (updates existing row, leaves role alone)
     const patchPromise = fetch(`${SUPABASE_URL}/rest/v1/user_data?id=eq.${currentUser.id}`, {
       method: 'PATCH',
       headers: {
@@ -2867,33 +2926,57 @@ async function pushCloudData() {
     });
     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 10000));
     const resp = await Promise.race([patchPromise, timeoutPromise]);
-    if (!resp.ok) {
-      // PATCH failed (row may not exist yet) — fallback to upsert
-      const upsertResp = await fetch(`${SUPABASE_URL}/rest/v1/user_data?on_conflict=id`, {
-        method: 'POST',
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          Prefer: 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify({
-          id: currentUser.id,
-          username: currentUser.username || '',
-          ...payload
-        })
-      });
-      if (!upsertResp.ok) {
-        const txt = await upsertResp.text().catch(() => '');
-        console.error('Cloud save HTTP', upsertResp.status, txt);
+    if (resp.status === 401) return { ok: false, status: 401 };
+    if (resp.ok) return { ok: true };
+    // PATCH failed (row may not exist yet) — fallback to upsert
+    const upsertResp = await fetch(`${SUPABASE_URL}/rest/v1/user_data?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        id: currentUser.id,
+        username: currentUser.username || '',
+        ...payload
+      })
+    });
+    if (upsertResp.status === 401) return { ok: false, status: 401 };
+    if (!upsertResp.ok) {
+      const txt = await upsertResp.text().catch(() => '');
+      console.error('Cloud save HTTP', upsertResp.status, txt);
+      return { ok: false, status: upsertResp.status };
+    }
+    return { ok: true };
+  }
+
+  try {
+    let result = await doSave();
+    if (!result.ok && result.status === 401) {
+      // Token rejected — try forcing a refresh and retry once
+      const refreshed = await refreshSessionIfNeeded(true);
+      if (refreshed) {
+        result = await doSave();
+      }
+      if (!result.ok) {
+        // Refresh failed or retry still 401 — surface to user; data stays in localStorage
+        if (typeof showToast === 'function') {
+          showToast(tt('session_expired_save') || 'เซสชั่นหมดอายุ — กรุณาลงชื่อเข้าใช้ใหม่', 'error');
+        }
+        return;
+      }
+    } else if (!result.ok) {
+      // Non-auth failure — show error so user knows save didn't go through
+      if (typeof showToast === 'function') {
+        showToast(tt('cloud_save_failed') || 'บันทึกขึ้นคลาวด์ไม่สำเร็จ — ข้อมูลยังอยู่ในเครื่อง', 'error');
       }
     }
 
     // If admin (and not in view-as mode) — auto-mirror agent updates back to owners
     if (currentUser.role === 'admin' && !viewingAsUser) {
-      // Find agents that came from users (have submittedBy field)
       const userAgents = agents.filter(a => a.submittedBy && a.submittedBy !== currentUser.id);
-      // Mirror each agent independently (don't block the main save)
       (async () => {
         for (const ag of userAgents) {
           try {
@@ -2909,10 +2992,13 @@ async function pushCloudData() {
 
 async function loadCloudData() {
   if (!currentUser) return;
+  // Refresh token if needed before loading — avoid 401 that would treat the user as "new" and wipe local
+  await refreshSessionIfNeeded(false);
   try {
     const token = currentUser._token || SUPABASE_ANON_KEY;
     const url = `${SUPABASE_URL}/rest/v1/user_data?id=eq.${currentUser.id}&select=data,role,username`;
     let rows = null;
+    let unauthorized = false;
     try {
       const fetchPromise = fetch(url, {
         headers: {
@@ -2924,11 +3010,34 @@ async function loadCloudData() {
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 10000));
       const resp = await Promise.race([fetchPromise, timeoutPromise]);
       if (resp.ok) rows = await resp.json();
+      else if (resp.status === 401) unauthorized = true;
       else console.error('Cloud load HTTP', resp.status);
     } catch (e) {
       console.warn('Cloud load fetch failed/timed out — using local cache:', e.message);
       return;
     }
+
+    // 401 on load: don't trash local cache. Try one more refresh, then bail.
+    if (unauthorized) {
+      const refreshed = await refreshSessionIfNeeded(true);
+      if (refreshed) {
+        // retry once
+        try {
+          const retry = await fetch(url, {
+            headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${currentUser._token}`, Accept: 'application/json' }
+          });
+          if (retry.ok) rows = await retry.json();
+        } catch (e) { /* fall through to bail */ }
+      }
+      if (!rows) {
+        // Still can't reach cloud — keep local data intact and warn user
+        if (typeof showToast === 'function') {
+          showToast(tt('cloud_load_failed') || 'โหลดข้อมูลจากคลาวด์ไม่สำเร็จ — ใช้ข้อมูลที่บันทึกไว้ในเครื่อง', 'error');
+        }
+        return;
+      }
+    }
+
     const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
     if (row) {
       // Cache role on currentUser for UI checks
@@ -2949,12 +3058,19 @@ async function loadCloudData() {
         if (s.font) currentFont = s.font;
       }
     } else {
-      // New user — no cloud row yet. Start empty and create row.
-      transactions = [];
-      agents = [];
-      subAgents = [];
-      subTransactions = [];
-      await pushCloudData();
+      // No cloud row. ONLY treat as "new user" if local is also empty — otherwise local
+      // may contain data that's not yet persisted to cloud (e.g. saved during a network blip);
+      // push that up instead of wiping it.
+      const localHasData = (transactions.length + agents.length + subAgents.length + subTransactions.length) > 0;
+      if (localHasData) {
+        await pushCloudData();
+      } else {
+        transactions = [];
+        agents = [];
+        subAgents = [];
+        subTransactions = [];
+        await pushCloudData();
+      }
     }
   } catch (e) { console.error('Cloud load failed:', e); }
 }
@@ -9209,18 +9325,30 @@ const ADMIN_FN_URL = `${SUPABASE_URL}/functions/v1/admin-users`;
 
 async function callAdminFn(action, args = {}) {
   if (!currentUser || !currentUser._token) throw new Error('not logged in');
-  const fetchPromise = fetch(ADMIN_FN_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${currentUser._token}`,
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_ANON_KEY
-    },
-    body: JSON.stringify({ action, ...args })
-  });
-  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 15000));
-  const resp = await Promise.race([fetchPromise, timeoutPromise]);
-  const data = await resp.json();
+  // Refresh token if it's expiring soon, prevents silent 401
+  await refreshSessionIfNeeded(false);
+
+  async function doCall() {
+    const fetchPromise = fetch(ADMIN_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${currentUser._token}`,
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ action, ...args })
+    });
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), 15000));
+    return Promise.race([fetchPromise, timeoutPromise]);
+  }
+
+  let resp = await doCall();
+  if (resp.status === 401) {
+    // Token rejected — try refreshing once and retry
+    const refreshed = await refreshSessionIfNeeded(true);
+    if (refreshed) resp = await doCall();
+  }
+  const data = await resp.json().catch(() => ({}));
   if (!resp.ok) throw new Error(data.error || 'admin operation failed');
   return data;
 }
@@ -9845,15 +9973,42 @@ async function startup() {
 
   // Read saved session from localStorage (saved by handleAuthSubmit)
   let session = null;
+  const tokenKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
   try {
-    const tokenKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
     const raw = localStorage.getItem(tokenKey);
     if (raw) {
       const parsed = JSON.parse(raw);
-      // Check not expired
       const now = Math.floor(Date.now() / 1000);
-      if (parsed.expires_at && parsed.expires_at > now + 60 && parsed.access_token && parsed.user) {
-        session = parsed;
+      if (parsed.access_token && parsed.user) {
+        if (parsed.expires_at && parsed.expires_at <= now + 60 && parsed.refresh_token) {
+          // Token expired — try to refresh BEFORE giving up and showing login screen.
+          // This is what kept users logged out after token expiry.
+          try {
+            const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refresh_token: parsed.refresh_token })
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.access_token) {
+                parsed.access_token = data.access_token;
+                if (data.refresh_token) parsed.refresh_token = data.refresh_token;
+                parsed.expires_in = data.expires_in;
+                parsed.expires_at = Math.floor(Date.now() / 1000) + (data.expires_in || 3600);
+                if (data.user) parsed.user = data.user;
+                try { localStorage.setItem(tokenKey, JSON.stringify(parsed)); } catch (e) {}
+                session = parsed;
+              }
+            }
+          } catch (e) { console.warn('Startup refresh failed:', e.message); }
+          // If refresh failed, only remove the session — DON'T wipe local data,
+          // user may have unsaved bills they need to recover after re-login.
+          if (!session) localStorage.removeItem(tokenKey);
+        } else {
+          // Token still valid
+          session = parsed;
+        }
       } else {
         localStorage.removeItem(tokenKey);
       }
@@ -9897,6 +10052,19 @@ setTimeout(() => {
 }, 12000);
 
 startup();
+
+// ============ KEEP-ALIVE TOKEN REFRESH ============
+// Refresh the session token periodically while the app is open so it never
+// expires mid-use. Also refresh when the tab becomes visible again (mobile
+// users often background the app for hours).
+setInterval(() => {
+  if (currentUser) refreshSessionIfNeeded(false).catch(() => {});
+}, 30 * 60 * 1000);  // every 30 minutes
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && currentUser) {
+    refreshSessionIfNeeded(false).catch(() => {});
+  }
+});
 
 </script>
 </body>
