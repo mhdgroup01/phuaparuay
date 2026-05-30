@@ -774,6 +774,8 @@ h1, h2, h3, .display {
 .exp-date-lock input[type="checkbox"] { width: 13px; height: 13px; margin: 0; accent-color: white; }
 .exp-date-lock i { font-size: 13px; }
 .expense-special-row input[type="date"]:disabled { opacity: 0.6; cursor: not-allowed; background: rgba(255,255,255,0.05); }
+.copy-target-card:hover { background: var(--surface) !important; border-color: var(--primary) !important; transform: translateY(-1px); }
+.copy-target-card:active { transform: translateY(0); }
 .row-num { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.95); color: #1e1b4b; font-weight: 700; font-size: 16px; font-family: var(--font-display); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .row-del-btn { background: rgba(255,255,255,0.22); border: none; color: white; width: 34px; height: 34px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; transition: all 0.15s; }
 .row-del-btn:hover { background: rgba(239, 68, 68, 0.55); }
@@ -1627,10 +1629,26 @@ h1, h2, h3, .display {
   </div>
 </div>
 
+<div class="modal-overlay" id="copy-bills-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-copy" style="color: var(--primary);"></i> <span data-i18n="copy_bills_title">คัดลอกบิลไปยัง...</span></div>
+      <button class="icon-action" data-close-copy-modal aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="copy-bills-summary" style="padding: 12px 14px; background: linear-gradient(135deg, rgba(124, 122, 217, 0.10) 0%, rgba(164, 140, 208, 0.10) 100%); border: 1px solid var(--border-2); border-radius: 12px; margin-bottom: 12px;"></div>
+      <div id="copy-bills-targets" style="display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; margin-bottom: 10px;"></div>
+      <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px;">
+        <button class="btn btn-secondary" data-close-copy-modal data-i18n="cancel">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.28';
+const APP_VERSION = '1.99.29';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1689,6 +1707,7 @@ const T = {
     edit_subagent: 'ແກ້ໄຂຕົວແທນຍ່ອຍ', del_subagent_confirm: 'ລຶບຕົວແທນຍ່ອຍ ແລະ ບິນທັງໝົດ?',
     record_added: 'ເພີ່ມລາຍການແລ້ວ', delete_record_q: 'ລຶບລາຍການ?',
     follow_income: 'ຕາມລາຍຮັບ', lock_to_income_date: 'ໃຊ້ວັນທີດຽວກັບລາຍຮັບ',
+    copy_bills_title: 'ສຳເນົາບິນໄປຫາ...', copied_to: 'ສຳເນົາໄປຫາ', same_agent: 'ຕົວເອງ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
     timeRange: 'ຊ່ວງເວລາ', all: 'ທັງໝົດ', today: 'ມື້ນີ້', yesterday: 'ມື້ວານ', last7days: '7 ມື້', thisMonth: 'ເດືອນນີ້', lastMonth: 'ເດືອນກ່ອນ', thisYear: 'ປີນີ້', custom: 'ເລືອກເອງ',
@@ -2047,6 +2066,7 @@ const T = {
     edit_subagent: 'แก้ไขตัวแทนย่อย', del_subagent_confirm: 'ลบตัวแทนย่อย และบิลทั้งหมด?',
     record_added: 'เพิ่มรายการแล้ว', delete_record_q: 'ลบรายการ?',
     follow_income: 'ตามรายรับ', lock_to_income_date: 'ใช้วันที่เดียวกับรายรับ',
+    copy_bills_title: 'คัดลอกบิลไปยัง...', copied_to: 'คัดลอกไปที่', same_agent: 'ตัวเอง',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
     timeRange: 'ช่วงเวลา', all: 'ทั้งหมด', today: 'วันนี้', yesterday: 'เมื่อวาน', last7days: '7 วัน', thisMonth: 'เดือนนี้', lastMonth: 'เดือนก่อน', thisYear: 'ปีนี้', custom: 'เลือกเอง',
@@ -2985,6 +3005,123 @@ function syncExpDateFollow(agentId, isSub) {
   } else {
     expDateInp.disabled = false;
   }
+}
+
+// ===== Copy bills feature =====
+// Lets the user duplicate one bill or a whole date's bills to another agent
+// (either a main agent or a sub-agent — cross-system is allowed).
+let _copySourceTxs = null;
+
+function openCopyBillsModal(sourceTxs, sourceAgentId, sourceIsSub) {
+  if (!sourceTxs || sourceTxs.length === 0) return;
+  _copySourceTxs = sourceTxs;
+
+  // Summary
+  const incomeCount = sourceTxs.filter(t => t.type === 'income').length;
+  const expenseCount = sourceTxs.filter(t => t.type === 'expense').length;
+  const totalAmt = sourceTxs.reduce((s, t) => s + t.amount, 0);
+  const dates = [...new Set(sourceTxs.map(t => t.date))].sort();
+  const dateLabel = dates.length === 1
+    ? formatThaiDate(dates[0])
+    : `${formatThaiDate(dates[0])} - ${formatThaiDate(dates[dates.length - 1])}`;
+  const typeBits = [];
+  if (incomeCount > 0) typeBits.push(`<span style="color: var(--green); font-weight: 600;">${tt('income_label')} ${incomeCount}</span>`);
+  if (expenseCount > 0) typeBits.push(`<span style="color: var(--red); font-weight: 600;">${tt('expense_label')} ${expenseCount}</span>`);
+
+  document.getElementById('copy-bills-summary').innerHTML = `
+    <div style="font-size: 12px; color: var(--text-2); font-weight: 600; margin-bottom: 6px;"><i class="ti ti-copy"></i> ${sourceTxs.length} ${tt('bill_count_label')} · ${dateLabel}</div>
+    <div style="font-size: 13px; color: var(--text); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      ${typeBits.join(' · ')}
+      <span style="margin-left: auto; font-family: var(--font-display); font-weight: 700;">${fmt(totalAmt)} ₭</span>
+    </div>
+  `;
+
+  // Build target list (all agents + sub-agents)
+  const targetsEl = document.getElementById('copy-bills-targets');
+  const mainAgents = agents.slice();
+  const subList = subAgents.slice();
+
+  const makeCard = (a, isSub) => {
+    const grad = agentGradient(a.name);
+    const isSource = !sourceIsSub && !isSub && a.id === sourceAgentId || sourceIsSub && isSub && a.id === sourceAgentId;
+    const subLabel = isSub ? ` <span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: rgba(99,102,241,0.20); color: var(--primary); font-weight: 600;">${tt('tabSubAgents') || 'ตัวแทนย่อย'}</span>` : '';
+    const sourceLabel = isSource ? ` <span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: rgba(245, 158, 11, 0.20); color: var(--orange); font-weight: 600;">${tt('same_agent') || 'ตัวเอง'}</span>` : '';
+    return `<button class="copy-target-card" data-copy-target="${a.id}" data-copy-target-sub="${isSub ? '1' : ''}" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; cursor: pointer; transition: all 0.18s; width: 100%; text-align: left; font-family: inherit;">
+      <div class="kickback-avatar" style="background: ${grad}; --name-grad: ${grad}; flex-shrink: 0;">${escapeHtml(a.name.slice(0, 2).toUpperCase())}</div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 15px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(a.name)}${subLabel}${sourceLabel}</div>
+        <div style="font-size: 12px; color: var(--text-2);">${tt('commission')} ${a.percent}%</div>
+      </div>
+      <i class="ti ti-chevron-right" style="color: var(--text-3); font-size: 18px; flex-shrink: 0;"></i>
+    </button>`;
+  };
+
+  let html = '';
+  if (mainAgents.length > 0) {
+    html += `<div style="font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 2px;">${tt('agentList') || 'รายชื่อตัวแทน'}</div>`;
+    html += mainAgents.map(a => makeCard(a, false)).join('');
+  }
+  if (subList.length > 0) {
+    html += `<div style="font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 2px 4px;">${tt('subAgentList') || 'รายชื่อตัวแทนย่อย'}</div>`;
+    html += subList.map(a => makeCard(a, true)).join('');
+  }
+  if (mainAgents.length === 0 && subList.length === 0) {
+    html = `<div class="empty-state" style="padding: 20px;"><i class="ti ti-user-off"></i>${tt('noAgents') || 'ยังไม่มีตัวแทน'}</div>`;
+  }
+  targetsEl.innerHTML = html;
+
+  // Wire click on each target card
+  targetsEl.querySelectorAll('[data-copy-target]').forEach(b => {
+    b.addEventListener('click', () => {
+      const targetId = b.dataset.copyTarget;
+      const isSubTarget = b.dataset.copyTargetSub === '1';
+      performCopyBills(_copySourceTxs, targetId, isSubTarget);
+      closeCopyBillsModal();
+    });
+  });
+
+  document.getElementById('copy-bills-modal').classList.add('show');
+}
+
+function closeCopyBillsModal() {
+  document.getElementById('copy-bills-modal').classList.remove('show');
+  _copySourceTxs = null;
+}
+
+function performCopyBills(sourceTxs, targetId, isSubTarget) {
+  if (!sourceTxs || sourceTxs.length === 0) return;
+  const newBatchId = uid();
+  const copies = sourceTxs.map(src => {
+    const c = { ...src };
+    c.id = uid();
+    c.batchId = newBatchId;
+    delete c.payments;        // partial payments belong to the original bill only
+    delete c.syncStatus;
+    delete c.syncSubmittedAt;
+    delete c.syncRejectReason;
+    if (isSubTarget) {
+      c.subAgentId = targetId;
+      delete c.agentId;
+    } else {
+      c.agentId = targetId;
+      delete c.subAgentId;
+    }
+    return c;
+  });
+
+  if (isSubTarget) {
+    subTransactions.push(...copies);
+    saveSubTx();
+  } else {
+    copies.forEach(tagNewTx);
+    transactions.push(...copies);
+    saveTx();
+  }
+  renderAll();
+  const targetName = isSubTarget
+    ? (getSubAgent(targetId) ? getSubAgent(targetId).name : '?')
+    : (getAgent(targetId) ? getAgent(targetId).name : '?');
+  showToast(`${tt('copied_to') || 'คัดลอกไปที่'} "${targetName}" — ${copies.length} ${tt('bill_count_label')}`, 'success');
 }
 
 function agentGradient(name) {
@@ -4587,6 +4724,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
             </div>
           </div>
           <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #d0ffe0;">+${fmtShort(t.amount)} ₭</div>
+          <button class="bill-del" data-copy-bill="${t.id}" aria-label="copy bill" title="${tt('copy_bills_title') || 'คัดลอกบิล'}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-copy"></i></button>
           ${!t.unpaid ? `<button class="bill-del" data-mark-unpaid="${t.id}" aria-label="mark unpaid" title="${tt('mark_unpaid')}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-clock-dollar"></i></button>` : ''}
           <button class="bill-del" data-edit-bill="${t.id}" aria-label="edit bill" style="background: rgba(255,255,255,0.18);"><i class="ti ti-edit"></i></button>
           <button class="bill-del" data-del-bill="${t.id}" aria-label="delete bill"><i class="ti ti-x"></i></button>
@@ -4606,6 +4744,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
             ${t.kickback ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 2px;"><i class="ti ti-receipt-refund"></i> ${tt('kb_from_him')}: +${fmtShort(kbAmount)} ₭</div>` : ''}
           </div>
           <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #ffd0a8;">-${fmtShort(t.amount)} ₭</div>
+          <button class="bill-del" data-copy-bill="${t.id}" aria-label="copy bill" title="${tt('copy_bills_title') || 'คัดลอกบิล'}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-copy"></i></button>
           ${!t.unpaid ? `<button class="bill-del" data-mark-unpaid="${t.id}" aria-label="mark unpaid" title="${tt('mark_unpaid')}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-clock-dollar"></i></button>` : ''}
           <button class="bill-del" data-edit-bill="${t.id}" aria-label="edit bill" style="background: rgba(255,255,255,0.18);"><i class="ti ti-edit"></i></button>
           <button class="bill-del" data-del-bill="${t.id}" aria-label="delete bill"><i class="ti ti-x"></i></button>
@@ -4696,6 +4835,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
         <div class="bill-day-date"><i class="ti ti-calendar"></i> ${formatThaiDate(date)}</div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <div class="bill-day-count">${txs.length} ${tt('bill_count_label')}</div>
+          <button class="bill-day-toggle" data-copy-day="${date}" data-copy-day-agent="${agent.id}" aria-label="copy day" title="${tt('copy_bills_title') || 'คัดลอกบิล'}"><i class="ti ti-copy"></i></button>
           <button class="bill-day-toggle" data-toggle-day="${date}" aria-label="toggle bills"><i class="ti ti-chevron-down"></i></button>
         </div>
       </div>
@@ -5435,6 +5575,26 @@ function renderAgents() {
     b.addEventListener('click', () => openEditTxModal(b.dataset.editBill));
   });
 
+  // Copy single bill to another agent or sub-agent
+  el.querySelectorAll('[data-copy-bill]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.copyBill;
+      const tx = transactions.find(t => t.id === id);
+      if (!tx) return;
+      openCopyBillsModal([tx], tx.agentId || '', false);
+    });
+  });
+  // Copy all bills of a date for an agent
+  el.querySelectorAll('[data-copy-day]').forEach(b => {
+    b.addEventListener('click', () => {
+      const date = b.dataset.copyDay;
+      const agentId = b.dataset.copyDayAgent;
+      const txs = transactions.filter(t => t.agentId === agentId && t.date === date);
+      if (txs.length === 0) { showToast(tt('noBills') || 'ไม่มีบิล', 'error'); return; }
+      openCopyBillsModal(txs, agentId, false);
+    });
+  });
+
   // Tap a bill's % badge to quick-edit per-bill commission percent (works for both admin and user)
   el.querySelectorAll('[data-edit-pct]').forEach(b => {
     b.addEventListener('click', (e) => {
@@ -5754,6 +5914,7 @@ function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed,
           </div>
         </div>
         <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #d0ffe0;">+${fmtShort(t.amount)} ₭</div>
+        <button class="bill-del" data-sub-copy-bill="${t.id}" aria-label="copy bill" title="${tt('copy_bills_title') || 'คัดลอกบิล'}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-copy"></i></button>
         ${!t.unpaid ? `<button class="bill-del" data-sub-mark-unpaid="${t.id}" aria-label="mark unpaid" title="${tt('mark_unpaid')}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-clock-dollar"></i></button>` : ''}
         <button class="bill-del" data-sub-edit-bill="${t.id}" aria-label="edit" style="background: rgba(255,255,255,0.18);"><i class="ti ti-edit"></i></button>
         <button class="bill-del" data-sub-del-bill="${t.id}" aria-label="delete"><i class="ti ti-x"></i></button>
@@ -5771,6 +5932,7 @@ function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed,
           ${t.kickback ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 2px;"><i class="ti ti-receipt-refund"></i> ${tt('kb_from_him')}: +${fmtShort(kbAmount)} ₭</div>` : ''}
         </div>
         <div style="font-weight: 600; font-size: 16px; white-space: nowrap; font-family: var(--font-display); color: #ffd0a8;">-${fmtShort(t.amount)} ₭</div>
+        <button class="bill-del" data-sub-copy-bill="${t.id}" aria-label="copy bill" title="${tt('copy_bills_title') || 'คัดลอกบิล'}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-copy"></i></button>
         ${!t.unpaid ? `<button class="bill-del" data-sub-mark-unpaid="${t.id}" aria-label="mark unpaid" title="${tt('mark_unpaid')}" style="background: rgba(255,255,255,0.18);"><i class="ti ti-clock-dollar"></i></button>` : ''}
         <button class="bill-del" data-sub-edit-bill="${t.id}" aria-label="edit" style="background: rgba(255,255,255,0.18);"><i class="ti ti-edit"></i></button>
         <button class="bill-del" data-sub-del-bill="${t.id}" aria-label="delete"><i class="ti ti-x"></i></button>
@@ -5845,6 +6007,7 @@ function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed,
         <div class="bill-day-date"><i class="ti ti-calendar"></i> ${formatThaiDate(date)}</div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <div class="bill-day-count">${txs.length} ${tt('bill_count_label')}</div>
+          <button class="bill-day-toggle" data-sub-copy-day="${date}" data-sub-copy-day-agent="${agent.id}" aria-label="copy day" title="${tt('copy_bills_title') || 'คัดลอกบิล'}"><i class="ti ti-copy"></i></button>
           <button class="bill-day-toggle" data-sub-toggle-day="${date}" aria-label="toggle bills"><i class="ti ti-chevron-down"></i></button>
         </div>
       </div>
@@ -6305,6 +6468,26 @@ function wireSubAgentActions(el) {
   // Edit bill — reuse main edit-tx-modal with sub flag
   el.querySelectorAll('[data-sub-edit-bill]').forEach(b => {
     b.addEventListener('click', () => openEditTxModal(b.dataset.subEditBill, true));
+  });
+
+  // Copy single sub-bill to another agent (main or sub)
+  el.querySelectorAll('[data-sub-copy-bill]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.subCopyBill;
+      const tx = subTransactions.find(t => t.id === id);
+      if (!tx) return;
+      openCopyBillsModal([tx], tx.subAgentId || '', true);
+    });
+  });
+  // Copy all bills of a date for a sub-agent
+  el.querySelectorAll('[data-sub-copy-day]').forEach(b => {
+    b.addEventListener('click', () => {
+      const date = b.dataset.subCopyDay;
+      const saId = b.dataset.subCopyDayAgent;
+      const txs = subTransactions.filter(t => t.subAgentId === saId && t.date === date);
+      if (txs.length === 0) { showToast(tt('noBills') || 'ไม่มีบิล', 'error'); return; }
+      openCopyBillsModal(txs, saId, true);
+    });
   });
 
   // Mark unpaid (toggle paid→unpaid)
@@ -8274,6 +8457,8 @@ document.querySelectorAll('[data-close-edit-tx]').forEach(b => b.addEventListene
 document.querySelectorAll('[data-close-edit-agent]').forEach(b => b.addEventListener('click', closeEditAgentModal));
 document.getElementById('edit-tx-modal').addEventListener('click', (e) => { if (e.target.id === 'edit-tx-modal') closeEditTxModal(); });
 document.getElementById('edit-agent-modal').addEventListener('click', (e) => { if (e.target.id === 'edit-agent-modal') closeEditAgentModal(); });
+document.querySelectorAll('[data-close-copy-modal]').forEach(b => b.addEventListener('click', closeCopyBillsModal));
+document.getElementById('copy-bills-modal').addEventListener('click', (e) => { if (e.target.id === 'copy-bills-modal') closeCopyBillsModal(); });
 
 document.getElementById('save-edit-tx-btn').addEventListener('click', () => {
   const id = document.getElementById('edit-tx-id').value;
