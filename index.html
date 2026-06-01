@@ -1867,7 +1867,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.48';
+const APP_VERSION = '1.99.49';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -5714,30 +5714,17 @@ function renderAgents() {
       </div>`;
     }).join('');
 
-    // Compute existing balance: how much agent already owes us from prior bills
-    const existingOwed = transactions
-      .filter(t => t.agentId === agentId && t.type === 'income' && billIsUnpaid(t))
-      .reduce((s, t) => s + billRemaining(t), 0);
-    // How much we already owe agent from prior expense bills
-    const existingWeOwe = transactions
-      .filter(t => t.agentId === agentId && t.type === 'expense' && billIsUnpaid(t))
-      .reduce((s, t) => s + billRemaining(t), 0);
-
-    // Net from current form input:
-    //  - Income bills marked "unpaid" → agent owes us (after commission)
-    //  - Income bills NOT marked unpaid → already paid in cash, no impact on balance
-    //  - Expense NOT marked unpaid → cash transaction, we paid them now → reduces balance
-    //  - Expense marked unpaid → we owe agent → reduces balance same way (but tracked separately)
-    //  - Kickback → reduces what we owe agent
+    // Live balance for THIS form only — do NOT include prior unpaid balances.
+    // (User wants the "new bills" panel to reflect only what they're entering now.)
     let currentBillsOwedToUs = unpaidNet;  // unpaid income net of comm
     let currentExpenseDue = 0;  // what we owe agent from current expense input (cash or unpaid both reduce balance)
     Object.values(byDate).forEach(d => {
       currentExpenseDue += d.expense - d.kickback;
     });
 
-    // Final balance = (existing owed by agent + new owed from form) - (existing we owe + what we owe from current expense)
-    // Positive = agent owes us; Negative = we owe agent
-    const finalBalance = (existingOwed + currentBillsOwedToUs) - (existingWeOwe + currentExpenseDue);
+    // Final balance = (new owed by agent) - (what we owe from current expense)
+    // Positive = agent owes us from these new bills; Negative = we owe agent from these new bills
+    const finalBalance = currentBillsOwedToUs - currentExpenseDue;
     const absBalance = Math.abs(finalBalance);
 
     const showGrand = dates.length > 1 || grandExpense > 0;
@@ -5758,16 +5745,16 @@ function renderAgents() {
         </div>
       </div>
       ${grandKickback > 0 ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 4px; text-align: center;">${tt('kb_in_net')} ${fmt(grandKickback)} ₭ ${tt('included_in_net')}</div>` : ''}
-      ${renderBalanceCard(finalBalance, absBalance, existingOwed, currentBillsOwedToUs, currentExpenseDue, existingWeOwe)}
-    </div>` : renderBalanceCard(finalBalance, absBalance, existingOwed, currentBillsOwedToUs, currentExpenseDue, existingWeOwe, true);
+      ${renderBalanceCard(finalBalance, absBalance, currentBillsOwedToUs, currentExpenseDue)}
+    </div>` : renderBalanceCard(finalBalance, absBalance, currentBillsOwedToUs, currentExpenseDue, true);
 
     summaryEl.innerHTML = dateRows + totalRow;
   }
 
   // Helper to render the balance card. wrapStandalone=true wraps in summary-grand
-  function renderBalanceCard(finalBalance, absBalance, existingOwed, currentBillsOwedToUs, currentExpenseDue, existingWeOwe, wrapStandalone) {
-    // Hide if nothing exists/entered
-    if (absBalance < 0.01 && existingOwed < 0.01 && currentBillsOwedToUs < 0.01 && currentExpenseDue < 0.01 && existingWeOwe < 0.01) return '';
+  function renderBalanceCard(finalBalance, absBalance, currentBillsOwedToUs, currentExpenseDue, wrapStandalone) {
+    // Hide if nothing entered in the current form
+    if (absBalance < 0.01 && currentBillsOwedToUs < 0.01 && currentExpenseDue < 0.01) return '';
     const isPositive = finalBalance > 0.01;  // agent owes us
     const isNegative = finalBalance < -0.01;  // we owe agent
     const settled = !isPositive && !isNegative;
@@ -5786,11 +5773,9 @@ function renderAgents() {
     const amountColor = isPositive ? '#ffd0a8'
                        : isNegative ? '#ffd0d0'
                        : '#d0ffe0';
-    // Build formula breakdown for clarity
+    // Build formula breakdown — only from current form input
     const parts = [];
-    if (existingOwed > 0.01) parts.push(`${tt('owed_to_us')}: ${fmtShort(existingOwed)} ₭`);
-    if (currentBillsOwedToUs > 0.01) parts.push(`+ ${fmtShort(currentBillsOwedToUs)} ₭ (${tt('credit_short')})`);
-    if (existingWeOwe > 0.01) parts.push(`− ${fmtShort(existingWeOwe)} ₭ (${tt('we_owe_to_agent')})`);
+    if (currentBillsOwedToUs > 0.01) parts.push(`${fmtShort(currentBillsOwedToUs)} ₭ (${tt('credit_short')})`);
     if (currentExpenseDue > 0.01) parts.push(`− ${fmtShort(currentExpenseDue)} ₭ (${tt('expense_short')})`);
 
     const balanceHtml = `<div style="margin-top: 10px; padding: 10px 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 10px;">
@@ -6979,22 +6964,16 @@ function wireSubAgentActions(el) {
       </div>`;
     }).join('');
 
-    const existingOwed = subTransactions
-      .filter(t => t.subAgentId === saId && t.type === 'income' && subBillIsUnpaid(t))
-      .reduce((s, t) => s + subBillRemaining(t), 0);
-    const existingWeOwe = subTransactions
-      .filter(t => t.subAgentId === saId && t.type === 'expense' && subBillIsUnpaid(t))
-      .reduce((s, t) => s + subBillRemaining(t), 0);
-
+    // Live balance for THIS form only — do NOT include prior unpaid balances.
     let currentBillsOwedToUs = unpaidNet;
     let currentExpenseDue = 0;
     Object.values(byDate).forEach(d => { currentExpenseDue += d.expense - d.kickback; });
 
-    const finalBalance = (existingOwed + currentBillsOwedToUs) - (existingWeOwe + currentExpenseDue);
+    const finalBalance = currentBillsOwedToUs - currentExpenseDue;
     const absBalance = Math.abs(finalBalance);
 
     function renderBalanceCard(wrapStandalone) {
-      if (absBalance < 0.01 && existingOwed < 0.01 && currentBillsOwedToUs < 0.01 && currentExpenseDue < 0.01 && existingWeOwe < 0.01) return '';
+      if (absBalance < 0.01 && currentBillsOwedToUs < 0.01 && currentExpenseDue < 0.01) return '';
       const isPositive = finalBalance > 0.01;
       const isNegative = finalBalance < -0.01;
       const settled = !isPositive && !isNegative;
@@ -7004,9 +6983,7 @@ function wireSubAgentActions(el) {
       const label = isPositive ? tt('he_owes_us') : isNegative ? tt('we_owe_him') : tt('balance_settled');
       const amountColor = isPositive ? '#ffd0a8' : isNegative ? '#ffd0d0' : '#d0ffe0';
       const parts = [];
-      if (existingOwed > 0.01) parts.push(`${tt('owed_to_us')}: ${fmtShort(existingOwed)} ₭`);
-      if (currentBillsOwedToUs > 0.01) parts.push(`+ ${fmtShort(currentBillsOwedToUs)} ₭ (${tt('credit_short')})`);
-      if (existingWeOwe > 0.01) parts.push(`− ${fmtShort(existingWeOwe)} ₭ (${tt('we_owe_to_agent')})`);
+      if (currentBillsOwedToUs > 0.01) parts.push(`${fmtShort(currentBillsOwedToUs)} ₭ (${tt('credit_short')})`);
       if (currentExpenseDue > 0.01) parts.push(`− ${fmtShort(currentExpenseDue)} ₭ (${tt('expense_short')})`);
       const balanceHtml = `<div style="margin-top: 10px; padding: 10px 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
