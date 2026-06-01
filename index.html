@@ -1009,6 +1009,18 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .bill-day-cell { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 8px; text-align: center; }
 .bill-day-cell-label { font-size: 11px; opacity: 0.75; margin-bottom: 1px; text-transform: uppercase; letter-spacing: 0.3px; }
 .bill-day-cell-value { font-size: 13px; font-weight: 500; font-family: var(--font-display); }
+.day-balance { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 9px; margin-bottom: 8px; font-size: 13px; font-family: var(--font-display); font-weight: 500; }
+.day-balance i { font-size: 16px; flex-shrink: 0; }
+.day-balance strong { font-weight: 800; letter-spacing: -0.01em; }
+.day-balance-owed-to-us { background: rgba(91, 168, 132, 0.16); color: var(--green); border: 1px solid rgba(91, 168, 132, 0.32); }
+.day-balance-we-owe { background: rgba(217, 122, 122, 0.16); color: var(--red); border: 1px solid rgba(217, 122, 122, 0.32); }
+.day-balance-zero { background: rgba(107, 114, 128, 0.14); color: var(--text-2); border: 1px solid rgba(107, 114, 128, 0.25); }
+:root[data-theme="dark"] .day-balance-owed-to-us { color: #4ade80; }
+:root[data-theme="dark"] .day-balance-we-owe { color: #f87171; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .day-balance-owed-to-us { color: #4ade80; }
+  :root:not([data-theme="light"]) .day-balance-we-owe { color: #f87171; }
+}
 .bill-day-rows { background: rgba(0,0,0,0.15); border-radius: 10px; padding: 2px 6px; }
 .bill-day-rows .bill-row { padding: 7px 4px; }
 .bill-del { background: rgba(255,255,255,0.18); border: none; color: white; width: 26px; height: 26px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
@@ -1855,7 +1867,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.45';
+const APP_VERSION = '1.99.46';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1927,6 +1939,7 @@ const T = {
     expand_card: 'ຂະຫຍາຍເຕັມຈໍ', collapse_card: 'ຫຍໍ້ກັບ',
     calc_mode_hint: 'ໂໝດບວກລົບ',
     k_mode_hint: 'ໂໝດ × 1,000',
+    agent_owes_us_short: 'ຕົວແທນຍັງຕິດເຮົາ', we_owe_agent_short: 'ເຮົາຍັງຕິດຕົວແທນ', day_balance_zero: 'ຫັກລ້າງກັນພໍດີ',
     close: 'ປິດ', delete: 'ລຶບ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
@@ -2299,6 +2312,7 @@ const T = {
     expand_card: 'ขยายเต็มจอ', collapse_card: 'ย่อกลับ',
     calc_mode_hint: 'โหมดบวก/ลบ',
     k_mode_hint: 'โหมด × 1,000',
+    agent_owes_us_short: 'ตัวแทนยังติดเรา', we_owe_agent_short: 'เรายังติดตัวแทน', day_balance_zero: 'หักล้างกันพอดี',
     close: 'ปิด', delete: 'ลบ',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
@@ -5137,6 +5151,22 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
     const expenseNet = expenseTotal - kickback;
     const dayNet = incomeNet - expenseNet;
 
+    // Per-day outstanding balance — agent still owes us (positive) vs we still owe agent (negative)
+    const dayUnpaidOwed = incomeTxs.filter(t => billIsUnpaid(t)).reduce((s, t) => s + billRemaining(t), 0);
+    const dayWeOwe = expenseTxs.filter(t => billIsUnpaid(t)).reduce((s, t) => s + billRemaining(t), 0);
+    const dayBalance = dayUnpaidOwed - dayWeOwe;
+    let dayBalanceHtml = '';
+    if (dayUnpaidOwed > 0 || dayWeOwe > 0) {
+      if (dayBalance > 0) {
+        dayBalanceHtml = `<div class="day-balance day-balance-owed-to-us"><i class="ti ti-arrow-down-left"></i> ${tt('agent_owes_us_short') || 'ตัวแทนติดเรา'}: <strong>${fmtShort(dayBalance)} ₭</strong></div>`;
+      } else if (dayBalance < 0) {
+        dayBalanceHtml = `<div class="day-balance day-balance-we-owe"><i class="ti ti-arrow-up-right"></i> ${tt('we_owe_agent_short') || 'เราติดตัวแทน'}: <strong>${fmtShort(Math.abs(dayBalance))} ₭</strong></div>`;
+      } else {
+        // both sides have unpaid but they cancel each other exactly
+        dayBalanceHtml = `<div class="day-balance day-balance-zero"><i class="ti ti-circle-check"></i> ${tt('day_balance_zero') || 'หักล้างกันพอดี'}</div>`;
+      }
+    }
+
     // Within each date, group by batchId
     const batchGroups = {};
     txs.forEach(t => {
@@ -5231,6 +5261,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
           <div class="bill-day-cell-value" style="color: ${dayNet >= 0 ? '#d0ffe0' : '#ffd0d0'}; font-weight: 700;">${dayNet >= 0 ? '+' : ''}${fmtShort(dayNet)} ₭</div>
         </div>
       </div>
+      ${dayBalanceHtml}
       <div class="bill-day-rows" data-day-rows="${date}" style="display: none;">
         ${batchesHtml}
       </div>
@@ -6718,6 +6749,21 @@ function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed,
     const kickback = expenseTxs.reduce((s, t) => s + (t.kickback ? t.amount * (t.kickback / 100) : 0), 0);
     const dayNet = (incomeTotal - comm) - (expenseTotal - kickback);
 
+    // Per-day outstanding balance
+    const dayUnpaidOwed = incomeTxs.filter(t => subBillIsUnpaid(t)).reduce((s, t) => s + subBillRemaining(t), 0);
+    const dayWeOwe = expenseTxs.filter(t => subBillIsUnpaid(t)).reduce((s, t) => s + subBillRemaining(t), 0);
+    const dayBalance = dayUnpaidOwed - dayWeOwe;
+    let dayBalanceHtml = '';
+    if (dayUnpaidOwed > 0 || dayWeOwe > 0) {
+      if (dayBalance > 0) {
+        dayBalanceHtml = `<div class="day-balance day-balance-owed-to-us"><i class="ti ti-arrow-down-left"></i> ${tt('agent_owes_us_short') || 'ตัวแทนติดเรา'}: <strong>${fmtShort(dayBalance)} ₭</strong></div>`;
+      } else if (dayBalance < 0) {
+        dayBalanceHtml = `<div class="day-balance day-balance-we-owe"><i class="ti ti-arrow-up-right"></i> ${tt('we_owe_agent_short') || 'เราติดตัวแทน'}: <strong>${fmtShort(Math.abs(dayBalance))} ₭</strong></div>`;
+      } else {
+        dayBalanceHtml = `<div class="day-balance day-balance-zero"><i class="ti ti-circle-check"></i> ${tt('day_balance_zero') || 'หักล้างกันพอดี'}</div>`;
+      }
+    }
+
     // Group by batch within date
     const batchGroups = {};
     txs.forEach(t => {
@@ -6787,6 +6833,7 @@ function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed,
         ${expenseTxs.length > 0 ? `<div class="bill-day-cell"><div class="bill-day-cell-label">${tt('sum_exp_label')}</div><div class="bill-day-cell-value" style="color: #ffd0a8;">-${fmtShort(expenseTotal)} ₭</div></div>` : ''}
         <div class="bill-day-cell"><div class="bill-day-cell-label">${tt('sum_net')}</div><div class="bill-day-cell-value" style="color: ${dayNet >= 0 ? '#d0ffe0' : '#ffd0d0'}; font-weight: 700;">${dayNet >= 0 ? '+' : ''}${fmtShort(dayNet)} ₭</div></div>
       </div>
+      ${dayBalanceHtml}
       <div class="bill-day-rows" data-sub-day-rows="${date}" style="display: none;">
         ${batchesHtml}
       </div>
