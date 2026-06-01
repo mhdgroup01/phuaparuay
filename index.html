@@ -578,8 +578,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .bill-list .bill-day-cell-label { color: var(--text-3); }
 .bill-list .bill-row { background: var(--surface); color: var(--text); border-bottom: 1px solid var(--border); border-radius: 0; padding: 9px 8px; }
 .bill-list .bill-row:last-child { border-bottom: none; }
-.bill-list .bill-pct-badge { background: rgba(99, 102, 241, 0.12); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.25); }
-.bill-list .bill-pct-badge.custom { background: rgba(217, 135, 173, 0.15); color: var(--pink); border-color: rgba(217, 135, 173, 0.3); }
+.bill-list .bill-pct-badge { background: rgba(99, 102, 241, 0.12); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.25); }.bill-list .bill-pct-badge.custom { background: rgba(217, 135, 173, 0.15); color: var(--pink); border-color: rgba(217, 135, 173, 0.3); }
 .bill-list .bill-pct-badge.kickback-pct { background: rgba(91, 168, 132, 0.15); color: var(--green); border-color: rgba(91, 168, 132, 0.3); }
 .bill-list .paid-badge { background: rgba(91, 168, 132, 0.16); color: var(--green); border: 1px solid rgba(91, 168, 132, 0.30); }
 .bill-list .unpaid-badge { background: rgba(224, 168, 117, 0.16); color: var(--orange); border: 1px solid rgba(224, 168, 117, 0.30); }
@@ -919,6 +918,10 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .paid-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 8px; border-radius: 8px; background: rgba(91, 168, 132, 0.35); color: #d0ffe0; font-weight: 600; font-family: var(--font-display); flex-shrink: 0; }
 .custom-pct-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 7px; border-radius: 8px; background: rgba(255,255,255,0.30); color: #ffffff; font-weight: 700; font-family: var(--font-display); flex-shrink: 0; border: 1px solid rgba(255,255,255,0.25); }
 .bill-pct-badge { display: inline-flex; align-items: center; font-size: 12px; padding: 2px 7px; border-radius: 8px; background: rgba(255,255,255,0.18); color: rgba(255,255,255,0.9); font-weight: 600; font-family: var(--font-display); flex-shrink: 0; }
+.bill-seq-badge { display: inline-flex; align-items: center; font-size: 11px; padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,0.22); color: rgba(255,255,255,0.95); font-weight: 700; font-family: var(--font-display); flex-shrink: 0; letter-spacing: -0.02em; }
+.bill-seq-badge.expense { background: rgba(255,200,160,0.22); }
+.bill-list .bill-seq-badge { background: rgba(99, 102, 241, 0.16); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.28); }
+.bill-list .bill-seq-badge.expense { background: rgba(234, 88, 12, 0.14); color: var(--orange); border-color: rgba(234, 88, 12, 0.28); }
 .bill-pct-badge.custom { background: rgba(255,255,255,0.40); color: #ffffff; font-weight: 700; border: 1px solid rgba(255,255,255,0.35); }
 .bill-pct-badge.custom::before { content: '★ '; font-size: 11px; margin-right: 1px; }
 
@@ -1852,7 +1855,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.43';
+const APP_VERSION = '1.99.44';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -5080,6 +5083,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
           <div class="bill-type-indicator income"><i class="ti ti-arrow-down"></i></div>
           <div style="flex: 1; min-width: 0;">
             <div style="font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+              <span class="bill-seq-badge">#${seqMap[t.id]}</span>
               ${t.desc ? escapeHtml(t.desc) : tt('new_bill_seq') + seqMap[t.id]}
               <span class="bill-pct-badge ${typeof t.percent === 'number' && t.percent !== agent.percent ? 'custom' : ''}" data-edit-pct="${t.id}" style="cursor: pointer;" title="แตะเพื่อแก้ %">${getAgentPercentForTx(t)}%</span>
               ${badgeHtml}
@@ -5099,6 +5103,7 @@ function renderBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed, we
           <div class="bill-type-indicator expense"><i class="ti ti-arrow-up"></i></div>
           <div style="flex: 1; min-width: 0;">
             <div style="font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+              <span class="bill-seq-badge expense">#${expSeqMap ? expSeqMap[t.id] : ''}</span>
               ${t.desc ? escapeHtml(t.desc) : tt('expense_purchase') + ' #' + (expSeqMap ? expSeqMap[t.id] : '')}
               ${t.kickback ? `<span class="bill-pct-badge kickback-pct">${t.kickback}% ${tt('sum_kb_label')}</span>` : ''}
               ${badgeHtml}
@@ -6658,6 +6663,7 @@ function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed,
         <div class="bill-type-indicator income"><i class="ti ti-arrow-down"></i></div>
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+            <span class="bill-seq-badge">#${seqMap[t.id]}</span>
             ${t.desc ? escapeHtml(t.desc) : tt('new_bill_seq') + seqMap[t.id]}
             <span class="bill-pct-badge ${typeof t.percent === 'number' && t.percent !== agent.percent ? 'custom' : ''}" data-sub-edit-pct="${t.id}" style="cursor: pointer;" title="แตะเพื่อแก้ %">${pct}%</span>
             ${badgeHtml}
@@ -6675,6 +6681,7 @@ function renderSubBillListByDate(agent, agentTxs, seqMap, expSeqMap, unpaidOwed,
         <div class="bill-type-indicator expense"><i class="ti ti-arrow-up"></i></div>
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+            <span class="bill-seq-badge expense">#${expSeqMap ? expSeqMap[t.id] : ''}</span>
             ${t.desc ? escapeHtml(t.desc) : tt('expense_purchase') + ' #' + (expSeqMap ? expSeqMap[t.id] : '')}
             ${t.kickback ? `<span class="bill-pct-badge kickback-pct">${t.kickback}% ${tt('sum_kb_label')}</span>` : ''}
             ${badgeHtml}
