@@ -1855,7 +1855,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.44';
+const APP_VERSION = '1.99.45';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3325,7 +3325,12 @@ const todayStr = () => {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 };
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+// Monotonic counter so IDs generated within the same millisecond preserve insertion order
+let _uidCounter = 0;
+const uid = () => {
+  _uidCounter = (_uidCounter + 1) % 1296;  // 36^2 = 1296 slots per ms
+  return Date.now().toString(36) + _uidCounter.toString(36).padStart(2, '0') + Math.random().toString(36).slice(2, 5);
+};
 const getAgent = id => agents.find(a => a.id === id);
 
 function computeCommission(tx) {
@@ -5313,13 +5318,16 @@ function renderAgents() {
     }
 
     const grad = agentGradient(a.name);
-    const agentTxsAsc = transactions.filter(t => t.agentId === a.id && t.type === 'income').sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
-    const expenseTxsAsc = transactions.filter(t => t.agentId === a.id && t.type === 'expense').sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
+    // Secondary sort by array index (original insertion order) — fixes random ordering
+    // for bills saved in the same millisecond where ids only differ by random suffix.
+    const txIdx = new Map(transactions.map((t, i) => [t.id, i]));
+    const agentTxsAsc = transactions.filter(t => t.agentId === a.id && t.type === 'income').sort((x, y) => x.date.localeCompare(y.date) || (txIdx.get(x.id) - txIdx.get(y.id)));
+    const expenseTxsAsc = transactions.filter(t => t.agentId === a.id && t.type === 'expense').sort((x, y) => x.date.localeCompare(y.date) || (txIdx.get(x.id) - txIdx.get(y.id)));
     const seqMap = {};
     agentTxsAsc.forEach((t, i) => { seqMap[t.id] = i + 1; });
     const expSeqMap = {};
     expenseTxsAsc.forEach((t, i) => { expSeqMap[t.id] = i + 1; });
-    const allTxsForList = [...agentTxsAsc, ...expenseTxsAsc].sort((x, y) => y.date.localeCompare(x.date) || y.id.localeCompare(x.id));
+    const allTxsForList = [...agentTxsAsc, ...expenseTxsAsc].sort((x, y) => y.date.localeCompare(x.date) || (txIdx.get(y.id) - txIdx.get(x.id)));
     const agentTxs = [...agentTxsAsc].reverse();
     const agentTotal = agentTxsAsc.reduce((s, t) => s + t.amount, 0);
     const agentComm = agentTxsAsc.reduce((s, t) => s + t.amount * (getAgentPercentForTx(t) / 100), 0);
@@ -6509,11 +6517,14 @@ function renderSubAgents() {
   }
   el.innerHTML = subAgents.map(a => {
     const grad = agentGradient(a.name);
-    const incomeAsc = subTransactions.filter(t => t.subAgentId === a.id && t.type === 'income').sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
-    const expenseAsc = subTransactions.filter(t => t.subAgentId === a.id && t.type === 'expense').sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
+    // Secondary sort by array index (insertion order) — fixes ordering for same-ms ids
+    const subTxIdx = new Map(subTransactions.map((t, i) => [t.id, i]));
+    const incomeAsc = subTransactions.filter(t => t.subAgentId === a.id && t.type === 'income').sort((x, y) => x.date.localeCompare(y.date) || (subTxIdx.get(x.id) - subTxIdx.get(y.id)));
+    const expenseAsc = subTransactions.filter(t => t.subAgentId === a.id && t.type === 'expense').sort((x, y) => x.date.localeCompare(y.date) || (subTxIdx.get(x.id) - subTxIdx.get(y.id)));
     const seqMap = {}; incomeAsc.forEach((t, i) => { seqMap[t.id] = i + 1; });
     const expSeqMap = {}; expenseAsc.forEach((t, i) => { expSeqMap[t.id] = i + 1; });
-    const allForList = [...incomeAsc, ...expenseAsc].sort((x, y) => y.date.localeCompare(x.date) || y.id.localeCompare(x.id));
+    // Display order: newest first by date, then most-recently-added (highest index) first within same day
+    const allForList = [...incomeAsc, ...expenseAsc].sort((x, y) => y.date.localeCompare(x.date) || (subTxIdx.get(y.id) - subTxIdx.get(x.id)));
     const total = incomeAsc.reduce((s, t) => s + t.amount, 0);
     const comm = incomeAsc.reduce((s, t) => s + t.amount * (subPctForTx(t) / 100), 0);
     const unpaidOwed = incomeAsc.filter(subBillIsUnpaid).reduce((s, t) => s + subBillRemaining(t), 0);
