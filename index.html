@@ -911,6 +911,13 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .agent-owed-banner { background: rgba(224, 168, 117, 0.3); border: 1px solid rgba(224, 168, 117, 0.5); border-radius: 14px; padding: 10px 14px; margin-bottom: 10px; position: relative; z-index: 1; backdrop-filter: blur(8px); }
 .agent-we-owe-banner { background: rgba(217, 122, 122, 0.30); border: 1px solid rgba(217, 122, 122, 0.55); border-radius: 14px; padding: 10px 14px; margin-bottom: 10px; position: relative; z-index: 1; backdrop-filter: blur(8px); }
 .agent-settled-banner { background: rgba(91, 168, 132, 0.28); border: 1px solid rgba(91, 168, 132, 0.50); border-radius: 14px; padding: 10px 14px; margin-bottom: 10px; position: relative; z-index: 1; backdrop-filter: blur(8px); }
+.balance-both-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.balance-side { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.22); border-radius: 10px; padding: 7px 10px; }
+.balance-side-label { display: flex; align-items: center; gap: 4px; font-size: 11px; opacity: 0.92; margin-bottom: 3px; font-weight: 500; }
+.balance-side-label i { font-size: 13px; }
+.balance-side-value { font-size: 17px; font-weight: 700; font-family: var(--font-display); line-height: 1.15; letter-spacing: -0.01em; }
+.balance-side-owed { background: rgba(91, 168, 132, 0.22); border-color: rgba(91, 168, 132, 0.40); }
+.balance-side-we-owe { background: rgba(217, 122, 122, 0.22); border-color: rgba(217, 122, 122, 0.40); }
 .settle-btn { display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.35); border-radius: 10px; color: white; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; backdrop-filter: blur(8px); flex-shrink: 0; align-self: flex-start; white-space: nowrap; }
 .settle-btn:hover { background: rgba(255,255,255,0.35); transform: translateY(-1px); }
 .settle-btn:active { transform: translateY(0); }
@@ -1867,7 +1874,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.46';
+const APP_VERSION = '1.99.47';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1940,6 +1947,7 @@ const T = {
     calc_mode_hint: 'ໂໝດບວກລົບ',
     k_mode_hint: 'ໂໝດ × 1,000',
     agent_owes_us_short: 'ຕົວແທນຍັງຕິດເຮົາ', we_owe_agent_short: 'ເຮົາຍັງຕິດຕົວແທນ', day_balance_zero: 'ຫັກລ້າງກັນພໍດີ',
+    net_balance: 'ສຸດທິ',
     close: 'ປິດ', delete: 'ລຶບ',
     addBill: 'ເພີ່ມບິນໃໝ່', viewBills: 'ເບິ່ງບິນ', billsNew: 'ລາຍການບິນໃໝ່', cancel: 'ຍົກເລີກ', addRow: 'ເພີ່ມແຖວ',
     incomeBills: 'ລາຍຮັບ (ບິນຂາຍ)', specialExpense: 'ລາຍຈ່າຍພິເສດ (ບິນຊື້)',
@@ -2313,6 +2321,7 @@ const T = {
     calc_mode_hint: 'โหมดบวก/ลบ',
     k_mode_hint: 'โหมด × 1,000',
     agent_owes_us_short: 'ตัวแทนยังติดเรา', we_owe_agent_short: 'เรายังติดตัวแทน', day_balance_zero: 'หักล้างกันพอดี',
+    net_balance: 'สุทธิ',
     close: 'ปิด', delete: 'ลบ',
     addBill: 'บวกบิลใหม่', viewBills: 'ดูบิล', billsNew: 'รายการบิลใหม่', cancel: 'ยกเลิก', addRow: 'เพิ่มบรรทัด',
     incomeBills: 'รายรับ (บิลขาย)', specialExpense: 'รายจ่ายพิเศษ (บิลซื้อจากตัวแทน)',
@@ -5440,24 +5449,31 @@ function renderAgents() {
         const isAgentOwes = netBalance > 0.01;
         const isWeOwe = netBalance < -0.01;
         const settled = !isAgentOwes && !isWeOwe;
-        const hasOffset = unpaidOwed > 0.01 && weOweAmount > 0.01;
-        const offsetAmount = Math.min(unpaidOwed, weOweAmount);
+        const hasBothSides = unpaidOwed > 0.01 && weOweAmount > 0.01;
         const bannerClass = isAgentOwes ? 'agent-owed-banner' : (isWeOwe ? 'agent-we-owe-banner' : 'agent-settled-banner');
         const labelText = isAgentOwes ? tt('owed_to_us') : (isWeOwe ? tt('we_owe_to_agent') : tt('balance_settled'));
         const directionIcon = isAgentOwes ? 'ti-arrow-bear-left' : (isWeOwe ? 'ti-arrow-bear-right' : 'ti-equal');
+
+        // When both sides have unpaid, show two prominent cells (owed-to-us + we-owe) above the net
+        const bothSidesHtml = hasBothSides ? `
+          <div class="balance-both-row">
+            <div class="balance-side balance-side-owed">
+              <div class="balance-side-label"><i class="ti ti-arrow-bear-left"></i> ${tt('owed_to_us')}</div>
+              <div class="balance-side-value">${fmt(unpaidOwed)} ₭</div>
+            </div>
+            <div class="balance-side balance-side-we-owe">
+              <div class="balance-side-label"><i class="ti ti-arrow-bear-right"></i> ${tt('we_owe_to_agent')}</div>
+              <div class="balance-side-value">${fmt(weOweAmount)} ₭</div>
+            </div>
+          </div>` : '';
+
         return `<div class="${bannerClass}">
           <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.95; margin-bottom: 2px;">
-              <i class="ti ${directionIcon}"></i> ${labelText}
+            ${bothSidesHtml}
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.95; margin-bottom: 2px; ${hasBothSides ? 'margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.18);' : ''}">
+              <i class="ti ${directionIcon}"></i> ${hasBothSides ? (tt('net_balance') || 'สุทธิ') + ' — ' + labelText : labelText}
             </div>
             <div style="font-size: 24px; font-weight: 700; font-family: var(--font-display); line-height: 1.1;">${settled ? '0' : fmt(absBalance)} ₭</div>
-            ${hasOffset ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 4px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-              <span><i class="ti ti-arrow-bear-left"></i> ${fmtShort(unpaidOwed)}</span>
-              <span style="opacity: 0.6;">−</span>
-              <span><i class="ti ti-arrow-bear-right"></i> ${fmtShort(weOweAmount)}</span>
-              <span style="opacity: 0.6;">·</span>
-              <span style="opacity: 0.75;">${tt('offset_amount')}: ${fmtShort(offsetAmount)} ₭</span>
-            </div>` : ''}
           </div>
         </div>`;
       })() : ''}
@@ -6578,21 +6594,25 @@ function renderSubAgents() {
         const absNet = Math.abs(net);
         const isOwes = net > 0.01, isWe = net < -0.01;
         const settled = !isOwes && !isWe;
-        const hasOffset = unpaidOwed > 0.01 && weOwe > 0.01;
-        const offsetAmount = Math.min(unpaidOwed, weOwe);
+        const hasBothSides = unpaidOwed > 0.01 && weOwe > 0.01;
         const cls = isOwes ? 'agent-owed-banner' : (isWe ? 'agent-we-owe-banner' : 'agent-settled-banner');
         const lab = isOwes ? tt('owed_to_us') : (isWe ? tt('we_owe_to_agent') : tt('balance_settled'));
         const icon = isOwes ? 'ti-arrow-bear-left' : (isWe ? 'ti-arrow-bear-right' : 'ti-equal');
+        const bothSidesHtml = hasBothSides ? `
+          <div class="balance-both-row">
+            <div class="balance-side balance-side-owed">
+              <div class="balance-side-label"><i class="ti ti-arrow-bear-left"></i> ${tt('owed_to_us')}</div>
+              <div class="balance-side-value">${fmt(unpaidOwed)} ₭</div>
+            </div>
+            <div class="balance-side balance-side-we-owe">
+              <div class="balance-side-label"><i class="ti ti-arrow-bear-right"></i> ${tt('we_owe_to_agent')}</div>
+              <div class="balance-side-value">${fmt(weOwe)} ₭</div>
+            </div>
+          </div>` : '';
         return `<div class="${cls}"><div style="flex: 1; min-width: 0;">
-          <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.95; margin-bottom: 2px;"><i class="ti ${icon}"></i> ${lab}</div>
+          ${bothSidesHtml}
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.95; margin-bottom: 2px; ${hasBothSides ? 'margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.18);' : ''}"><i class="ti ${icon}"></i> ${hasBothSides ? (tt('net_balance') || 'สุทธิ') + ' — ' + lab : lab}</div>
           <div style="font-size: 24px; font-weight: 700; font-family: var(--font-display); line-height: 1.1;">${settled ? '0' : fmt(absNet)} ₭</div>
-          ${hasOffset ? `<div style="font-size: 12px; opacity: 0.85; margin-top: 4px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-            <span><i class="ti ti-arrow-bear-left"></i> ${fmtShort(unpaidOwed)}</span>
-            <span style="opacity: 0.6;">−</span>
-            <span><i class="ti ti-arrow-bear-right"></i> ${fmtShort(weOwe)}</span>
-            <span style="opacity: 0.6;">·</span>
-            <span style="opacity: 0.75;">${tt('offset_amount')}: ${fmtShort(offsetAmount)} ₭</span>
-          </div>` : ''}
         </div></div>`;
       })() : ''}
       <div class="percent-control" style="margin-bottom: 10px;">
