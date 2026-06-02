@@ -1531,11 +1531,13 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 </div>
 
 <div class="modal-overlay" id="confirm-save-modal">
-  <div class="modal" style="max-width: 480px;">
-    <div class="modal-title"><i class="ti ti-clipboard-check" style="color: var(--primary);"></i> <span data-i18n="confirm_save_title">ยืนยันการบันทึก</span></div>
-    <div style="font-size: 14px; color: var(--text-2); margin-bottom: 14px;" data-i18n="confirm_save_subtitle">กรุณาตรวจสอบความถูกต้อง</div>
-    <div id="confirm-save-summary" style="margin-bottom: 16px;"></div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+  <div class="modal confirm-save-modal-inner" style="max-width: 480px; display: flex; flex-direction: column; max-height: 92vh;">
+    <div style="padding: 20px 20px 0; flex-shrink: 0;">
+      <div class="modal-title"><i class="ti ti-clipboard-check" style="color: var(--primary);"></i> <span data-i18n="confirm_save_title">ยืนยันการบันทึก</span></div>
+      <div style="font-size: 14px; color: var(--text-2); margin: 6px 0 14px;" data-i18n="confirm_save_subtitle">กรุณาตรวจสอบความถูกต้อง</div>
+    </div>
+    <div id="confirm-save-summary" style="flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px;"></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 20px 20px; flex-shrink: 0; border-top: 1px solid var(--border); background: var(--surface);">
       <button class="btn btn-secondary" id="confirm-save-cancel"><i class="ti ti-arrow-back"></i> <span data-i18n="confirm_back_edit">กลับไปแก้ไข</span></button>
       <button class="btn" id="confirm-save-ok" style="background: var(--grad-green); color: white;"><i class="ti ti-check"></i> <span data-i18n="confirm_yes_save">ถูกต้อง บันทึก</span></button>
     </div>
@@ -1867,7 +1869,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.49';
+const APP_VERSION = '1.99.51';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1967,7 +1969,7 @@ const T = {
     confirmDelete: 'ຢືນຢັນການລົບ?', cannotUndo: 'ການກະທຳນີ້ບໍ່ສາມາດກັບຄືນໄດ້',
     addRecord: 'ເພີ່ມລາຍການ', expensePerson: 'ໄດ້ຮັບຈາກໃຜ',
     income_label: 'ລາຍຮັບ', expense_label: 'ລາຍຈ່າຍ',
-    edit_record: 'ແກ້ໄຂລາຍການ', edit_agent: 'ແກ້ໄຂຕົວແທນ',
+    edit_record: 'ແກ້ໄຂລາຍການ', edit_agent: 'ແກ້ໄຂຕົວແທນ', add_agent_q: 'ເພີ່ມຕົວແທນ',
     type_label: 'ປະເພດ',
     agent_bills: 'ບິນຂອງຕົວແທນ', agent_total: 'ຍອດລວມ',
     current_comm: 'ຄ່າຄອມປັດຈຸບັນ',
@@ -1990,7 +1992,7 @@ const T = {
     all_deleted: 'ລົບຂໍ້ມູນທັງໝົດແລ້ວ',
     download_confirm: 'ຢືນຢັນການດາວໂຫຼດ', enter_pw_download: 'ກະລຸນາໃສ່ລະຫັດຜ່ານເພື່ອດາວໂຫຼດຂໍ້ມູນ',
     downloaded: 'ດາວໂຫຼດຂໍ້ມູນແລ້ວ',
-    enter_pw_delete: 'ກະລຸນາໃສ່ລະຫັດຜ່ານເພື່ອລົບຂໍ້ມູນ', confirm_delete_title: 'ຢືນຢັນການລົບ',
+    enter_pw_delete: 'ກະລຸນາໃສ່ລະຫັດຜ່ານເພື່ອລົບຂໍ້ມູນ', confirm_delete_title: 'ຢືນຢັນການລົບ', confirm_settle_batch: 'ຢືນຢັນເຄລຍບິນ?', and_more_bills: 'ແລະອີກ {n} ບິນ', total_label: 'ລວມ',
     delete_btn: 'ລົບ',
     no_bills_filtered: 'ບໍ່ພົບລາຍການ',
     new_bill_seq: 'ບິນ #',
@@ -2341,7 +2343,7 @@ const T = {
     confirmDelete: 'ยืนยันการลบ?', cannotUndo: 'การกระทำนี้ไม่สามารถย้อนกลับได้',
     addRecord: 'เพิ่มรายการ', expensePerson: 'ได้รับจากใคร',
     income_label: 'รายรับ', expense_label: 'รายจ่าย',
-    edit_record: 'แก้ไขรายการ', edit_agent: 'แก้ไขตัวแทน',
+    edit_record: 'แก้ไขรายการ', edit_agent: 'แก้ไขตัวแทน', add_agent_q: 'เพิ่มตัวแทน',
     type_label: 'ประเภท',
     agent_bills: 'บิลของตัวแทน', agent_total: 'ยอดรวม',
     current_comm: 'ค่าคอมปัจจุบัน',
@@ -2364,7 +2366,7 @@ const T = {
     all_deleted: 'ลบข้อมูลทั้งหมดแล้ว',
     download_confirm: 'ยืนยันการดาวน์โหลด', enter_pw_download: 'กรุณากรอกรหัสผ่านเพื่อดาวน์โหลดข้อมูล',
     downloaded: 'ดาวน์โหลดข้อมูลแล้ว',
-    enter_pw_delete: 'กรุณากรอกรหัสผ่านเพื่อลบข้อมูล', confirm_delete_title: 'ยืนยันการลบ',
+    enter_pw_delete: 'กรุณากรอกรหัสผ่านเพื่อลบข้อมูล', confirm_delete_title: 'ยืนยันการลบ', confirm_settle_batch: 'ยืนยันเคลียร์บิล?', and_more_bills: 'และอีก {n} บิล', total_label: 'รวม',
     delete_btn: 'ลบ',
     no_bills_filtered: 'ไม่พบรายการ',
     new_bill_seq: 'บิล #',
@@ -3673,7 +3675,11 @@ function showSaveConfirmation(newTxs, agent, skipped, expAdded) {
       </div>
     </div>` : '';
 
-  const billRowsHtml = newTxs.map((t, idx) => {
+  const MAX_PREVIEW_ROWS = 30;
+  const tooMany = newTxs.length > MAX_PREVIEW_ROWS;
+  const previewTxs = tooMany ? newTxs.slice(0, MAX_PREVIEW_ROWS) : newTxs;
+
+  const billRowsHtml = previewTxs.map((t, idx) => {
     const isIncome = t.type === 'income';
     const iconCls = isIncome ? 'ti-arrow-down' : 'ti-arrow-up';
     const iconBg = isIncome ? 'rgba(91, 168, 132, 0.18)' : 'rgba(217, 122, 122, 0.18)';
@@ -3689,7 +3695,7 @@ function showSaveConfirmation(newTxs, agent, skipped, expAdded) {
     return `<div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface-2); border-radius: 11px; border: 1px solid var(--border); margin-bottom: 6px;">
       <div style="width: 32px; height: 32px; border-radius: 9px; background: ${iconBg}; color: ${iconColor}; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;"><i class="ti ${iconCls}"></i></div>
       <div style="flex: 1; min-width: 0;">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text);">${formatThaiDate(t.date)}</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text);">#${idx + 1} · ${formatThaiDate(t.date)}</div>
         <div style="font-size: 11px; color: var(--text-3); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px;">
           ${pctLabel ? `<span>${pctLabel}</span>` : ''}
           ${unpaidBadge}
@@ -3701,6 +3707,10 @@ function showSaveConfirmation(newTxs, agent, skipped, expAdded) {
     </div>`;
   }).join('');
 
+  const moreNote = tooMany
+    ? `<div style="text-align: center; padding: 10px 12px; background: var(--surface-2); border: 1px dashed var(--border-2); border-radius: 11px; margin-bottom: 6px; font-size: 13px; color: var(--text-2);"><i class="ti ti-dots"></i> ${(tt('and_more_bills') || 'และอีก {n} บิล').replace('{n}', newTxs.length - MAX_PREVIEW_ROWS)} (${tt('total_label') || 'รวม'} ${newTxs.length} ${tt('bill_count_label')})</div>`
+    : '';
+
   const totalsHtml = `<div style="padding: 12px; background: linear-gradient(135deg, rgba(124, 122, 217, 0.10) 0%, rgba(164, 140, 208, 0.10) 100%); border-radius: 12px; border: 1px solid var(--border-2); margin-top: 8px;">
     <div style="font-size: 12px; color: var(--text-2); font-weight: 600; margin-bottom: 6px;"><i class="ti ti-calculator"></i> ${tt('confirm_save_summary')}</div>
     ${incomeTxs.length > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;"><span style="color: var(--text-2);">${tt('income_label')} (${incomeTxs.length})</span><span style="font-weight: 600; color: var(--green); font-family: var(--font-display);">+${fmt(totalIncome)} ₭</span></div>` : ''}
@@ -3709,7 +3719,7 @@ function showSaveConfirmation(newTxs, agent, skipped, expAdded) {
     ${totalKickback > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--text-2);">${tt('kb_from_him')}</span><span style="font-weight: 600; color: var(--primary); font-family: var(--font-display);">+${fmt(totalKickback)} ₭</span></div>` : ''}
   </div>`;
 
-  showSaveConfirm(agentBlock + billRowsHtml + totalsHtml, () => {
+  showSaveConfirm(agentBlock + billRowsHtml + moreNote + totalsHtml, () => {
     newTxs.forEach(tagNewTx);
     transactions.push(...newTxs);
     saveTx();
@@ -7456,7 +7466,11 @@ function showSubSaveConfirmation(newTxs, agent, skipped, expAdded) {
       </div>
     </div>` : '';
 
-  const billRowsHtml = newTxs.map(t => {
+  const MAX_PREVIEW_ROWS = 30;
+  const tooMany = newTxs.length > MAX_PREVIEW_ROWS;
+  const previewTxs = tooMany ? newTxs.slice(0, MAX_PREVIEW_ROWS) : newTxs;
+
+  const billRowsHtml = previewTxs.map((t, idx) => {
     const isIncome = t.type === 'income';
     const iconCls = isIncome ? 'ti-arrow-down' : 'ti-arrow-up';
     const iconBg = isIncome ? 'rgba(91, 168, 132, 0.18)' : 'rgba(217, 122, 122, 0.18)';
@@ -7472,7 +7486,7 @@ function showSubSaveConfirmation(newTxs, agent, skipped, expAdded) {
     return `<div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface-2); border-radius: 11px; border: 1px solid var(--border); margin-bottom: 6px;">
       <div style="width: 32px; height: 32px; border-radius: 9px; background: ${iconBg}; color: ${iconColor}; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;"><i class="ti ${iconCls}"></i></div>
       <div style="flex: 1; min-width: 0;">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text);">${formatThaiDate(t.date)}</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text);">#${idx + 1} · ${formatThaiDate(t.date)}</div>
         <div style="font-size: 11px; color: var(--text-3); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px;">
           ${pctLabel ? `<span>${pctLabel}</span>` : ''}
           ${unpaidBadge}
@@ -7484,6 +7498,10 @@ function showSubSaveConfirmation(newTxs, agent, skipped, expAdded) {
     </div>`;
   }).join('');
 
+  const moreNote = tooMany
+    ? `<div style="text-align: center; padding: 10px 12px; background: var(--surface-2); border: 1px dashed var(--border-2); border-radius: 11px; margin-bottom: 6px; font-size: 13px; color: var(--text-2);"><i class="ti ti-dots"></i> ${(tt('and_more_bills') || 'และอีก {n} บิล').replace('{n}', newTxs.length - MAX_PREVIEW_ROWS)} (${tt('total_label') || 'รวม'} ${newTxs.length} ${tt('bill_count_label')})</div>`
+    : '';
+
   const totalsHtml = `<div style="padding: 12px; background: linear-gradient(135deg, rgba(124, 122, 217, 0.10) 0%, rgba(164, 140, 208, 0.10) 100%); border-radius: 12px; border: 1px solid var(--border-2); margin-top: 8px;">
     <div style="font-size: 12px; color: var(--text-2); font-weight: 600; margin-bottom: 6px;"><i class="ti ti-calculator"></i> ${tt('confirm_save_summary')}</div>
     ${incomeTxs.length > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;"><span style="color: var(--text-2);">${tt('income_label')} (${incomeTxs.length})</span><span style="font-weight: 600; color: var(--green); font-family: var(--font-display);">+${fmt(totalIncome)} ₭</span></div>` : ''}
@@ -7492,7 +7510,7 @@ function showSubSaveConfirmation(newTxs, agent, skipped, expAdded) {
     ${totalKickback > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--text-2);">${tt('kb_from_him')}</span><span style="font-weight: 600; color: var(--primary); font-family: var(--font-display);">+${fmt(totalKickback)} ₭</span></div>` : ''}
   </div>`;
 
-  showSaveConfirm(agentBlock + billRowsHtml + totalsHtml, () => {
+  showSaveConfirm(agentBlock + billRowsHtml + moreNote + totalsHtml, () => {
     subTransactions.push(...newTxs);
     saveSubTx();
     renderSubAgents();
