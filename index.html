@@ -1869,7 +1869,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.51';
+const APP_VERSION = '1.99.52';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -2236,7 +2236,7 @@ const T = {
     role_admin: 'ແອັດມິນ', role_user: 'ຜູ້ໃຊ້',
     badge_draft: 'ສະບັບຮ່າງ', badge_pending: 'ລໍຖ້າອະນຸມັດ', badge_approved: 'ອະນຸມັດແລ້ວ', badge_rejected: 'ຖືກປະຕິເສດ',
     reject_reason_label: 'ເຫດຜົນທີ່ປະຕິເສດ:',
-    submit_to_admin: 'ສົ່ງໃຫ້ Admin ກວດສອບ',
+    submit_to_admin: 'ສົ່ງໃຫ້ Admin ກວດສອບ', submit_btn: 'ສົ່ງໃຫ້ Admin',
     sent_to_admin: 'ສົ່ງໃຫ້ Admin ແລ້ວ — ລໍຖ້າອະນຸມັດ',
     submit_agent_q: 'ສົ່ງຕົວແທນໃຫ້ Admin?',
     submit_agent_warning: 'ເມື່ອສົ່ງແລ້ວ ຈະແກ້ໄຂບໍ່ໄດ້ຈົນກວ່າ Admin ຈະອະນຸມັດຫຼືປະຕິເສດ',
@@ -2612,7 +2612,7 @@ const T = {
     role_admin: 'แอดมิน', role_user: 'ผู้ใช้',
     badge_draft: 'ฉบับร่าง', badge_pending: 'รออนุมัติ', badge_approved: 'อนุมัติแล้ว', badge_rejected: 'ถูกปฏิเสธ',
     reject_reason_label: 'เหตุผลที่ปฏิเสธ:',
-    submit_to_admin: 'ส่งให้ Admin ตรวจสอบ',
+    submit_to_admin: 'ส่งให้ Admin ตรวจสอบ', submit_btn: 'ส่งให้ Admin',
     sent_to_admin: 'ส่งให้ Admin แล้ว — รออนุมัติ',
     submit_agent_q: 'ส่งตัวแทนให้ Admin?',
     submit_agent_warning: 'เมื่อส่งแล้ว จะแก้ไขไม่ได้จนกว่า Admin จะอนุมัติหรือปฏิเสธ',
@@ -3527,7 +3527,7 @@ function showToast(msg, type = '') {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-function showConfirm(title, text, onConfirm, dangerous = true) {
+function showConfirm(title, text, onConfirm, dangerous = true, opts = {}) {
   document.getElementById('confirm-title').textContent = title;
   document.getElementById('confirm-text').textContent = text;
   const okBtn = document.getElementById('confirm-ok');
@@ -3537,6 +3537,13 @@ function showConfirm(title, text, onConfirm, dangerous = true) {
     okBtn.textContent = tt('delete_btn');
     iconEl.style.background = 'var(--grad-red)';
     iconEl.innerHTML = '<i class="ti ti-trash"></i>';
+  } else {
+    // Non-destructive confirm — use a neutral/positive look (NOT a trash/delete style)
+    const bg = opts.color || 'var(--grad-hero)';
+    okBtn.style.background = bg;
+    okBtn.textContent = opts.okText || tt('confirm') || 'ยืนยัน';
+    iconEl.style.background = bg;
+    iconEl.innerHTML = `<i class="ti ${opts.icon || 'ti-circle-check'}"></i>`;
   }
   confirmCallback = () => {
     if (dangerous) {
@@ -6254,7 +6261,7 @@ function renderAgents() {
         saveAgents();
         renderAll();
         showToast(tt('sent_to_admin'), 'success');
-      }, false);
+      }, false, { icon: 'ti-send', color: 'var(--grad-green)', okText: tt('submit_btn') || tt('submit_to_admin') });
     });
   });
 
