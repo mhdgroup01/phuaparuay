@@ -1046,6 +1046,14 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 @media (min-width: 1024px) { .fab { display: none; } }
 
 .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--surface); padding: 12px 20px; border-radius: 14px; font-size: 16px; font-weight: 500; z-index: 200; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none; transition: all 0.3s; }
+/* Realtime sync — subtle pill that slides in from top, never steals focus */
+#realtime-indicator { position: fixed; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-20px); background: var(--grad-green); color: #fff; padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; font-family: var(--font-display); z-index: 250; box-shadow: 0 4px 16px rgba(91,168,132,0.4); display: flex; align-items: center; gap: 6px; opacity: 0; pointer-events: none; transition: all 0.35s cubic-bezier(0.4,0,0.2,1); }
+#realtime-indicator.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#realtime-indicator i { font-size: 15px; }
+/* Connection status dot in header */
+.realtime-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex-shrink: 0; transition: all 0.3s; position: relative; }
+.realtime-status-dot.connected { background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,0.5); animation: rtPulse 2.5s infinite; }
+@keyframes rtPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.45); } 70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.toast-success { background: var(--grad-green); color: white; }
 .toast.toast-error { background: var(--grad-red); color: white; }
@@ -1137,7 +1145,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
       <div class="header-logo"><i class="ti ti-wallet"></i></div>
       <div class="header-text">
         <h1 data-i18n="appTitle">ผัวพารวย</h1>
-        <p id="header-date"></p>
+        <p id="header-date" style="display: flex; align-items: center; gap: 6px;"><span class="realtime-status-dot" id="realtime-status-dot" title=""></span><span id="header-date-text"></span></p>
       </div>
     </div>
   </header>
@@ -1869,7 +1877,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.52';
+const APP_VERSION = '1.99.53';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -1887,8 +1895,19 @@ function activeUser() { return viewingAsUser || currentUser; }
 function initSupabase() {
   if (supabaseClient) return supabaseClient;
   if (typeof window.supabase === 'undefined' || !window.supabase.createClient) return null;
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    realtime: { params: { eventsPerSecond: 5 } }
+  });
   return supabaseClient;
+}
+// Give the realtime socket the user's JWT so it passes RLS on the user_data table
+function setRealtimeAuth() {
+  try {
+    const c = supabaseClient;
+    if (c && c.realtime && currentUser && currentUser._token) {
+      c.realtime.setAuth(currentUser._token);
+    }
+  } catch (e) {}
 }
 const usernameToEmail = (u) => `${u.toLowerCase().trim()}@${AUTH_EMAIL_DOMAIN}`;
 
@@ -2237,6 +2256,7 @@ const T = {
     badge_draft: 'ສະບັບຮ່າງ', badge_pending: 'ລໍຖ້າອະນຸມັດ', badge_approved: 'ອະນຸມັດແລ້ວ', badge_rejected: 'ຖືກປະຕິເສດ',
     reject_reason_label: 'ເຫດຜົນທີ່ປະຕິເສດ:',
     submit_to_admin: 'ສົ່ງໃຫ້ Admin ກວດສອບ', submit_btn: 'ສົ່ງໃຫ້ Admin',
+    realtime_synced: 'ອັບເດດແລ້ວ', realtime_on: 'ເຊື່ອມຕໍ່ສົດ', realtime_off: 'ອອບລາຍ',
     sent_to_admin: 'ສົ່ງໃຫ້ Admin ແລ້ວ — ລໍຖ້າອະນຸມັດ',
     submit_agent_q: 'ສົ່ງຕົວແທນໃຫ້ Admin?',
     submit_agent_warning: 'ເມື່ອສົ່ງແລ້ວ ຈະແກ້ໄຂບໍ່ໄດ້ຈົນກວ່າ Admin ຈະອະນຸມັດຫຼືປະຕິເສດ',
@@ -2613,6 +2633,7 @@ const T = {
     badge_draft: 'ฉบับร่าง', badge_pending: 'รออนุมัติ', badge_approved: 'อนุมัติแล้ว', badge_rejected: 'ถูกปฏิเสธ',
     reject_reason_label: 'เหตุผลที่ปฏิเสธ:',
     submit_to_admin: 'ส่งให้ Admin ตรวจสอบ', submit_btn: 'ส่งให้ Admin',
+    realtime_synced: 'อัพเดทแล้ว', realtime_on: 'เชื่อมต่อสด', realtime_off: 'ออฟไลน์',
     sent_to_admin: 'ส่งให้ Admin แล้ว — รออนุมัติ',
     submit_agent_q: 'ส่งตัวแทนให้ Admin?',
     submit_agent_warning: 'เมื่อส่งแล้ว จะแก้ไขไม่ได้จนกว่า Admin จะอนุมัติหรือปฏิเสธ',
@@ -3240,7 +3261,300 @@ async function pushCloudData() {
         }
       })();
     }
+
+    // Record what we just pushed so the realtime listener can ignore our own echo
+    _lastPushedSignature = realtimeDataSignature(payload.data);
+    _lastPushedAt = Date.now();
   } catch (e) { console.error('Cloud save failed:', e.message); }
+}
+
+// ============================================================
+// REALTIME SYNC — live updates across devices via Supabase Realtime
+// ============================================================
+let _realtimeChannel = null;
+let _realtimeTargetUserId = null;
+let _lastPushedSignature = '';
+let _lastPushedAt = 0;
+let _realtimeMergeTimer = null;
+
+// Cheap signature of the syncable data — used to detect our own echoes
+function realtimeDataSignature(data) {
+  try {
+    const t = (data.transactions || []).length;
+    const a = (data.agents || []).length;
+    const g = (data.agentGroups || []).length;
+    const sa = (data.subAgents || []).length;
+    const st = (data.subTransactions || []).length;
+    // Include a rolling sum of amounts + statuses so edits (not just counts) are detected
+    let amtSum = 0, statusKey = '';
+    (data.transactions || []).forEach(x => { amtSum += (x.amount || 0); if (x.unpaid) amtSum += 0.5; if (x.payments) amtSum += x.payments.length * 0.01; });
+    (data.agents || []).forEach(x => { statusKey += (x.status || '')[0] || ''; });
+    return `${t}|${a}|${g}|${sa}|${st}|${Math.round(amtSum*100)}|${statusKey}`;
+  } catch (e) { return String(Math.random()); }
+}
+
+// Capture values from any open quick-bill form so a background merge doesn't wipe them
+function captureOpenFormState() {
+  const state = { mainForms: {}, subForms: {}, openPanels: [], openBillLists: [], fullscreenAgentId: _fullscreenAgentId };
+  // Main quick-bill panels that are open
+  document.querySelectorAll('[id^="quick-bill-"]').forEach(panel => {
+    if (panel.style.display === 'block') {
+      const agentId = panel.id.replace('quick-bill-', '');
+      state.openPanels.push('quick-bill-' + agentId);
+      // Capture each row's field values
+      const rows = [];
+      panel.querySelectorAll('.bill-input-row').forEach(r => {
+        const amtEl = r.querySelector('[data-row-amount]');
+        rows.push({
+          date: (r.querySelector('[data-row-date]') || {}).value || '',
+          amount: amtEl ? amtEl.value : '',
+          calcResult: amtEl ? (amtEl.dataset.calcResult || '') : '',
+          calcMode: amtEl ? (amtEl.dataset.calcMode || '') : '',
+          kMode: amtEl ? (amtEl.dataset.kMode || '') : '',
+          desc: (r.querySelector('[data-row-desc]') || {}).value || '',
+          pct: (r.querySelector('[data-row-pct]') || {}).value || '',
+          unpaid: !!(r.querySelector('[data-row-unpaid]') || {}).checked,
+          calcChecked: !!(r.querySelector('[data-row-calc]') || {}).checked,
+          kChecked: !!(r.querySelector('[data-row-k]') || {}).checked
+        });
+      });
+      state.mainForms[agentId] = rows;
+    }
+  });
+  // Sub quick-bill panels
+  document.querySelectorAll('[id^="sub-quick-bill-"]').forEach(panel => {
+    if (panel.style.display === 'block') {
+      const saId = panel.id.replace('sub-quick-bill-', '');
+      state.openPanels.push('sub-quick-bill-' + saId);
+      const rows = [];
+      panel.querySelectorAll('.bill-input-row').forEach(r => {
+        const amtEl = r.querySelector('[data-sub-row-amount]');
+        rows.push({
+          date: (r.querySelector('[data-sub-row-date]') || {}).value || '',
+          amount: amtEl ? amtEl.value : '',
+          calcResult: amtEl ? (amtEl.dataset.calcResult || '') : '',
+          calcMode: amtEl ? (amtEl.dataset.calcMode || '') : '',
+          kMode: amtEl ? (amtEl.dataset.kMode || '') : '',
+          desc: (r.querySelector('[data-sub-row-desc]') || {}).value || '',
+          pct: (r.querySelector('[data-sub-row-pct]') || {}).value || '',
+          unpaid: !!(r.querySelector('[data-sub-row-unpaid]') || {}).checked,
+          calcChecked: !!(r.querySelector('[data-sub-row-calc]') || {}).checked,
+          kChecked: !!(r.querySelector('[data-sub-row-k]') || {}).checked
+        });
+      });
+      state.subForms[saId] = rows;
+    }
+  });
+  // Open "view bills" lists
+  document.querySelectorAll('[id^="bill-list-"]').forEach(p => {
+    if (p.style.display === 'block') state.openBillLists.push(p.id);
+  });
+  return state;
+}
+
+// Restore captured form state after a re-render triggered by realtime merge
+function restoreOpenFormState(state) {
+  if (!state) return;
+  // Re-open panels
+  state.openPanels.forEach(pid => {
+    const panel = document.getElementById(pid);
+    if (panel) panel.style.display = 'block';
+  });
+  state.openBillLists.forEach(pid => {
+    const panel = document.getElementById(pid);
+    if (panel) panel.style.display = 'block';
+  });
+  // Restore main form rows
+  Object.keys(state.mainForms).forEach(agentId => {
+    const rowsData = state.mainForms[agentId];
+    const container = document.querySelector(`[data-bill-rows="${agentId}"]`);
+    if (!container || !rowsData.length) return;
+    // Ensure enough rows exist
+    let existing = container.querySelectorAll('.bill-input-row');
+    while (existing.length < rowsData.length && typeof addBillRow === 'function') {
+      addBillRow(agentId);
+      existing = container.querySelectorAll('.bill-input-row');
+    }
+    existing.forEach((r, i) => {
+      const d = rowsData[i];
+      if (!d) return;
+      const set = (sel, val) => { const el = r.querySelector(sel); if (el && val !== undefined) el.value = val; };
+      set('[data-row-date]', d.date);
+      set('[data-row-desc]', d.desc);
+      set('[data-row-pct]', d.pct);
+      const amtEl = r.querySelector('[data-row-amount]');
+      if (amtEl) {
+        amtEl.value = d.amount;
+        amtEl.dataset.calcResult = d.calcResult || '';
+        amtEl.dataset.calcMode = d.calcMode || '';
+        amtEl.dataset.kMode = d.kMode || '';
+      }
+      const unpaidEl = r.querySelector('[data-row-unpaid]'); if (unpaidEl) unpaidEl.checked = d.unpaid;
+      const calcEl = r.querySelector('[data-row-calc]'); if (calcEl) calcEl.checked = d.calcChecked;
+      const kEl = r.querySelector('[data-row-k]'); if (kEl) { kEl.checked = d.kChecked; const wrap = r.querySelector('.brf-amount'); if (wrap) wrap.dataset.kMode = d.kChecked ? '1' : ''; }
+    });
+    if (typeof recalcBillSum === 'function') recalcBillSum(agentId);
+  });
+  // Restore sub form rows
+  Object.keys(state.subForms).forEach(saId => {
+    const rowsData = state.subForms[saId];
+    const container = document.querySelector(`[data-sub-bill-rows="${saId}"]`);
+    if (!container || !rowsData.length) return;
+    let existing = container.querySelectorAll('.bill-input-row');
+    while (existing.length < rowsData.length && typeof addSubBillRow === 'function') {
+      addSubBillRow(saId);
+      existing = container.querySelectorAll('.bill-input-row');
+    }
+    existing.forEach((r, i) => {
+      const d = rowsData[i];
+      if (!d) return;
+      const set = (sel, val) => { const el = r.querySelector(sel); if (el && val !== undefined) el.value = val; };
+      set('[data-sub-row-date]', d.date);
+      set('[data-sub-row-desc]', d.desc);
+      set('[data-sub-row-pct]', d.pct);
+      const amtEl = r.querySelector('[data-sub-row-amount]');
+      if (amtEl) {
+        amtEl.value = d.amount;
+        amtEl.dataset.calcResult = d.calcResult || '';
+        amtEl.dataset.calcMode = d.calcMode || '';
+        amtEl.dataset.kMode = d.kMode || '';
+      }
+      const unpaidEl = r.querySelector('[data-sub-row-unpaid]'); if (unpaidEl) unpaidEl.checked = d.unpaid;
+      const calcEl = r.querySelector('[data-sub-row-calc]'); if (calcEl) calcEl.checked = d.calcChecked;
+      const kEl = r.querySelector('[data-sub-row-k]'); if (kEl) { kEl.checked = d.kChecked; const wrap = r.querySelector('.brf-amount'); if (wrap) wrap.dataset.kMode = d.kChecked ? '1' : ''; }
+    });
+    if (typeof recalcSubBillSum === 'function') recalcSubBillSum(saId);
+  });
+  // Restore fullscreen card
+  if (state.fullscreenAgentId) {
+    _fullscreenAgentId = state.fullscreenAgentId;
+    if (typeof applyFullscreenState === 'function') applyFullscreenState();
+  }
+}
+
+// Apply incoming realtime data without disturbing the user's in-progress form
+function applyRealtimeData(newData) {
+  if (!newData) return;
+  const incoming = {
+    transactions: Array.isArray(newData.transactions) ? newData.transactions : [],
+    agents: Array.isArray(newData.agents) ? newData.agents : [],
+    agentGroups: Array.isArray(newData.agentGroups) ? newData.agentGroups : [],
+    subAgents: Array.isArray(newData.subAgents) ? newData.subAgents : [],
+    subTransactions: Array.isArray(newData.subTransactions) ? newData.subTransactions : []
+  };
+
+  // Ignore if it matches what WE just pushed (our own echo)
+  const incomingSig = realtimeDataSignature(incoming);
+  if (incomingSig === _lastPushedSignature && (Date.now() - _lastPushedAt) < 8000) {
+    return;
+  }
+  // Ignore if identical to current local state (no real change)
+  const currentSig = realtimeDataSignature({ transactions, agents, agentGroups, subAgents, subTransactions });
+  if (incomingSig === currentSig) return;
+
+  // Capture any open form BEFORE we mutate state + re-render
+  const formState = captureOpenFormState();
+
+  // Replace local state with incoming (cloud is source of truth for other-device edits)
+  transactions = incoming.transactions;
+  agents = incoming.agents;
+  agentGroups = incoming.agentGroups;
+  subAgents = incoming.subAgents;
+  subTransactions = incoming.subTransactions;
+  // Persist to localStorage cache
+  try {
+    localStorage.setItem(STORE_KEYS.tx, JSON.stringify(transactions));
+    localStorage.setItem(STORE_KEYS.agents, JSON.stringify(agents));
+    localStorage.setItem(STORE_KEYS.agentGroups, JSON.stringify(agentGroups));
+    localStorage.setItem(STORE_KEYS.subAgents, JSON.stringify(subAgents));
+    localStorage.setItem(STORE_KEYS.subTx, JSON.stringify(subTransactions));
+  } catch (e) {}
+
+  // Re-render, then restore the in-progress form so the user isn't interrupted
+  if (typeof renderAll === 'function') renderAll();
+  restoreOpenFormState(formState);
+
+  // Subtle indicator
+  if (typeof showRealtimeToast === 'function') showRealtimeToast();
+}
+
+// Lightweight, non-intrusive "synced" indicator (doesn't steal focus)
+let _realtimeToastTimer = null;
+function showRealtimeToast() {
+  let el = document.getElementById('realtime-indicator');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'realtime-indicator';
+    el.innerHTML = `<i class="ti ti-cloud-check"></i> <span>${tt('realtime_synced') || 'อัพเดทแล้ว'}</span>`;
+    document.body.appendChild(el);
+  }
+  el.classList.add('show');
+  clearTimeout(_realtimeToastTimer);
+  _realtimeToastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// Subscribe to realtime changes for the active user's row
+function startRealtimeSync() {
+  const targetUser = activeUser();
+  if (!targetUser) return;
+  const client = initSupabase();
+  if (!client) { console.warn('Realtime: supabase client unavailable'); return; }
+  setRealtimeAuth();
+
+  // Already subscribed to the right user? do nothing
+  if (_realtimeChannel && _realtimeTargetUserId === targetUser.id) return;
+  // Switching users — tear down old channel first
+  stopRealtimeSync();
+
+  _realtimeTargetUserId = targetUser.id;
+  try {
+    _realtimeChannel = client
+      .channel(`user_data_${targetUser.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'user_data',
+        filter: `id=eq.${targetUser.id}`
+      }, (payload) => {
+        if (payload && payload.new && payload.new.data) {
+          // Debounce rapid successive events
+          clearTimeout(_realtimeMergeTimer);
+          _realtimeMergeTimer = setTimeout(() => applyRealtimeData(payload.new.data), 250);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          _realtimeConnected = true;
+          updateRealtimeStatusDot();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          _realtimeConnected = false;
+          updateRealtimeStatusDot();
+        }
+      });
+  } catch (e) {
+    console.warn('Realtime subscribe failed:', e.message);
+  }
+}
+
+function stopRealtimeSync() {
+  if (_realtimeChannel) {
+    try {
+      const client = initSupabase();
+      if (client) client.removeChannel(_realtimeChannel);
+    } catch (e) {}
+    _realtimeChannel = null;
+  }
+  _realtimeTargetUserId = null;
+  _realtimeConnected = false;
+  updateRealtimeStatusDot();
+}
+
+let _realtimeConnected = false;
+function updateRealtimeStatusDot() {
+  const dot = document.getElementById('realtime-status-dot');
+  if (!dot) return;
+  dot.classList.toggle('connected', _realtimeConnected);
+  dot.title = _realtimeConnected ? (tt('realtime_on') || 'เชื่อมต่อเรียลไทม์') : (tt('realtime_off') || 'ออฟไลน์');
 }
 
 async function loadCloudData() {
@@ -9862,7 +10176,9 @@ function updateHeaderDate() {
     th: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
   };
   const months = monthsByLang[currentLang] || monthsByLang.lo;
-  document.getElementById('header-date').textContent = d.getDate() + ' ' + months[d.getMonth()] + ' ' + (d.getFullYear() + 543) + ' · v' + APP_VERSION;
+  const txt = d.getDate() + ' ' + months[d.getMonth()] + ' ' + (d.getFullYear() + 543) + ' · v' + APP_VERSION;
+  const el = document.getElementById('header-date-text') || document.getElementById('header-date');
+  if (el) el.textContent = txt;
 }
 
 function setupRangeButtons(prefix, range, customId) {
@@ -10140,6 +10456,8 @@ async function afterLogin(isNew) {
     } catch (e) {
       console.error('Background cloud load failed:', e);
     }
+    // Start live realtime sync once initial data is loaded
+    try { startRealtimeSync(); } catch (e) { console.warn('Realtime start failed:', e); }
   })();
 }
 
@@ -10149,6 +10467,7 @@ if (logoutBtnEl) logoutBtnEl.addEventListener('click', handleLogout);
 async function handleLogout() {
   showConfirm(tt('logout') || 'ออกจากระบบ', tt('logout_confirm') || 'ต้องการออกจากระบบหรือไม่?', async () => {
     if (cloudSaveTimer) { clearTimeout(cloudSaveTimer); try { await pushCloudData(); } catch (e) {} }
+    try { stopRealtimeSync(); } catch (e) {}
     // Direct fetch logout (best-effort, don't block on it)
     try {
       const token = currentUser && currentUser._token;
@@ -10693,6 +11012,8 @@ async function enterViewAsUser(userId, username) {
     // Don't persist to localStorage — keep admin's own cache intact
     updateViewAsBanner();
     renderAll();
+    // Switch realtime subscription to the viewed user so admin sees their live edits
+    try { startRealtimeSync(); } catch (e) {}
   } catch (e) {
     alert(tt('error_occurred') + ': ' + e.message);
   }
@@ -10721,6 +11042,8 @@ function exitViewAsUser() {
   } catch (e) { subTransactions = []; }
   updateViewAsBanner();
   renderAll();
+  // Re-subscribe realtime to admin's own data
+  try { startRealtimeSync(); } catch (e) {}
   // Re-sync from cloud in background
   (async () => { try { await loadCloudData(); renderAll(); } catch (e) {} })();
 }
@@ -10932,6 +11255,25 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && currentUser) {
     refreshSessionIfNeeded(false).catch(() => {});
+    // Re-establish realtime if the socket dropped while backgrounded
+    if (!_realtimeConnected) {
+      try { startRealtimeSync(); } catch (e) {}
+    }
+    // Pull latest once via the form-preserving merge path (won't clobber an open form)
+    (async () => {
+      try {
+        const targetUser = activeUser();
+        if (!targetUser) return;
+        const token = (currentUser && currentUser._token) || SUPABASE_ANON_KEY;
+        const url = `${SUPABASE_URL}/rest/v1/user_data?id=eq.${targetUser.id}&select=data`;
+        const resp = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+        if (resp.ok) {
+          const rows = await resp.json();
+          const row = Array.isArray(rows) && rows.length ? rows[0] : null;
+          if (row && row.data) applyRealtimeData(row.data);
+        }
+      } catch (e) {}
+    })();
   }
 });
 
