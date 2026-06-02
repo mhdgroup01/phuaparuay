@@ -1877,7 +1877,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.53';
+const APP_VERSION = '1.99.54';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3107,6 +3107,12 @@ function updateSyncCount() {
 // Supabase access tokens expire after ~1 hour. We MUST refresh proactively
 // using the saved refresh_token, otherwise saves silently 401 and data is
 // lost on next reload (cloud overwrites local with stale data).
+//
+// CRITICAL: refresh_token rotation is single-use. If two calls fire at once
+// (e.g. a save + a realtime reconnect both hit an expired token), the first
+// rotates the token and the second sends a now-revoked token → both fail and
+// the user gets logged out. We dedupe concurrent refreshes into ONE promise.
+let _refreshInFlight = null;
 async function refreshSessionIfNeeded(force) {
   if (!currentUser) return false;
   const tokenKey = 'sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token';
@@ -3125,39 +3131,77 @@ async function refreshSessionIfNeeded(force) {
     return true;
   }
 
-  try {
-    const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ refresh_token: session.refresh_token })
-    });
-    if (!resp.ok) {
-      console.warn('Token refresh failed:', resp.status);
+  // If a refresh is already running, wait for it instead of starting a second one
+  if (_refreshInFlight) return _refreshInFlight;
+
+  _refreshInFlight = (async () => {
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ refresh_token: session.refresh_token })
+      });
+      if (!resp.ok) {
+        console.warn('Token refresh failed:', resp.status);
+        return false;
+      }
+      const data = await resp.json();
+      if (!data.access_token) return false;
+      session.access_token = data.access_token;
+      if (data.refresh_token) session.refresh_token = data.refresh_token;
+      session.expires_in = data.expires_in;
+      session.expires_at = Math.floor(Date.now() / 1000) + (data.expires_in || 3600);
+      if (data.user) session.user = data.user;
+      try { localStorage.setItem(tokenKey, JSON.stringify(session)); } catch (e) {}
+      currentUser._token = data.access_token;
+      // Keep realtime socket authenticated with the fresh token
+      try { if (typeof setRealtimeAuth === 'function') setRealtimeAuth(); } catch (e) {}
+      return true;
+    } catch (e) {
+      console.warn('Token refresh error:', e.message);
       return false;
+    } finally {
+      _refreshInFlight = null;
     }
-    const data = await resp.json();
-    if (!data.access_token) return false;
-    session.access_token = data.access_token;
-    if (data.refresh_token) session.refresh_token = data.refresh_token;
-    session.expires_in = data.expires_in;
-    session.expires_at = Math.floor(Date.now() / 1000) + (data.expires_in || 3600);
-    if (data.user) session.user = data.user;
-    try { localStorage.setItem(tokenKey, JSON.stringify(session)); } catch (e) {}
-    currentUser._token = data.access_token;
-    return true;
-  } catch (e) {
-    console.warn('Token refresh error:', e.message);
-    return false;
-  }
+  })();
+  return _refreshInFlight;
 }
 
 function scheduleCloudSave() {
   if (!currentUser) return;
   if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(() => { pushCloudData(); }, 800);
+}
+
+// ============ PENDING-SAVE RETRY ============
+// If a cloud save fails (expired session, network blip), we keep the data in
+// localStorage and retry automatically until it lands. This is what prevents
+// "I entered data, hit save, and it didn't save" after the page sat idle.
+let _pendingCloudSave = false;
+let _pendingSaveRetryTimer = null;
+function startPendingSaveRetry() {
+  if (_pendingSaveRetryTimer) return;  // already retrying
+  _pendingSaveRetryTimer = setInterval(async () => {
+    if (!_pendingCloudSave || !currentUser) {
+      clearInterval(_pendingSaveRetryTimer);
+      _pendingSaveRetryTimer = null;
+      return;
+    }
+    // Try to restore the session, then push again
+    const ok = await refreshSessionIfNeeded(true);
+    if (ok) {
+      await pushCloudData();  // will clear the flag + timer on success
+    }
+  }, 20000);  // retry every 20s
+}
+// Expose a manual "save now" the UI can call (e.g. before the app closes)
+async function flushPendingSave() {
+  if (!currentUser) return;
+  await refreshSessionIfNeeded(false);
+  await pushCloudData();
 }
 
 async function pushCloudData() {
@@ -3235,18 +3279,28 @@ async function pushCloudData() {
         result = await doSave();
       }
       if (!result.ok) {
-        // Refresh failed or retry still 401 — surface to user; data stays in localStorage
+        // Refresh failed or retry still 401 — data stays in localStorage.
+        // Flag a pending save so we auto-retry as soon as the token is restored.
+        _pendingCloudSave = true;
         if (typeof showToast === 'function') {
           showToast(tt('session_expired_save') || 'เซสชั่นหมดอายุ — กรุณาลงชื่อเข้าใช้ใหม่', 'error');
         }
+        startPendingSaveRetry();
         return;
       }
     } else if (!result.ok) {
-      // Non-auth failure — show error so user knows save didn't go through
+      // Non-auth failure (network blip, server error) — flag pending + retry
+      _pendingCloudSave = true;
       if (typeof showToast === 'function') {
         showToast(tt('cloud_save_failed') || 'บันทึกขึ้นคลาวด์ไม่สำเร็จ — ข้อมูลยังอยู่ในเครื่อง', 'error');
       }
+      startPendingSaveRetry();
+      return;
     }
+
+    // Success — clear any pending-save flag
+    _pendingCloudSave = false;
+    if (_pendingSaveRetryTimer) { clearInterval(_pendingSaveRetryTimer); _pendingSaveRetryTimer = null; }
 
     // If admin (and not in view-as mode) — auto-mirror agent updates back to owners
     if (currentUser.role === 'admin' && !viewingAsUser) {
@@ -3892,6 +3946,10 @@ function showSaveConfirm(summaryHtml, onConfirm) {
   pendingSaveCallback = onConfirm;
   document.getElementById('confirm-save-summary').innerHTML = summaryHtml;
   document.getElementById('confirm-save-modal').classList.add('show');
+  // Warm up the auth token NOW (in the background) so that by the time the user
+  // taps "บันทึก", the token is fresh and the cloud save won't 401. This is the
+  // main fix for "left the page idle, hit save, nothing saved".
+  try { refreshSessionIfNeeded(false); } catch (e) {}
 }
 
 // Build summary for single transaction (income/expense from transactions form)
@@ -11249,12 +11307,22 @@ startup();
 // Refresh the session token periodically while the app is open so it never
 // expires mid-use. Also refresh when the tab becomes visible again (mobile
 // users often background the app for hours).
+// refreshSessionIfNeeded(false) is cheap — it only hits the network if the
+// token is actually within 5 min of expiry — so a 5-min cadence is safe and
+// far more resilient than 30 min if the device was briefly asleep.
 setInterval(() => {
-  if (currentUser) refreshSessionIfNeeded(false).catch(() => {});
-}, 30 * 60 * 1000);  // every 30 minutes
+  if (!currentUser) return;
+  refreshSessionIfNeeded(false).then((ok) => {
+    // If we have data that failed to save earlier and the token is now valid, flush it
+    if (ok && _pendingCloudSave) pushCloudData().catch(() => {});
+  }).catch(() => {});
+}, 5 * 60 * 1000);  // every 5 minutes
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && currentUser) {
-    refreshSessionIfNeeded(false).catch(() => {});
+    refreshSessionIfNeeded(false).then((ok) => {
+      // Flush any save that failed while we were backgrounded
+      if (ok && _pendingCloudSave) pushCloudData().catch(() => {});
+    }).catch(() => {});
     // Re-establish realtime if the socket dropped while backgrounded
     if (!_realtimeConnected) {
       try { startRealtimeSync(); } catch (e) {}
