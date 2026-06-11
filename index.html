@@ -520,7 +520,7 @@ h1, h2, h3, .display {
 .agent-card.fullscreen {
   position: fixed;
   inset: 0;
-  z-index: 9000;
+  z-index: 90;  /* above header(50)/fab(40)/banner(80) but BELOW modals(100+) and toasts(200) so popups stay visible */
   margin: 0;
   border-radius: 0;
   overflow-y: auto;
@@ -860,6 +860,19 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 
 /* Bill input — settings on top row, amount on bottom row (wide) */
 .bill-row-inline { padding: 8px; background: rgba(255,255,255,0.92); border-radius: 10px; }
+/* === EXTENDED TAP TARGETS ===
+   Small visual buttons (26-28px) get an invisible ±8px hit area so the
+   effective touch target is ~42-44px without changing the dense layout. */
+.brf-calc, .brf-k, .batch-copy-btn, .bill-del, .row-del-btn,
+.bill-row-inline .row-del-btn, .exp-amount-row .brf-k { position: relative; }
+.brf-calc::after, .brf-k::after, .batch-copy-btn::after, .bill-del::after,
+.row-del-btn::after, .bill-row-inline .row-del-btn::after, .exp-amount-row .brf-k::after {
+  content: ''; position: absolute; inset: -8px; border-radius: 12px;
+}
+/* Buttons that sit side-by-side (bill row copy/edit/delete, batch copy next to pay)
+   extend mostly VERTICALLY — only ±2px horizontally — so neighbors' hit zones don't
+   overlap and a tap between edit/delete can't fire the wrong action. */
+.bill-del::after, .batch-copy-btn::after { inset: -8px -2px; }
 .bill-row-inline .top-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
 .bill-row-inline .bottom-row { display: flex; align-items: center; gap: 6px; }
 .bill-row-inline .row-num { width: 26px; height: 26px; border-radius: 7px; background: #6366f1; color: white; font-weight: 700; font-size: 13px; font-family: var(--font-display); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -885,12 +898,12 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .bill-row-inline .brf-check input:not(:checked) + .check-box::before { content: '✓'; }
 .bill-row-inline .brf-calc { display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; }
 .bill-row-inline .brf-calc input { display: none; }
-.bill-row-inline .brf-calc .calc-box { width: 28px; height: 28px; border-radius: 7px; border: 1.5px solid rgba(0,0,0,0.08); background: #f3f4f6; color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 14px; }
+.bill-row-inline .brf-calc .calc-box { width: 30px; height: 30px; border-radius: 7px; border: 1.5px solid rgba(0,0,0,0.08); background: #f3f4f6; color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 14px; }
 .bill-row-inline .brf-calc .calc-box i { font-size: 14px; }
 .bill-row-inline .brf-calc input:checked + .calc-box { background: #ede9fe; border-color: #8b5cf6; color: #7c3aed; }
 .bill-row-inline .brf-k { display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; }
 .bill-row-inline .brf-k input { display: none; }
-.bill-row-inline .brf-k .k-box { width: 28px; height: 28px; border-radius: 7px; border: 1.5px solid rgba(0,0,0,0.08); background: #f3f4f6; color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 13px; font-weight: 800; font-family: var(--font-display); letter-spacing: -0.02em; }
+.bill-row-inline .brf-k .k-box { width: 30px; height: 30px; border-radius: 7px; border: 1.5px solid rgba(0,0,0,0.08); background: #f3f4f6; color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 13px; font-weight: 800; font-family: var(--font-display); letter-spacing: -0.02em; }
 .bill-row-inline .brf-k input:checked + .k-box { background: #fef3c7; border-color: #f59e0b; color: #d97706; }
 .bill-row-inline .brf-amount .k-suffix { display: none; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 6px; background: #fef3c7; color: #d97706; margin-left: 6px; flex-shrink: 0; font-family: var(--font-display); letter-spacing: -0.01em; }
 .bill-row-inline .brf-amount[data-k-mode="1"] .k-suffix { display: inline-flex; align-items: center; }
@@ -901,7 +914,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .exp-amount-row .brf-k input { display: none; }
 .exp-amount-row .brf-k .k-box { width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.10); background: #f3f4f6; color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 14px; font-weight: 800; font-family: var(--font-display); }
 .exp-amount-row .brf-k input:checked + .k-box { background: #fef3c7; border-color: #f59e0b; color: #d97706; }
-.bill-row-inline .row-del-btn { width: 28px; height: 28px; padding: 0; border-radius: 7px; background: rgba(239, 68, 68, 0.12); border: none; color: #ef4444; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+.bill-row-inline .row-del-btn { width: 30px; height: 30px; padding: 0; border-radius: 7px; background: rgba(239, 68, 68, 0.12); border: none; color: #ef4444; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
 .bill-row-inline .row-del-btn:hover { background: rgba(239, 68, 68, 0.25); }
 .bill-row-inline .row-next-btn { width: 38px; height: 40px; padding: 0; border-radius: 8px; background: var(--grad-hero); border: none; color: white; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
 .bill-row-inline .row-next-btn:active { transform: scale(0.92); }
@@ -977,7 +990,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .batch-actions { display: flex; gap: 4px; flex-wrap: wrap; }
 .batch-pay-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,0.25); color: white; cursor: pointer; font-family: var(--font-display); transition: transform 0.1s; }
 .batch-pay-btn:hover { transform: translateY(-1px); }
-.batch-copy-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.20); color: white; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+.batch-copy-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 7px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.20); color: white; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
 .batch-copy-btn:hover { background: rgba(255,255,255,0.30); transform: translateY(-1px); }
 .batch-copy-btn:active { transform: scale(0.92); }
 .batch-copy-btn i { font-size: 14px; }
@@ -1008,7 +1021,10 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 .bill-day-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 8px; }
 .bill-day-cell { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 8px; text-align: center; }
 .bill-day-cell-label { font-size: 11px; opacity: 0.75; margin-bottom: 1px; text-transform: uppercase; letter-spacing: 0.3px; }
-.bill-day-cell-value { font-size: 13px; font-weight: 500; font-family: var(--font-display); }
+.bill-day-cell-value { font-size: 13px; font-weight: 500; font-family: var(--font-display); overflow: hidden; }
+/* Long money strings (e.g. +29,618,000 ₭) shrink slightly on narrow phones instead of colliding with the next cell */
+@media (max-width: 400px) { .bill-day-cell-value { font-size: 12px; letter-spacing: -0.02em; } }
+@media (max-width: 350px) { .bill-day-cell-value { font-size: 11px; } }
 .day-balance { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 9px; margin-bottom: 8px; font-size: 13px; font-family: var(--font-display); font-weight: 500; }
 .day-balance i { font-size: 16px; flex-shrink: 0; }
 .day-balance strong { font-weight: 800; letter-spacing: -0.01em; }
@@ -1023,7 +1039,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 }
 .bill-day-rows { background: rgba(0,0,0,0.15); border-radius: 10px; padding: 2px 6px; }
 .bill-day-rows .bill-row { padding: 7px 4px; }
-.bill-del { background: rgba(255,255,255,0.18); border: none; color: white; width: 26px; height: 26px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.bill-del { background: rgba(255,255,255,0.18); border: none; color: white; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
 .bill-del:hover { background: rgba(239, 68, 68, 0.5); }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 10, 31, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100; display: none; align-items: flex-end; justify-content: center; padding: 16px; animation: fadeIn 0.2s; }
@@ -1877,7 +1893,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.54';
+const APP_VERSION = '1.99.55';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -3060,6 +3076,7 @@ function updateSyncCount() {
 // Wire up sync tx modal
 (function setupSyncModal() {
   document.getElementById('sync-tx-close').addEventListener('click', () => document.getElementById('sync-tx-modal').classList.remove('show'));
+  document.getElementById('sync-tx-modal').addEventListener('click', (e) => { if (e.target.id === 'sync-tx-modal') document.getElementById('sync-tx-modal').classList.remove('show'); });
   document.getElementById('sync-tx-cancel').addEventListener('click', () => document.getElementById('sync-tx-modal').classList.remove('show'));
   document.getElementById('sync-select-all').addEventListener('click', () => {
     document.querySelectorAll('.sync-day-check').forEach(c => c.checked = true);
@@ -5416,6 +5433,7 @@ async function doExportPng() {
 (function setupExportModal() {
   const closeFn = () => document.getElementById('export-modal').classList.remove('show');
   document.getElementById('export-modal-close').addEventListener('click', closeFn);
+  document.getElementById('export-modal').addEventListener('click', (e) => { if (e.target.id === 'export-modal') closeFn(); });
   document.getElementById('export-cancel').addEventListener('click', closeFn);
   document.getElementById('export-select-all').addEventListener('click', () => {
     document.querySelectorAll('.export-check').forEach(c => c.checked = true);
@@ -9043,6 +9061,36 @@ function handleCalcAmountInput(e, onAfter) {
       try { const pos = inp.value.length; inp.setSelectionRange(pos, pos); } catch (err) {}
       if (typeof onAfter === 'function') onAfter();
       return;
+    }
+    // Typing right after an evaluated "expr=result" — behave like a real calculator:
+    //  - typing a DIGIT starts a fresh entry (replaces the field with that digit)
+    //  - typing +/- continues from the result ("3,000" + "+" → "3000+")
+    const typedChar = e.inputType === 'insertText' ? e.data : null;
+    if (typedChar && /^[\d+\-.]$/.test(typedChar)) {
+      // Strip the char we just typed to inspect the previous value
+      const prevVal = inp.value.slice(0, -1);
+      const eqIdx = prevVal.lastIndexOf('=');
+      if (eqIdx >= 0 && inp.selectionStart === inp.value.length) {
+        const resultPart = prevVal.slice(eqIdx + 1);
+        const isCompleteEval = resultPart.length > 0;  // looks like "expr=result"
+        if (isCompleteEval) {
+          if (/\d|\./.test(typedChar)) {
+            // Digit/dot → start fresh
+            inp.value = typedChar === '.' ? '0.' : typedChar;
+            inp.dataset.calcResult = '';
+            if (typeof onAfter === 'function') onAfter();
+            return;
+          }
+          if (/[+\-]/.test(typedChar)) {
+            // Operator → continue from result (strip commas)
+            const num = resultPart.replace(/,/g, '');
+            inp.value = num + typedChar;
+            inp.dataset.calcResult = '';
+            if (typeof onAfter === 'function') onAfter();
+            return;
+          }
+        }
+      }
     }
     // Otherwise: allow editing of the expression freely (keep operators, '.', digits, '=')
     const val = inp.value;
