@@ -1893,7 +1893,7 @@ body:has(.agent-card.fullscreen) { overscroll-behavior: contain; }
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.99.55';
+const APP_VERSION = '1.99.56';
 
 // ============ SUPABASE CONFIG ============
 const SUPABASE_URL = 'https://yukfctbxjkgyymkjzknl.supabase.co';
@@ -4442,6 +4442,27 @@ function openExportModal(agentId, isSub) {
   document.getElementById('export-modal').classList.add('show');
 }
 
+// Build the same #N sequence maps the app shows on bill rows, so exports can
+// order rows by the labeled number and print it. Computed from the FULL agent
+// tx list (not just the selected days) so numbers match the app exactly.
+function buildExportSeqMaps() {
+  const src = _exportIsSub ? subTransactions : transactions;
+  const key = _exportIsSub ? 'subAgentId' : 'agentId';
+  const txIdx = new Map(src.map((t, i) => [t.id, i]));
+  const incomeAsc = src.filter(t => t[key] === _exportAgentId && t.type === 'income')
+    .sort((x, y) => x.date.localeCompare(y.date) || ((txIdx.get(x.id) || 0) - (txIdx.get(y.id) || 0)));
+  const expenseAsc = src.filter(t => t[key] === _exportAgentId && t.type === 'expense')
+    .sort((x, y) => x.date.localeCompare(y.date) || ((txIdx.get(x.id) || 0) - (txIdx.get(y.id) || 0)));
+  const seqMap = {}; incomeAsc.forEach((t, i) => { seqMap[t.id] = i + 1; });
+  const expSeqMap = {}; expenseAsc.forEach((t, i) => { expSeqMap[t.id] = i + 1; });
+  return { seqMap, expSeqMap, txIdx };
+}
+// "#N" label for a tx (income and expense have independent sequences, same as the app)
+function exportSeqLabel(t, maps) {
+  const n = t.type === 'income' ? maps.seqMap[t.id] : maps.expSeqMap[t.id];
+  return n ? ('#' + n) : '';
+}
+
 // Helper used by export functions to fetch the active agent regardless of mode
 function _getExportAgent() {
   return _exportIsSub ? getSubAgent(_exportAgentId) : agents.find(a => a.id === _exportAgentId);
@@ -4626,7 +4647,9 @@ async function doExportXlsx() {
   const selectedTxs = getSelectedTxs();
   if (selectedTxs.length === 0) return;
 
-  const agentTxs = selectedTxs.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const _seqMaps = buildExportSeqMaps();
+  const agentTxs = selectedTxs.slice().sort((a, b) =>
+    a.date.localeCompare(b.date) || ((_seqMaps.txIdx.get(a.id) || 0) - (_seqMaps.txIdx.get(b.id) || 0)));
   const datesSet = new Set(agentTxs.map(t => t.date));
   const sortedDays = Array.from(datesSet).sort();
 
@@ -4722,7 +4745,7 @@ async function doExportXlsx() {
     const r = curRow - 1;
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 0 }), formatThaiDate(t.date), S_DATA_CENTER);
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 1 }), typeLabel, typeStyle);
-    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 2 }), t.desc || '—', S_DATA_TEXT);
+    xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 2 }), exportSeqLabel(t, _seqMaps) + (t.desc ? ' · ' + t.desc : ''), S_DATA_TEXT);
     // col 3 (income data) — RED numbers (because column labeled ລາຍຈ່າຍ)
     xlSetCell(ws1, XLSX.utils.encode_cell({ r, c: 3 }), incomeV, incomeV !== '' ? S_NUM_RED : S_DATA_CENTER);
     // col 4 (expense data) — GREEN numbers (because column labeled ລາຍຮັບ)
@@ -4936,7 +4959,9 @@ async function doExportPdf() {
   const selectedTxs = getSelectedTxs();
   if (selectedTxs.length === 0) return;
 
-  const agentTxs = selectedTxs.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const _seqMaps = buildExportSeqMaps();
+  const agentTxs = selectedTxs.slice().sort((a, b) =>
+    a.date.localeCompare(b.date) || ((_seqMaps.txIdx.get(a.id) || 0) - (_seqMaps.txIdx.get(b.id) || 0)));
   const datesSet = new Set(agentTxs.map(t => t.date));
   const sortedDays = Array.from(datesSet).sort();
 
@@ -4985,7 +5010,7 @@ async function doExportPdf() {
       cells: [
         formatThaiDate(t.date),
         typeLabel,
-        t.desc || '—',
+        exportSeqLabel(t, _seqMaps) + (t.desc ? ' · ' + t.desc : ''),
         incomeV !== '' ? incomeV.toLocaleString() : '',
         expenseV !== '' ? expenseV.toLocaleString() : '',
         pctV !== '' ? pctV + '%' : '',
@@ -5216,7 +5241,9 @@ async function doExportPng() {
   const selectedTxs = getSelectedTxs();
   if (selectedTxs.length === 0) return;
 
-  const agentTxs = selectedTxs.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const _seqMaps = buildExportSeqMaps();
+  const agentTxs = selectedTxs.slice().sort((a, b) =>
+    a.date.localeCompare(b.date) || ((_seqMaps.txIdx.get(a.id) || 0) - (_seqMaps.txIdx.get(b.id) || 0)));
   const datesSet = new Set(agentTxs.map(t => t.date));
   const sortedDays = Array.from(datesSet).sort();
 
@@ -5244,7 +5271,7 @@ async function doExportPng() {
     rows.push({
       isIncome, unpaid: !!t.unpaid,
       cells: [
-        formatThaiDate(t.date), typeLabel, t.desc || '—',
+        formatThaiDate(t.date), typeLabel, exportSeqLabel(t, _seqMaps) + (t.desc ? ' · ' + t.desc : ''),
         incomeV !== '' ? incomeV.toLocaleString() : '',
         expenseV !== '' ? expenseV.toLocaleString() : '',
         pctV !== '' ? pctV + '%' : '',
