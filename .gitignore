@@ -1,0 +1,26 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Temp / build scratch
+/tmp/
+*.tmp
+/tmp/app.js
+
+# Claude Code local
+.claude/
+
+# Node (ไม่ได้ใช้ build แต่กันเผลอ)
+node_modules/
+package-lock.json
+
+# ไฟล์ทดสอบ export ที่ generate เอง
+sample_*.pdf
+sample_*.xlsx
+sample_*.png
